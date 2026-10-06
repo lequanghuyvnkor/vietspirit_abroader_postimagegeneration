@@ -1,6 +1,10 @@
 import type { Store } from './types.ts'
 
-export type Session = { configured: boolean; authed: boolean; ai?: { ready: boolean; provider: 'openai' | 'gemini' } }
+export type Session = { configured: boolean; authed: boolean; ai?: { ready: boolean } }
+
+export type Provider = 'openai' | 'gemini'
+export type ApiKey = { id: string; provider: Provider; label: string; model: string; last4: string; isDefault: boolean; fromEnv: boolean }
+export type KeyInput = { provider?: Provider; label?: string; model?: string; apiKey?: string; isDefault?: boolean }
 
 export class ApiError extends Error {
   status: number
@@ -34,7 +38,11 @@ export const api = {
   saveStore: (store: Store) => request('/api/store', { method: 'PUT', body: JSON.stringify(store) }),
   uploadAsset: (name: string, dataUrl: string) => post<{ id: string }>('/api/assets', { name, dataUrl }).then((result) => result.id),
   deleteAsset: (id: string) => request(`/api/assets/${id}`, { method: 'DELETE' }),
-  generate: (input: { prompt: string; width: number; height: number; quality: 'high' | 'xhigh'; referenceIds: string[] }) =>
+  listKeys: () => request<{ keys: ApiKey[] }>('/api/keys').then((result) => result.keys),
+  addKey: (input: KeyInput) => post<{ keys: ApiKey[] }>('/api/keys', input).then((result) => result.keys),
+  updateKey: (id: string, input: KeyInput) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'PUT', body: JSON.stringify(input) }).then((result) => result.keys),
+  removeKey: (id: string) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'DELETE' }).then((result) => result.keys),
+  generate: (input: { prompt: string; width: number; height: number; quality: 'high' | 'xhigh'; referenceIds: string[]; keyId?: string }) =>
     post<{ assetId: string }>('/api/generate', input).then((result) => result.assetId),
 }
 

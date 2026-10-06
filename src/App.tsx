@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api, type Session } from './lib/api.ts'
+import { api, type ApiKey, type Session } from './lib/api.ts'
 import { useStore } from './lib/store.ts'
 import { navigate, parseRoute, type Route } from './lib/route.ts'
 import { LoginView } from './views/LoginView.tsx'
@@ -8,6 +8,7 @@ import { WorkspaceView } from './views/WorkspaceView.tsx'
 import { CampaignView } from './views/CampaignView.tsx'
 import { StudioView } from './views/StudioView.tsx'
 import { Modal } from './views/ui.tsx'
+import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
 import './App.css'
 
 function useRoute(): Route {
@@ -40,11 +41,14 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
   </Modal>
 }
 
-function Studio({ session, onLogout }: { session: Session; onLogout: () => void }) {
+function Studio({ onLogout }: { onLogout: () => void }) {
   const { store, update, saveState, loadError } = useStore()
   const route = useRoute()
   const [error, setError] = useState('')
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [keysOpen, setKeysOpen] = useState(false)
+  const [keys, setKeys] = useState<ApiKey[]>([])
+  useEffect(() => { api.listKeys().then(setKeys).catch(() => setKeys([])) }, [])
   const reportError = useCallback((message: string) => setError(message), [])
 
   if (loadError) return <main className="auth-page"><p className="notice error">{loadError}</p></main>
@@ -56,7 +60,7 @@ function Studio({ session, onLogout }: { session: Session; onLogout: () => void 
 
   let view
   if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} onError={reportError} />
-  else if (workspace && campaign) view = <CampaignView key={campaign.id} update={update} workspace={workspace} campaign={campaign} aiReady={Boolean(session.ai?.ready)} onError={reportError} />
+  else if (workspace && campaign) view = <CampaignView key={campaign.id} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace) view = <WorkspaceView key={workspace.id} store={store} update={update} workspace={workspace} onError={reportError} />
   else view = <WorkspacesView store={store} update={update} />
 
@@ -75,12 +79,14 @@ function Studio({ session, onLogout }: { session: Session; onLogout: () => void 
       </nav>
       <div className="topbar-actions">
         <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : 'Đã lưu'}</span>
+        <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
         <button className="btn small ghost" onClick={() => setPasswordOpen(true)}>Đổi mật khẩu</button>
         <button className="btn small ghost" onClick={onLogout}>Đăng xuất</button>
       </div>
     </header>
     {error && <div className="toast" role="alert"><span>{error}</span><button aria-label="Đóng thông báo" onClick={() => setError('')}>×</button></div>}
     <main>{view}</main>
+    {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
   </div>
 }
@@ -94,5 +100,5 @@ export default function App() {
   if (fatal) return <main className="auth-page"><p className="notice error">{fatal}</p></main>
   if (!session) return <main className="auth-page"><p className="muted">Đang tải…</p></main>
   if (!session.authed) return <LoginView configured={session.configured} onDone={refresh} />
-  return <Studio session={session} onLogout={() => { void api.logout().then(refresh) }} />
+  return <Studio onLogout={() => { void api.logout().then(refresh) }} />
 }

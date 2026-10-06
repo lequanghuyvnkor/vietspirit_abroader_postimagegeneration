@@ -21,6 +21,7 @@ const DATA_DIR = process.env.DATA_DIR || join(fileURLToPath(new URL('.', import.
 const ASSET_DIR = join(DATA_DIR, 'assets')
 const STORE_FILE = join(DATA_DIR, 'store.json')
 const AUTH_FILE = join(DATA_DIR, 'auth.json')
+const KEYS_FILE = join(DATA_DIR, 'keys.json')
 mkdirSync(ASSET_DIR, { recursive: true })
 
 const MAX_STORE_BYTES = 8 * 1024 * 1024
@@ -123,11 +124,79 @@ function originAllowed(req) {
   return !origin || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)
 }
 
+// ---------- API keys ----------
+// Stored server-side only; the browser never receives a key back, just the last 4 characters.
+const DEFAULT_MODEL = { openai: 'gpt-image-2.5-sunburst', gemini: 'gemini-3.1-flash-image' }
+
+function readKeys() {
+  try { return JSON.parse(readFileSync(KEYS_FILE, 'utf8')).keys ?? [] } catch { return [] }
+}
+
+function writeKeys(keys) {
+  writeAtomic(KEYS_FILE, JSON.stringify({ keys }))
+}
+
+function envKey() {
+  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY
+  if (!apiKey) return null
+  const provider = process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'openai'
+  return { id: 'env', provider, label: '.env.local', model: process.env.AI_MODEL || process.env.OPENAI_IMAGE_MODEL || DEFAULT_MODEL[provider], apiKey, isDefault: false }
+}
+
+function publicKey(entry) {
+  return { id: entry.id, provider: entry.provider, label: entry.label, model: entry.model, last4: entry.apiKey.slice(-4), isDefault: entry.isDefault, fromEnv: entry.id === 'env' }
+}
+
+function allKeys() {
+  const keys = readKeys()
+  const env = envKey()
+  return env ? [...keys, env] : keys
+}
+
+function pickKey(keyId) {
+  const keys = allKeys()
+  return keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0] ?? null
+}
+
+function cleanKeyInput(input, existing) {
+  const provider = existing?.provider ?? input.provider
+  if (!['openai', 'gemini'].includes(provider)) throw fail(400, 'Chọn OpenAI hoặc Gemini.')
+  const apiKey = input.apiKey === undefined && existing ? existing.apiKey : input.apiKey
+  if (typeof apiKey !== 'string' || !/^\S{8,1000}$/.test(apiKey)) throw fail(400, 'API key không hợp lệ (không chứa khoảng trắng).')
+  const model = String(input.model ?? existing?.model ?? DEFAULT_MODEL[provider]).trim()
+  if (!/^[\w.:-]{1,120}$/.test(model)) throw fail(400, 'Mã model không hợp lệ.')
+  const label = String(input.label ?? existing?.label ?? '').trim().slice(0, 60) || (provider === 'gemini' ? 'Gemini' : 'OpenAI')
+  return { provider, apiKey, model, label }
+}
+
 function aiStatus() {
-  return {
-    ready: Boolean(process.env.AI_API_KEY || process.env.OPENAI_API_KEY),
-    provider: process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'openai',
+  return { ready: allKeys().length > 0 }
+}
+
+async function manageKeys(req, res, method, id) {
+  if (method === 'GET' && !id) return send(res, 200, { keys: allKeys().map(publicKey) })
+  const keys = readKeys()
+  if (method === 'POST' && !id) {
+    const entry = { id: randomUUID(), ...cleanKeyInput(await readJson(req, 8192)), isDefault: keys.length === 0 && !envKey() }
+    writeKeys([...keys, entry])
+    return send(res, 200, { keys: allKeys().map(publicKey) })
   }
+  const index = keys.findIndex((entry) => entry.id === id)
+  if (index < 0) throw fail(404, 'Không tìm thấy API key.')
+  if (method === 'PUT') {
+    const input = await readJson(req, 8192)
+    keys[index] = { ...keys[index], ...cleanKeyInput(input, keys[index]) }
+    if (input.isDefault === true) keys.forEach((entry, i) => { entry.isDefault = i === index })
+    writeKeys(keys)
+    return send(res, 200, { keys: allKeys().map(publicKey) })
+  }
+  if (method === 'DELETE') {
+    const [removed] = keys.splice(index, 1)
+    if (removed.isDefault && keys[0]) keys[0].isDefault = true
+    writeKeys(keys)
+    return send(res, 200, { keys: allKeys().map(publicKey) })
+  }
+  throw fail(405, 'Không hỗ trợ thao tác này.')
 }
 
 // ---------- Assets ----------
@@ -172,10 +241,10 @@ function assetDataUrl(id) {
 
 // ---------- Image generation ----------
 async function generate(req, res) {
-  const provider = process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'openai'
-  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY
-  if (!apiKey) throw fail(503, 'Chưa cấu hình API key. Thêm AI_API_KEY vào .env.local rồi chạy lại.')
   const input = await readJson(req)
+  const key = pickKey(input.keyId)
+  if (!key) throw fail(503, 'Chưa có API key. Bấm "API" ở thanh trên để thêm key.')
+  const { provider, apiKey, model } = key
   if (typeof input.prompt !== 'string' || input.prompt.length < 10 || input.prompt.length > 12000) throw fail(400, 'Brief ảnh cần từ 10 đến 12.000 ký tự.')
   const width = Number(input.width)
   const height = Number(input.height)
@@ -186,7 +255,7 @@ async function generate(req, res) {
   const references = (Array.isArray(input.referenceIds) ? input.referenceIds : []).slice(0, 4).map((id) => typeof id === 'string' && ASSET_ID.test(id) ? assetDataUrl(id) : null).filter((url) => url?.startsWith('data:image/'))
 
   const isGemini = provider === 'gemini'
-  const geminiModel = process.env.AI_MODEL || 'gemini-3.1-flash-image'
+  const geminiModel = model
   const ratio = width / height
   const aspectRatio = ratio > 2.2 ? '21:9' : ratio > 1.6 ? '16:9' : ratio < 0.7 ? '9:16' : ratio > 0.9 && ratio < 1.1 ? '1:1' : '4:5'
   const body = isGemini ? {
@@ -199,7 +268,7 @@ async function generate(req, res) {
   } : {
     model: process.env.OPENAI_TEXT_MODEL || 'gpt-6-astra',
     input: [{ role: 'user', content: [{ type: 'input_text', text: input.prompt }, ...references.map((url) => ({ type: 'input_image', image_url: url, detail: 'high' }))] }],
-    tools: [{ type: 'image_generation', model: process.env.AI_MODEL || process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst', action: 'generate', size: `${width}x${height}`, quality }],
+    tools: [{ type: 'image_generation', model, action: 'generate', size: `${width}x${height}`, quality }],
   }
 
   let response, result
@@ -284,6 +353,7 @@ async function route(req, res) {
     writeAtomic(STORE_FILE, JSON.stringify(store))
     return send(res, 200, { ok: true })
   }
+  if (pathname === '/api/keys' || pathname.startsWith('/api/keys/')) return manageKeys(req, res, method, pathname.slice('/api/keys/'.length) || null)
   if (method === 'POST' && pathname === '/api/assets') return uploadAsset(req, res)
   if (pathname.startsWith('/api/assets/')) {
     const id = decodeURIComponent(pathname.slice('/api/assets/'.length))

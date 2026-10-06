@@ -13,7 +13,7 @@ npm run dev
 
 Open the URL Vite prints. On first launch you set a password (8+ characters); it is hashed with scrypt and stored in `data/auth.json`.
 
-To generate backgrounds with AI, copy `.env.example` to `.env.local` and set `AI_PROVIDER` and `AI_API_KEY`. Without a key you can still upload your own backgrounds and export posts.
+To generate backgrounds with AI, click **API** in the top bar and add one or more keys (OpenAI or Gemini). Keys are stored on this machine in `data/keys.json`, are never sent back to the browser (only the last 4 characters are shown), and you pick which key to use each time you generate. Without a key you can still upload your own backgrounds and export posts. A key in `.env.local` (see `.env.example`) also works and shows up in the list.
 
 ## Workflow
 

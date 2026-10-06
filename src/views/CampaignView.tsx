@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { FORMATS, formatOf, newId, newPost, now } from '../lib/types.ts'
 import type { Campaign, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
-import { api, assetUrl, readFileAsDataUrl, uploadImage } from '../lib/api.ts'
+import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate } from '../lib/route.ts'
 import { buildBackgroundPrompt } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
@@ -12,16 +12,20 @@ type Props = {
   update: (change: (draft: Store) => void) => void
   workspace: Workspace
   campaign: Campaign
-  aiReady: boolean
+  keys: ApiKey[]
+  onManageKeys: () => void
   onError: (message: string) => void
 }
 
-export function CampaignView({ update, workspace, campaign, aiReady, onError }: Props) {
+export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError }: Props) {
   const kv = campaign.keyVisual
   const [dialog, setDialog] = useState<'rename' | 'import' | { delete: string } | null>(null)
   const [genFormat, setGenFormat] = useState<FormatKey>('feed')
   const [variation, setVariation] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [keyId, setKeyId] = useState('')
+  const aiReady = keys.length > 0
+  const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const referenceInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
@@ -74,7 +78,7 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
       const [width, height] = formatOf(genFormat).generate
       const assetId = await api.generate({
         prompt: buildBackgroundPrompt(workspace, campaign, genFormat, variation.trim()),
-        width, height, quality: 'high', referenceIds: kv.referenceIds,
+        width, height, quality: 'high', referenceIds: kv.referenceIds, keyId: activeKey?.id,
       })
       addBackground(assetId, genFormat, variation.trim() || `Nền ${campaign.backgrounds.length + 1}`)
       setVariation('')
@@ -151,12 +155,13 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
             </Field>
             <Field label="Biến thể (không bắt buộc)"><input value={variation} placeholder="Ví dụ: ánh sáng bình minh ấm hơn" onChange={(event) => setVariation(event.target.value)} /></Field>
           </div>
+          {aiReady && <Field label="Dùng API"><select value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.model}</option>)}</select></Field>}
           <div className="row wrap">
             <button className="btn primary" disabled={generating || !aiReady || !kv.concept.trim()} onClick={() => { void generate() }}>{generating ? 'Đang tạo (có thể mất 1–2 phút)…' : 'Tạo nền bằng AI'}</button>
             <button className="btn" onClick={() => backgroundInput.current?.click()}>Tải nền có sẵn</button>
             <input ref={backgroundInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={uploadBackground} />
           </div>
-          {!aiReady && <p className="notice">Chưa có API key. Thêm <code>AI_API_KEY</code> vào <code>.env.local</code> để tạo nền bằng AI, hoặc tải nền có sẵn.</p>}
+          {!aiReady && <p className="notice">Chưa có API key. <button className="link" onClick={onManageKeys}>Thêm API key</button> để tạo nền bằng AI, hoặc tải nền có sẵn.</p>}
           {aiReady && !kv.concept.trim() && <p className="notice">Điền "Ý tưởng chủ đạo" bên cạnh để tạo nền.</p>}
           {campaign.backgrounds.length > 0 && <div className="bg-grid">
             {campaign.backgrounds.map((background) => <figure key={background.id}>
