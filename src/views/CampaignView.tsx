@@ -114,9 +114,15 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })
   }
 
-  function applyImport({ name, keyVisual, sources }: ImportResult) {
+  function applyImport({ name, keyVisual, sources, components, logos }: ImportResult) {
+    if (logos.light || logos.dark) update((draft) => {
+      const owner = draft.workspaces.find((entry) => entry.id === workspace.id)
+      if (!owner) return
+      if (logos.light) owner.company.logoId = logos.light
+      if (logos.dark) owner.company.logoDarkId = logos.dark
+    })
     campaign.sources.forEach((item) => { void api.deleteAsset(item.assetId) })
-    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual; draft.sources = sources })
+    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual; draft.sources = sources; draft.components.push(...components) })
   }
 
   function removeComponent(id: string) {
@@ -202,7 +208,6 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       <Section title="Key Visual (đầu vào)">
         <Field label="Ý tưởng chủ đạo" hint="Mô tả cảnh/phong cách nền bạn muốn. Đây là phần quan trọng nhất của prompt."><textarea rows={4} value={kv.concept} onChange={(event) => setKv('concept', event.target.value)} /></Field>
         <Field label="Hình ảnh/biểu tượng chính (nếu có)"><input value={kv.subject} onChange={(event) => setKv('subject', event.target.value)} /></Field>
-        <Field label="Guideline: đồ họa, bố cục, mood" hint="Được đưa vào prompt khi tạo nền. Nhập từ PDF sẽ điền sẵn."><textarea rows={5} value={kv.guideline ?? ''} onChange={(event) => setKv('guideline', event.target.value)} /></Field>
         <Field label="Điều cần tránh"><textarea rows={2} value={kv.avoid} onChange={(event) => setKv('avoid', event.target.value)} /></Field>
 
         <div className="field">

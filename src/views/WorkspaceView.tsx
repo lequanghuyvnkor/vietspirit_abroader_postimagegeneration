@@ -26,9 +26,10 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
     navigate({ workspace: workspace.id, campaign: campaign.id })
   }
 
-  function importCampaign({ name, keyVisual, sources }: ImportResult) {
+  function importCampaign({ name, keyVisual, sources, components, logos }: ImportResult) {
     const campaign = newCampaign(name, keyVisual, sources)
-    edit((draft) => { draft.campaigns.push(campaign) })
+    campaign.components = components
+    edit((draft) => { draft.campaigns.push(campaign); if (logos.light) draft.company.logoId = logos.light; if (logos.dark) draft.company.logoDarkId = logos.dark })
     navigate({ workspace: workspace.id, campaign: campaign.id })
   }
 

@@ -2,7 +2,7 @@ import { FORMATS, type FormatKey, type KeyVisual } from './types.ts'
 
 export type TextItem = { str: string; x: number; y: number; height: number }
 
-export type Extracted = Pick<KeyVisual, 'concept' | 'palette' | 'accentColor' | 'displayFont' | 'bodyFont' | 'avoid' | 'guideline'> & {
+export type Extracted = Pick<KeyVisual, 'concept' | 'palette' | 'accentColor' | 'displayFont' | 'bodyFont' | 'avoid'> & {
   textToneHint: KeyVisual['textTone'] | null
 }
 
@@ -112,14 +112,6 @@ export function parseGuideline(pages: TextItem[][]): Extracted {
   const avoidAt = mood.findIndex((line) => /^(tránh|avoid)/i.test(line))
   const avoid = avoidAt >= 0 ? mood.slice(avoidAt).join(' ').replace(/^(tránh|avoid)\s*:?\s*/i, '').trim() : ''
 
-  const notes = (['logo', 'graphics', 'layout', 'mood'] as const)
-    .map((kind) => {
-      const lines = kind === 'mood' && avoidAt >= 0 ? mood.slice(0, avoidAt) : byKind(kind)
-      return lines.length ? `${SECTION_KINDS.find(([key]) => key === kind)![1]}: ${lines.join(' ')}` : ''
-    })
-    .filter(Boolean)
-    .join('\n')
-
   return {
     concept,
     palette,
@@ -127,7 +119,22 @@ export function parseGuideline(pages: TextItem[][]): Extracted {
     displayFont: fonts.display ?? '',
     bodyFont: fonts.body ?? '',
     avoid,
-    guideline: notes.slice(0, 2000),
     textToneHint: /nền (đậm|tối)|dark|night|đêm/i.test(`${mood.join(' ')} ${concept}`) ? 'light' : null,
   }
+}
+
+/** Bounding box (PDF units, y up) of the numbered section whose heading matches `pattern`, or null. */
+export function sectionBox(pages: TextItem[][], pattern: RegExp): { page: number; x: number; y: number; w: number; h: number } | null {
+  const page = pages.findIndex((items) => items.some((item) => /guideline/i.test(item.str)))
+  if (page < 0) return null
+  const items = pages[page]
+  const { headings, sections } = regions(items)
+  const heading = headings.find((item) => pattern.test(item.str))
+  if (!heading) return null
+  const members = sections.get(heading) ?? []
+  const x = heading.x - 12
+  const right = Math.min(Infinity, ...headings.filter((other) => other !== heading && Math.abs(other.y - heading.y) < 30 && other.x > heading.x + 20).map((other) => other.x - 4))
+  const below = headings.filter((other) => other.y < heading.y - 30 && other.x > x - 40 && other.x < right).map((other) => other.y)
+  const bottom = below.length ? Math.max(...below) + 14 : Math.min(heading.y - 20, ...members.map((item) => item.y))
+  return { page: page + 1, x, y: bottom, w: Math.min(right, 100000) - x, h: heading.y - bottom }
 }

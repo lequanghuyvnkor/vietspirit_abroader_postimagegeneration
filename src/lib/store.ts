@@ -13,7 +13,6 @@ function normalize(store: Store): Store {
       campaign.strategy ??= ''
       campaign.guardrailNotes ??= []
       campaign.guardrails ??= []
-      campaign.keyVisual.guideline ??= ''
       for (const post of campaign.posts) post.layers ??= []
     }
   }

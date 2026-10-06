@@ -9,8 +9,6 @@ export function buildBackgroundPrompt(workspace: Workspace, campaign: Campaign, 
     `Create a background image plate for a social media post (${width}x${height}). Text and logo are added later in a separate layout step.`,
     kv.concept && `Key visual concept: ${kv.concept}`,
     kv.subject && `Main visual element: ${kv.subject}`,
-    kv.guideline?.trim() && `Brand guideline notes (graphic elements, layout, mood):
-${kv.guideline.trim()}`,
     kv.referenceIds.length > 0 && 'The attached reference images are finished sample posts that show the target look. Match their art style, color grading, lighting, atmosphere and graphic elements, but reproduce only the background scene: leave out every piece of text, logo, button and UI card that appears on them.',
     kv.palette.length > 0 && `Color palette (use as the dominant colors): ${kv.palette.join(', ')}.`,
     `Mood: ${[company.tone, company.industry].filter(Boolean).join(', ') || 'polished and professional'}. Brand: ${company.name}${company.audience ? `, audience: ${company.audience}` : ''}.`,
