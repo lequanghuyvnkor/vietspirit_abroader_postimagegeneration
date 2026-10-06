@@ -182,3 +182,8 @@ textarea { resize: vertical; }
 
 .batch { display: grid; gap: 8px; }
 .batch .block { display: block; }
+
+.plan-row { align-items: flex-start; }
+.plan-row .excerpt { font-size: .8rem; color: var(--muted); line-height: 1.4; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.slide-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.slide-chips i { font-style: normal; font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--line); color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

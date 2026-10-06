@@ -31,6 +31,9 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   const referenceInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
+  const loose = campaign.posts.filter((post) => !post.pieceId)
+  const hasContent = (post: (typeof loose)[number]) => Boolean(post.eyebrow || post.headline || post.accent || post.subtitle || post.cta || post.layers.length || post.backgroundId)
+  const showLoose = campaign.pieces.length === 0 || loose.some(hasContent)
   const target = typeof dialog === 'object' && dialog ? campaign.posts.find((post) => post.id === dialog.delete) : undefined
 
   function edit(change: (draft: Campaign) => void) {
@@ -152,7 +155,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       <div className="stack">
         <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} keys={keys} onManageKeys={onManageKeys} />
 
-        <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
+        {showLoose && <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
           {campaign.posts.filter((post) => !post.pieceId).length === 0
             ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở mục Kế hoạch nội dung.</p></div>
             : <div className="list">
@@ -168,7 +171,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
                 </div>
               })}
             </div>}
-        </Section>
+        </Section>}
 
         <Section title="Thành phần đồ họa" aside={<button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>}>
           {campaign.components.length === 0

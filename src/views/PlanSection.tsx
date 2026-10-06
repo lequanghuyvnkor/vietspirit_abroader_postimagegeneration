@@ -118,7 +118,7 @@ export function PlanSection(props: Props) {
   }
 
   return <>
-    <Section title="Kế hoạch nội dung" aside={<button className="btn small primary" onClick={() => setImporting(true)}>Nhập kế hoạch (Excel)</button>}>
+    <Section title={`Bài đăng theo kế hoạch${campaign.pieces.length ? ` (${campaign.pieces.length})` : ''}`} aside={<button className="btn small primary" onClick={() => setImporting(true)}>Nhập kế hoạch (Excel)</button>}>
       {visual.length > 0 && <div className="batch">
         <div className="row wrap">
           {keys.length > 0 && <select aria-label="API dùng để soạn" value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>}
@@ -137,10 +137,13 @@ export function PlanSection(props: Props) {
           {campaign.pieces.map((piece) => {
             const missing = pieceTexts(campaign, piece).flatMap((text) => unresolvedIn(text, campaign.variables))
             const done = piece.checks.filter((check) => check.done).length
-            return <div className="list-row" key={piece.id}>
+            const slides = campaign.posts.filter((post) => post.pieceId === piece.id)
+            return <div className="list-row plan-row" key={piece.id}>
               <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>
                 <strong>{piece.code} · {piece.title}</strong>
                 <small>{KIND_LABEL[piece.kind]}{piece.date ? ` · ${new Date(piece.date).toLocaleDateString('vi-VN')}` : ' · chưa có ngày'} · duyệt {done}/{piece.checks.length}{missing.length ? ` · ${new Set(missing).size} biến chưa điền` : ''}</small>
+                {piece.caption && <span className="excerpt">{piece.caption.replace(/\s+/g, ' ').slice(0, 150)}…</span>}
+                {slides.length > 0 && <span className="slide-chips">{slides.map((post, index) => <i key={post.id} title={[post.headline, post.accent, post.subtitle].filter(Boolean).join(' · ')}>{index + 1}. {post.headline || '—'}</i>)}</span>}
               </button>
               <span className={`status ${piece.status}`}>{STATUS_LABELS[piece.status]}</span>
             </div>
