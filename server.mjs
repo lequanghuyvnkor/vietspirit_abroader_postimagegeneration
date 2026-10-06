@@ -127,7 +127,7 @@ function originAllowed(req) {
 // ---------- API keys ----------
 // Stored server-side only; the browser never receives a key back, just the last 4 characters.
 const DEFAULT_MODEL = { openai: 'gpt-image-2.5-sunburst', gemini: 'gemini-3.1-flash-image' }
-const DEFAULT_TEXT_MODEL = { openai: 'gpt-4.1-mini', gemini: 'gemini-2.5-flash' }
+const DEFAULT_TEXT_MODEL = { openai: 'gpt-4.1-mini', gemini: 'gemini-3.8-flash' }
 
 function readKeys() {
   try { return JSON.parse(readFileSync(KEYS_FILE, 'utf8')).keys ?? [] } catch { return [] }
