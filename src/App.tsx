@@ -61,8 +61,6 @@ export type CampaignBrief = {
   colors: string[]
   subjectType: 'graphic_object' | 'real_person_product'
   subjectMetaphor: string
-  visualEffects: string
-  styleComponents: string
   displayFont: string
   bodyFont: string
   negativeSpace: string
@@ -192,7 +190,7 @@ function defaultBrief(): CampaignBrief {
     brandGuardrails: readDraft('brandGuardrails', 'Tuyệt đối KHÔNG 3D render sáp nhựa; KHÔNG màu sắc u ám tiêu cực; KHÔNG render chữ/số giả mạo vào ảnh nền; Giữ khoảng thở sạch cho Typography và khung ảnh.'),
     campaign: readDraft('campaign', 'Youth+ Tech [Sự kiện Tháng 7]'),
     objective: readDraft('objective', 'Nâng cao nhận thức & Tuyển đăng ký cuộc thi'),
-    message: readDraft('message', 'Speak Out - Don\'t keep by yourself'),
+    message: readDraft('message', "Speak Out - Don't keep by yourself"),
     contextInsight: readDraft('contextInsight', 'Nâng cao nhận thức về sức khỏe tinh thần Gen Z. Khuyến khích chủ động lên tiếng chia sẻ, tìm kiếm giải pháp và đồng hành cùng người bệnh vượt qua thương tổn tâm lý.'),
     offer: readDraft('offer', 'Cuộc thi ý tưởng sáng tạo cho học sinh - sinh viên toàn quốc'),
     cta: readDraft('cta', 'REGISTER NOW'),
@@ -204,8 +202,6 @@ function defaultBrief(): CampaignBrief {
     referenceStrength: readDraft('referenceStrength', 65),
     subjectType: readDraft('subjectType', 'graphic_object'),
     subjectMetaphor: readDraft('subjectMetaphor', 'Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng và lan tỏa giải pháp chữa lành.'),
-    visualEffects: readDraft('visualEffects', 'Gradient blur, Halftone dot glow, Aura soft lighting'),
-    styleComponents: readDraft('styleComponents', 'Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể'),
     displayFont: readDraft('displayFont', 'MOKOTO'),
     bodyFont: readDraft('bodyFont', 'Montserrat'),
     negativeSpace: readDraft('negativeSpace', 'Trống góc trái và nửa trên để bố trí Typography và CTA'),
@@ -226,7 +222,7 @@ function readCampaignFolders(): CampaignFolder[] {
 }
 
 function safeColor(value: string | undefined, fallback: string): string {
-  return value && /^#[\da-f]{6}$/i.test(value) ? value : fallback
+  return value && /^#[\da-f]{6}$/i.test(value.trim()) ? value.trim() : fallback
 }
 
 function readPersonalSettings(): PersonalSettings {
@@ -337,14 +333,11 @@ function App() {
 
   // --- TẦNG 2: KEY VISUAL MASTER BRIEF (THEO PDF) ---
   const [campaign, setCampaign] = useState(initialBrief.campaign ?? 'Youth+ Tech [Sự kiện Tháng 7]')
-  const [message, setMessage] = useState(initialBrief.message ?? 'Speak Out - Don\'t keep by yourself')
+  const [message, setMessage] = useState(initialBrief.message ?? "Speak Out - Don't keep by yourself")
   const [contextInsight, setContextInsight] = useState(initialBrief.contextInsight ?? 'Nâng cao nhận thức về sức khỏe tinh thần cho Gen Z.')
   const [palette, setPalette] = useState<ColorItem[]>(initialBrief.palette ?? palettePresets[0].colors)
-  const [colors, setColors] = useState<string[]>(initialBrief.colors ?? palettePresets[0].colors.map((c) => c.hex))
   const [subjectType, setSubjectType] = useState<'graphic_object' | 'real_person_product'>(initialBrief.subjectType ?? 'graphic_object')
   const [subjectMetaphor, setSubjectMetaphor] = useState(initialBrief.subjectMetaphor ?? 'Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng và lan tỏa giải pháp chữa lành.')
-  const [visualEffects, setVisualEffects] = useState(initialBrief.visualEffects ?? 'Gradient blur, Halftone dot glow, Aura soft lighting')
-  const [styleComponents, setStyleComponents] = useState(initialBrief.styleComponents ?? 'Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể')
   const [displayFont, setDisplayFont] = useState(initialBrief.displayFont ?? 'MOKOTO')
   const [bodyFont, setBodyFont] = useState(initialBrief.bodyFont ?? 'Montserrat')
   const [negativeSpace, setNegativeSpace] = useState(initialBrief.negativeSpace ?? 'Trống góc trái và nửa trên để bố trí Typography và CTA')
@@ -367,6 +360,7 @@ function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [stylePreset, setStylePreset] = useState<StylePreset>('editorial')
   const [isRemovingBg, setIsRemovingBg] = useState(false)
+
   const productMode = subjectType === 'real_person_product' ? 'stage-real' : 'ai-complete'
 
   // Expanded sections
@@ -376,13 +370,14 @@ function App() {
     tier2Message: true,
     tier2Palette: true,
     tier2Subject: true,
-    tier2Style: false,
+    tier2Components: true,
     tier2Ref: false,
     tier3Post: true,
   })
 
   const fileInput = useRef<HTMLInputElement>(null)
   const componentInput = useRef<HTMLInputElement>(null)
+  const fontFileInput = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const skipAssetWrite = useRef(false)
 
@@ -394,12 +389,9 @@ function App() {
   const activeAssetScopeId = activePost?.id ?? activeFolderId
   const filteredFolders = campaignFolders.filter((folder) => folder.name.toLowerCase().includes(folderQuery.toLowerCase())).sort((a, b) => folderSort === 'name' ? a.name.localeCompare(b.name, 'vi') : b.updatedAt.localeCompare(a.updatedAt))
   const imageComponents = assets.filter((asset) => asset.kind === 'component')
-  const canvasScale = useMemo(() => Math.min(1, 530 / format.width, 590 / format.height), [format])
+  const canvasScale = useMemo(() => Math.min(1, 520 / format.width, 560 / format.height), [format])
 
-  // Sync colors list whenever palette changes
-  useEffect(() => {
-    setColors(palette.map((item) => item.hex))
-  }, [palette])
+  const colors = useMemo(() => palette.map((item) => item.hex), [palette])
 
   useEffect(() => {
     try {
@@ -409,7 +401,7 @@ function App() {
       const brief: CampaignBrief = {
         brand, industry, audience, tone, brandCoreStyle, brandGuardrails,
         campaign, message, contextInsight, palette, colors,
-        subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace,
+        subjectType, subjectMetaphor, displayFont, bodyFont, negativeSpace,
         keyVisual, referenceStrength, note,
         objective, offer, cta, format: format.name,
       }
@@ -420,7 +412,7 @@ function App() {
         posts: folder.posts.map((post) => post.id === activePostId ? { ...post, updatedAt, brief } : post),
       } : folder))
     } catch { setStatusMessage('Không thể lưu brief vào trình duyệt này.') }
-  }, [activeFolderId, activePostId, page, brand, industry, audience, tone, brandCoreStyle, brandGuardrails, campaign, message, contextInsight, palette, colors, subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace, keyVisual, referenceStrength, note, objective, offer, cta, format, personalSettings.autosave])
+  }, [activeFolderId, activePostId, page, brand, industry, audience, tone, brandCoreStyle, brandGuardrails, campaign, message, contextInsight, palette, colors, subjectType, subjectMetaphor, displayFont, bodyFont, negativeSpace, keyVisual, referenceStrength, note, objective, offer, cta, format, personalSettings.autosave])
 
   useEffect(() => {
     try { localStorage.setItem('creative-campaign-folders', JSON.stringify(campaignFolders)) }
@@ -472,11 +464,8 @@ function App() {
     setMessage(brief.message ?? '')
     setContextInsight(brief.contextInsight ?? '')
     setPalette(brief.palette ?? palettePresets[0].colors)
-    setColors(brief.colors ?? palettePresets[0].colors.map((c) => c.hex))
     setSubjectType(brief.subjectType ?? 'graphic_object')
     setSubjectMetaphor(brief.subjectMetaphor ?? '')
-    setVisualEffects(brief.visualEffects ?? '')
-    setStyleComponents(brief.styleComponents ?? '')
     setDisplayFont(brief.displayFont ?? 'MOKOTO')
     setBodyFont(brief.bodyFont ?? 'Montserrat')
     setNegativeSpace(brief.negativeSpace ?? '')
@@ -502,14 +491,11 @@ function App() {
     setBrandGuardrails('Tuyệt đối KHÔNG phong cách 3D render sáp nhựa; KHÔNG màu sắc đen tối u ám; KHÔNG render chữ/số giả mạo vào ảnh nền AI; Giữ khoảng thở sạch cho Typography và khung ảnh.')
 
     setCampaign('Youth+ Tech [Sự kiện Tháng 7]')
-    setMessage('Speak Out - Don\'t keep by yourself')
+    setMessage("Speak Out - Don't keep by yourself")
     setContextInsight('Cuộc thi nâng cao nhận thức về sức khỏe tinh thần cho Gen Z. Khuyến khích chủ động lên tiếng chia sẻ, lắng nghe và đồng hành vượt qua thương tổn tâm lý.')
     setPalette(palettePresets[0].colors)
-    setColors(palettePresets[0].colors.map((c) => c.hex))
     setSubjectType('graphic_object')
     setSubjectMetaphor('Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng chia sẻ và lan tỏa giải pháp chữa lành.')
-    setVisualEffects('Gradient blur, Halftone dot glow, Aura soft lighting')
-    setStyleComponents('Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể')
     setDisplayFont('MOKOTO')
     setBodyFont('Montserrat')
     setNegativeSpace('Trống góc trái và nửa trên để bố trí Typography và CTA')
@@ -534,11 +520,8 @@ function App() {
     setMessage('Một khoảng dịu dàng dành riêng cho làn da của bạn.')
     setContextInsight('Bộ sưu tập dưỡng ẩm mùa xuân lấy cảm hứng từ thảo mộc thiên nhiên.')
     setPalette(palettePresets[1].colors)
-    setColors(palettePresets[1].colors.map((c) => c.hex))
     setSubjectType('real_person_product')
     setSubjectMetaphor('Tĩnh vật chai tinh chất đặt bên cửa sổ đón ánh nắng sớm.')
-    setVisualEffects('Ánh sáng ban mai tự nhiên, đổ bóng lá mềm, hạt film Kodak Portra 400')
-    setStyleComponents('Chân đế gốm mờ, cành lá olive, tấm vải linen thô')
     setDisplayFont('Agrandir Grand')
     setBodyFont('Trajan Pro 3')
     setNegativeSpace('Trống nửa trên và bên trái cho typography')
@@ -645,7 +628,7 @@ function App() {
     const brief: CampaignBrief = {
       brand, industry, audience, tone, brandCoreStyle, brandGuardrails,
       campaign, message, contextInsight, palette, colors,
-      subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace,
+      subjectType, subjectMetaphor, displayFont, bodyFont, negativeSpace,
       keyVisual, referenceStrength, note, objective, offer, cta, format: format.name
     }
     const updatedAt = new Date().toISOString()
@@ -682,6 +665,25 @@ function App() {
     const loaded = await Promise.all(files.map(async (file) => ({ id: crypto.randomUUID(), name: file.name, data: await readOptimizedImage(file), kind: 'component' as const })))
     setAssets((current) => [...current, ...loaded])
     setSelectedAssetId(loaded[0]?.id ?? null)
+    setStatusMessage(`Đã thêm ${loaded.length} component đồ họa PNG vào thiết kế!`)
+    event.target.value = ''
+  }
+
+  async function handleFontUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const fontName = file.name.replace(/\.[^/.]+$/, '').trim()
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const fontFace = new FontFace(fontName, arrayBuffer)
+      await fontFace.load()
+      document.fonts.add(fontFace)
+      setDisplayFont(fontName)
+      setStatusMessage(`Đã nạp font thành công: "${fontName}"!`)
+    } catch {
+      setDisplayFont(fontName)
+      setStatusMessage(`Đã đặt tên font tiêu đề: "${fontName}"`)
+    }
     event.target.value = ''
   }
 
@@ -727,16 +729,17 @@ function App() {
     setExpanded((current) => ({ ...current, [section]: !current[section] }))
   }
 
-  // Palette manipulation functions
+  // --- PALETTE EDITING HELPERS (FIXED & FULLY EDITABLE) ---
   function addColorItem() {
-    setPalette((current) => [...current, { hex: '#B3B8FA', meaning: 'Màu sắc mới · Chú thích ý nghĩa' }])
+    setPalette((current) => [...current, { hex: '#B3B8FA', meaning: 'Màu mới · Ghi chú ý nghĩa' }])
   }
 
-  function updateColorItem(index: number, newHex: string, newMeaning?: string) {
-    setPalette((current) => current.map((item, i) => i === index ? {
-      hex: safeColor(newHex, item.hex),
-      meaning: newMeaning !== undefined ? newMeaning : item.meaning
-    } : item))
+  function updateColorHex(index: number, newHex: string) {
+    setPalette((current) => current.map((item, i) => i === index ? { ...item, hex: newHex } : item))
+  }
+
+  function updateColorMeaning(index: number, newMeaning: string) {
+    setPalette((current) => current.map((item, i) => i === index ? { ...item, meaning: newMeaning } : item))
   }
 
   function removeColorItem(index: number) {
@@ -776,9 +779,8 @@ function App() {
       `Core Message: "${message}". Subtitle/Offer: "${offer}". Call to action: "${cta}".`,
       `Art Direction / Key Visual: ${keyVisual}`,
       `Color Harmony & Emotional Semantics: Harmoniously blend subtle ambient tones inspired by: ${colorDirectives}.`,
-      `Visual Effects & Atmosphere: ${visualEffects}. Lighting: ${presetCfg.lighting}.`,
+      `Atmospheric Lighting: ${presetCfg.lighting}.`,
       `Tactile Physical Realism: ${presetCfg.texture}.`,
-      `Decorative Style Components: Subtle presence of ${styleComponents}.`,
       `Composition & Negative Space: ${negativeSpace}. Soft out-of-focus background reserved specifically for typography layout. Do NOT clutter reserved text areas.`,
       `Creative Notes: ${note}`,
       `Reference Influence Level: ${referenceStrength}%.`,
@@ -1172,7 +1174,7 @@ function App() {
               <div className="tier-header">
                 <div className="tier-title">
                   <strong>Tầng 1: Brand DNA & Guardrails</strong>
-                  <small>Thông tin doanh nghiệp & quy chuẩn cấm kỵ (Dùng lâu dài)</small>
+                  <small>Thông tin doanh nghiệp & quy chuẩn cấm kỵ</small>
                 </div>
                 <span className="tier-pill">Thương hiệu</span>
               </div>
@@ -1193,7 +1195,7 @@ function App() {
                 <label className="field-label">Logo thương hiệu
                   <div className="upload-inline">
                     <input type="file" accept="image/*" onChange={addLogo} />
-                    <span>{logo ? logo.name : 'Chọn logo PNG / SVG (Tự động tách nền trong suốt)'}</span>
+                    <span>{logo ? logo.name : 'Chọn logo PNG / SVG (Tự động tách nền)'}</span>
                     <Icon name="upload" />
                   </div>
                 </label>
@@ -1206,7 +1208,7 @@ function App() {
                 <div className="guardrails-box">
                   <label className="field-label" style={{ color: '#9c3f2d' }}>
                     <strong>⛔ NHỮNG ĐIỀU CẤM KỴ (Brand Guardrails / Don'ts)</strong>
-                    <small style={{ color: '#8b5448' }}>AI sẽ triệt tiêu 100% các yếu tố này khỏi thiết kế và ảnh nền:</small>
+                    <small style={{ color: '#8b5448' }}>AI sẽ triệt tiêu 100% các yếu tố này khỏi ảnh nền:</small>
                     <textarea rows={3} value={brandGuardrails} onChange={(e) => setBrandGuardrails(e.target.value)} placeholder="Ví dụ: Tuyệt đối không dùng 3D sáp nhựa; Không màu sắc bi lụy đen tối; Không che góc đặt logo..." />
                   </label>
                   <div className="guardrails-quick-chips">
@@ -1224,7 +1226,7 @@ function App() {
               <div className="tier-header tier-2">
                 <div className="tier-title">
                   <strong>Tầng 2: Hệ thống Key Visual Chiến dịch</strong>
-                  <small>Thông điệp, Bảng màu ngữ nghĩa, Hình tượng chủ đạo & Style</small>
+                  <small>Thông điệp, Bảng màu, Hình tượng chủ đạo, Component PNG & Font</small>
                 </div>
                 <span className="tier-pill" style={{ background: '#E6E8FA', color: '#3A4278' }}>Key Visual</span>
               </div>
@@ -1237,7 +1239,7 @@ function App() {
                   <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ví dụ: Speak Out - Don't keep by yourself" />
                 </label>
                 <label className="field-label">Tổng quan bối cảnh & Insight chiến dịch
-                  <textarea rows={3} value={contextInsight} onChange={(e) => setContextInsight(e.target.value)} placeholder="Ví dụ: Nguy cơ mắc bệnh tâm lý ở giới trẻ gia tăng. Cuộc thi tạo cơ hội chia sẻ giải pháp thiết thực cho Gen Z..." />
+                  <textarea rows={3} value={contextInsight} onChange={(e) => setContextInsight(e.target.value)} placeholder="Ví dụ: Nguy cơ mắc bệnh tâm lý ở giới trẻ gia tăng. Cuộc thi tạo cơ hội chia sẻ giải pháp thiết thực..." />
                 </label>
               </Section>
 
@@ -1255,39 +1257,46 @@ function App() {
                 </div>
 
                 <div className="palette-list">
-                  {palette.map((item, index) => (
-                    <div className="palette-item-card" key={index}>
-                      <input
-                        type="color"
-                        className="palette-item-swatch"
-                        value={item.hex}
-                        onChange={(e) => updateColorItem(index, e.target.value)}
-                        title="Chọn màu"
-                      />
-                      <input
-                        className="palette-item-hex"
-                        value={item.hex}
-                        maxLength={7}
-                        placeholder="#HEX"
-                        onChange={(e) => updateColorItem(index, e.target.value)}
-                        onBlur={(e) => updateColorItem(index, safeColor(e.target.value, item.hex))}
-                      />
-                      <input
-                        className="palette-item-meaning"
-                        value={item.meaning}
-                        placeholder="Chú thích ý nghĩa màu (VD: Nature, growth...)"
-                        onChange={(e) => updateColorItem(index, item.hex, e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="palette-remove-btn"
-                        onClick={() => removeColorItem(index)}
-                        title="Xóa màu này"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                  {palette.map((item, index) => {
+                    const validHex = safeColor(item.hex, '#B3B8FA')
+                    return (
+                      <div className="palette-item-card" key={index}>
+                        <input
+                          type="color"
+                          className="palette-item-swatch"
+                          value={validHex}
+                          onChange={(e) => updateColorHex(index, e.target.value)}
+                          title="Click để chọn màu từ bảng màu hệ thống"
+                        />
+                        <input
+                          className="palette-item-hex"
+                          value={item.hex}
+                          maxLength={9}
+                          placeholder="#HEX"
+                          onChange={(e) => updateColorHex(index, e.target.value)}
+                          onBlur={(e) => {
+                            let val = e.target.value.trim()
+                            if (val && !val.startsWith('#')) val = '#' + val
+                            updateColorHex(index, val)
+                          }}
+                        />
+                        <input
+                          className="palette-item-meaning"
+                          value={item.meaning}
+                          placeholder="Chú thích ý nghĩa màu (VD: Nature, growth...)"
+                          onChange={(e) => updateColorMeaning(index, e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="palette-remove-btn"
+                          onClick={() => removeColorItem(index)}
+                          title="Xóa màu này"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
                 <button type="button" className="add-color-btn" onClick={addColorItem}>
                   <Icon name="plus" /> Thêm màu vào bảng màu
@@ -1359,64 +1368,74 @@ function App() {
                 )}
               </Section>
 
-              <Section title="Style, Components & Font chữ (Tách riêng input)" count="06" open={expanded.tier2Style} onClick={() => toggle('tier2Style')}>
-                <label className="field-label">Phong cách Art Direction & Chống Slop
-                  <div className="preset-grid">
-                    {(Object.keys(stylePresets) as StylePreset[]).map((key) => (
-                      <button
-                        type="button"
-                        key={key}
-                        className={`preset-btn ${stylePreset === key ? 'selected' : ''}`}
-                        onClick={() => setStylePreset(key)}
-                      >
-                        <strong>{stylePresets[key].label}</strong>
-                        <small>{stylePresets[key].desc}</small>
-                      </button>
-                    ))}
+              {/* ============================================================== */}
+              {/* SECTION 06: COMPONENT PNG UPLOADS & CUSTOM FONT ADDER */}
+              {/* ============================================================== */}
+              <Section title="Component Đồ Họa PNG & Font Tiêu Đề" count="06" open={expanded.tier2Components} onClick={() => toggle('tier2Components')}>
+                {/* 1. PNG Component Upload */}
+                <div className="component-upload-box">
+                  <div className="field-label">
+                    <strong>🖼️ Upload Component Đồ Họa (File PNG tách nền)</strong>
+                    <small style={{ color: '#7a8575' }}>Tải lên các icon vector, stickers, khung bo góc, mũi tên chevron hoặc props để ghép lên thiết kế:</small>
                   </div>
-                </label>
 
-                <label className="field-label">Hiệu ứng thị giác (Visual Effects)
-                  <input value={visualEffects} onChange={(e) => setVisualEffects(e.target.value)} placeholder="Ví dụ: Gradient blur, Halftone dot glow, Aura soft lighting" />
-                  <div className="tag-picker-wrap">
-                    {['Gradient blur', 'Halftone dot glow', 'Aura soft light', 'Liquid glass', 'Prism reflection'].map((tag) => (
-                      <span
-                        key={tag}
-                        className={`tag-pick-btn ${visualEffects.includes(tag) ? 'selected' : ''}`}
-                        onClick={() => setVisualEffects((prev) => prev.includes(tag) ? prev.replace(tag, '').replace(/,\s*,/g, ',').trim() : prev ? `${prev}, ${tag}` : tag)}
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                  <div className="component-dropzone" onClick={() => componentInput.current?.click()}>
+                    <Icon name="upload" />
+                    <div>
+                      <strong>Nhấn để tải lên Component PNG</strong>
+                      <small style={{ display: 'block', color: '#7b8777' }}>Hỗ trợ chọn nhiều file PNG cùng lúc</small>
+                    </div>
                   </div>
-                </label>
+                  <input ref={componentInput} type="file" accept="image/png,image/webp,image/svg+xml,image/*" multiple hidden onChange={addComponents} />
 
-                <label className="field-label">Component Decor / Vector Elements
-                  <input value={styleComponents} onChange={(e) => setStyleComponents(e.target.value)} placeholder="Ví dụ: Vòng elip quỹ đạo, Ngôi sao 4 cánh sparkles, Mũi tên chevron >>>>" />
-                  <div className="tag-picker-wrap">
-                    {['Vòng elip quỹ đạo', 'Ngôi sao 4 cánh (sparkles)', 'Mũi tên chevron >>>>', 'Hoa sao tuyết ✱', 'Khung bo góc tinh thể'].map((tag) => (
-                      <span
-                        key={tag}
-                        className={`tag-pick-btn ${styleComponents.includes(tag) ? 'selected' : ''}`}
-                        onClick={() => setStyleComponents((prev) => prev.includes(tag) ? prev.replace(tag, '').replace(/,\s*,/g, ',').trim() : prev ? `${prev}, ${tag}` : tag)}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </label>
+                  {imageComponents.length > 0 && (
+                    <div className="component-gallery">
+                      {imageComponents.map((asset) => (
+                        <div className="component-card" key={asset.id}>
+                          <img src={asset.data} alt={asset.name} />
+                          <span>{asset.name}</span>
+                          <button type="button" className="del-btn" onClick={() => removeAsset(asset.id)} title="Xóa component">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                <div className="font-row">
-                  <label className="field-label">Font Tiêu đề (Headline/Display)
-                    <select value={displayFont} onChange={(e) => setDisplayFont(e.target.value)}>
-                      <option value="MOKOTO">MOKOTO (Tech / Futurist)</option>
-                      <option value="Agrandir Grand">Agrandir Grand (Modern Wide)</option>
-                      <option value="Space Grotesk">Space Grotesk (Neo-Brutalism)</option>
-                      <option value="Montserrat">Montserrat Black</option>
-                      <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
-                    </select>
+                {/* 2. Custom Font Adder */}
+                <div className="font-custom-box" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #edf1eb' }}>
+                  <label className="field-label">
+                    <strong>🔤 Font Tiêu Đề Chính (Display Font)</strong>
+                    <small style={{ color: '#7a8575' }}>Bạn có thể tự gõ bất kỳ tên Font nào hoặc bấm chọn nhanh:</small>
+                    <input
+                      value={displayFont}
+                      onChange={(e) => setDisplayFont(e.target.value)}
+                      placeholder="Ví dụ: MOKOTO, Agrandir Grand, Montserrat, Space Grotesk..."
+                      style={{ fontWeight: 700, fontSize: '11px' }}
+                    />
                   </label>
-                  <label className="field-label">Font Nội dung (Subhead/Body)
+
+                  <div className="font-quick-chips">
+                    {['MOKOTO', 'Agrandir Grand', 'Montserrat', 'Space Grotesk', 'Plus Jakarta Sans', 'Cinzel', 'Bebas Neue', 'Anton'].map((fontName) => (
+                      <span
+                        key={fontName}
+                        className={`font-chip ${displayFont.toLowerCase() === fontName.toLowerCase() ? 'active' : ''}`}
+                        onClick={() => setDisplayFont(fontName)}
+                      >
+                        {fontName}
+                      </span>
+                    ))}
+                  </div>
+
+                  <label className="font-upload-btn">
+                    <Icon name="upload" />
+                    <span>Tải lên file Font (.woff2, .ttf, .otf) từ máy tính</span>
+                    <input ref={fontFileInput} type="file" accept=".woff2,.woff,.ttf,.otf" hidden onChange={handleFontUpload} />
+                  </label>
+                </div>
+
+                {/* 3. Body Font Selector */}
+                <div style={{ marginTop: '10px' }}>
+                  <label className="field-label">Font Nội dung phụ (Body Font)
                     <select value={bodyFont} onChange={(e) => setBodyFont(e.target.value)}>
                       <option value="Montserrat">Montserrat</option>
                       <option value="Fira Sans">Fira Sans Bold</option>
@@ -1584,7 +1603,7 @@ function App() {
                   <div className="canvas-kicker" style={{ fontFamily: `"${bodyFont}", sans-serif` }}>
                     {campaign}
                   </div>
-                  <h2 style={{ fontFamily: `"${displayFont}", sans-serif`, letterSpacing: displayFont === 'MOKOTO' ? '1px' : 'normal' }}>
+                  <h2 style={{ fontFamily: `"${displayFont}", sans-serif` }}>
                     {message}
                   </h2>
                   <p style={{ fontFamily: `"${bodyFont}", sans-serif` }}>{offer}</p>
@@ -1671,12 +1690,18 @@ function App() {
                 <strong>Phong cách nghệ thuật</strong>
                 <span className="qa-badge">Anti-Slop Active</span>
               </div>
-              <div className="direction-card">
-                <div className="direction-icon"><Icon name="sun" /></div>
-                <div>
-                  <strong>{stylePresets[stylePreset].label}</strong>
-                  <p>{stylePresets[stylePreset].desc}</p>
-                </div>
+              <div className="preset-grid" style={{ marginTop: '8px' }}>
+                {(Object.keys(stylePresets) as StylePreset[]).map((key) => (
+                  <button
+                    type="button"
+                    key={key}
+                    className={`preset-btn ${stylePreset === key ? 'selected' : ''}`}
+                    onClick={() => setStylePreset(key)}
+                  >
+                    <strong>{stylePresets[key].label}</strong>
+                    <small>{stylePresets[key].desc}</small>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1719,8 +1744,8 @@ function App() {
               </div>
               <div className="layer-row">
                 <span className="layer-kind"><Icon name="layers" /></span>
-                <span>Vector Decor (Sparkles / Ring)</span>
-                <span className="layer-drag">Sắc nét</span>
+                <span>Vector Decor (PNG components)</span>
+                <span className="layer-drag">{imageComponents.length ? `${imageComponents.length} file PNG` : 'Decor mặc định'}</span>
               </div>
               <div className="layer-row">
                 <span className="layer-kind text"><Icon name="text" /></span>
@@ -1743,7 +1768,7 @@ function App() {
               <div className="review-icon"><Icon name="info" /></div>
               <div>
                 <strong>Lời khuyên của QA Inspector</strong>
-                <p>Bảng màu pastel đã được đồng bộ với ý nghĩa cảm xúc. Khi xuất file, ảnh giữ 100% độ sắc nét quang học.</p>
+                <p>Bảng màu và Typography đã được liên kết trực tiếp với Canvas. Component PNG tải lên sẽ được ghép sắc nét 100%.</p>
               </div>
             </div>
           </aside>
