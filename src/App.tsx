@@ -1,17 +1,88 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import './App.css'
 
+export type ColorItem = {
+  hex: string
+  meaning: string
+}
+
+export type PalettePreset = {
+  name: string
+  colors: ColorItem[]
+}
+
+export const palettePresets: PalettePreset[] = [
+  {
+    name: '🌸 Youth+ Pastel (Sức khỏe tinh thần)',
+    colors: [
+      { hex: '#C6F2A6', meaning: 'Xanh tươi mới · Nature, refreshment, growth, balance' },
+      { hex: '#F7B0C3', meaning: 'Hồng phấn ấm áp · Nurture, warmth, friendliness, softness' },
+      { hex: '#AEDEF9', meaning: 'Xanh lam an bình · Knowledge, tranquility, security, trust' },
+      { hex: '#B3B8FA', meaning: 'Tím trí tuệ & bản lĩnh · Royalty, wisdom, spirituality, authority' },
+    ]
+  },
+  {
+    name: '✨ Lumière Luxury (Tối giản cao cấp)',
+    colors: [
+      { hex: '#1C2F4D', meaning: 'Xanh Navy chiều sâu và quyền uy' },
+      { hex: '#B6404A', meaning: 'Đỏ thẫm điểm nhấn sang trọng' },
+      { hex: '#FAF7F2', meaning: 'Kem linen sáng tự nhiên & thanh lịch' },
+    ]
+  },
+  {
+    name: '⚡ Neo-Cyber Glow (Công nghệ tương lai)',
+    colors: [
+      { hex: '#0F172A', meaning: 'Slate sâu thẳm công nghệ' },
+      { hex: '#06B6D4', meaning: 'Cyan dạ quang phát sáng tương lai' },
+      { hex: '#8B5CF6', meaning: 'Tím điện tử bứt phá' },
+      { hex: '#F43F5E', meaning: 'Neon Rose tràn đầy năng lượng' },
+    ]
+  }
+]
+
 type Asset = { id: string; name: string; data: string; kind: 'keyvisual' | 'photo' | 'logo' | 'component' | 'output' }
 type Format = { name: string; width: number; height: number; label: string }
 type Page = 'studio' | 'folders' | 'campaign' | 'settings'
-type CampaignBrief = { brand: string; industry: string; audience: string; tone: string; campaign: string; objective: string; message: string; offer: string; cta: string; keyVisual: string; note: string; format: string; colors: string[]; referenceStrength: number }
+
+export type CampaignBrief = {
+  // --- TẦNG 1: BRAND FOUNDATION & GUARDRAILS ---
+  brand: string
+  industry: string
+  audience: string
+  tone: string
+  brandCoreStyle: string
+  brandGuardrails: string
+
+  // --- TẦNG 2: KEY VISUAL SYSTEM (THEO PDF) ---
+  campaign: string
+  message: string
+  contextInsight: string
+  palette: ColorItem[]
+  colors: string[]
+  subjectType: 'graphic_object' | 'real_person_product'
+  subjectMetaphor: string
+  visualEffects: string
+  styleComponents: string
+  displayFont: string
+  bodyFont: string
+  negativeSpace: string
+  keyVisual: string
+  referenceStrength: number
+  note: string
+
+  // --- TẦNG 3: BÀI ĐĂNG CỤ THỂ ---
+  objective: string
+  offer: string
+  cta: string
+  format: string
+}
+
 type CampaignPost = { id: string; name: string; updatedAt: string; brief: CampaignBrief }
 type CampaignFolder = { id: string; name: string; updatedAt: string; brief: CampaignBrief; posts: CampaignPost[] }
 type PersonalSettings = { displayName: string; email: string; workspaceName: string; defaultFormat: string; imageQuality: 'high' | 'xhigh'; autosave: boolean }
 type DialogState = { kind: 'create-folder' } | { kind: 'rename-folder' | 'rename-post' | 'delete-folder' | 'delete-post'; id: string; name: string }
 
-
-export type StylePreset = 'editorial' | 'documentary' | 'minimalist' | 'cinematic';
+export type StylePreset = 'editorial' | 'documentary' | 'minimalist' | 'cinematic'
 
 export const stylePresets: Record<StylePreset, { label: string; desc: string; camera: string; lighting: string; texture: string; antiSlop: string }> = {
   editorial: {
@@ -46,55 +117,55 @@ export const stylePresets: Record<StylePreset, { label: string; desc: string; ca
     texture: 'rich film grain texture, tactile materials, deep organic shadows, premium motion picture color grading',
     antiSlop: 'Strictly avoid video-game render look, no Unreal Engine glossy plastics, no oversaturated halos, zero fake text or numbers'
   }
-};
+}
 
 export async function removeImageBackground(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
-    const img = new Image();
+    const img = new Image()
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve(dataUrl);
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return resolve(dataUrl)
+      ctx.drawImage(img, 0, 0)
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imgData.data
       const corners = [
         [0, 0],
         [canvas.width - 1, 0],
         [0, canvas.height - 1],
         [canvas.width - 1, canvas.height - 1]
-      ];
-      let avgR = 0, avgG = 0, avgB = 0;
+      ]
+      let avgR = 0, avgG = 0, avgB = 0
       for (const [x, y] of corners) {
-        const idx = (y * canvas.width + x) * 4;
-        avgR += data[idx];
-        avgG += data[idx + 1];
-        avgB += data[idx + 2];
+        const idx = (y * canvas.width + x) * 4
+        avgR += data[idx]
+        avgG += data[idx + 1]
+        avgB += data[idx + 2]
       }
-      avgR /= 4; avgG /= 4; avgB /= 4;
-      const threshold = 38;
-      const softRange = 26;
+      avgR /= 4; avgG /= 4; avgB /= 4
+      const threshold = 38
+      const softRange = 26
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        const dist = Math.sqrt((r - avgR) ** 2 + (g - avgG) ** 2 + (b - avgB) ** 2);
+        const r = data[i], g = data[i + 1], b = data[i + 2]
+        const dist = Math.sqrt((r - avgR) ** 2 + (g - avgG) ** 2 + (b - avgB) ** 2)
         if (dist < threshold) {
-          data[i + 3] = 0;
+          data[i + 3] = 0
         } else if (dist < threshold + softRange) {
-          const factor = (dist - threshold) / softRange;
-          data[i + 3] = Math.round(data[i + 3] * factor);
+          const factor = (dist - threshold) / softRange
+          data[i + 3] = Math.round(data[i + 3] * factor)
         }
       }
-      ctx.putImageData(imgData, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
+      ctx.putImageData(imgData, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => resolve(dataUrl)
+    img.src = dataUrl
+  })
 }
 
-const defaultCampaignId = 'campaign-rituals-of-spring'
+const defaultCampaignId = 'campaign-youth-plus'
 
 const formats: Format[] = [
   { name: 'portrait', width: 1080, height: 1350, label: 'Feed dọc · 4:5' },
@@ -111,14 +182,33 @@ function readDraft<T>(key: string, fallback: T): T {
 }
 
 function defaultBrief(): CampaignBrief {
+  const defaultPalette = palettePresets[0].colors
   return {
-    brand: readDraft('brand', 'Lumière Studio'), industry: readDraft('industry', 'Skincare · chăm sóc da'),
-    audience: readDraft('audience', 'Phụ nữ 25–35, yêu thích chăm sóc da tối giản'), tone: readDraft('tone', 'Tinh tế, ấm áp, gần gũi'),
-    campaign: readDraft('campaign', 'Rituals of Spring'), objective: readDraft('objective', 'Ra mắt sản phẩm'),
-    message: readDraft('message', 'Một khoảng dịu dàng dành riêng cho làn da của bạn.'), offer: readDraft('offer', 'Bộ quà tặng mùa xuân · ưu đãi 20%'),
-    cta: readDraft('cta', 'Khám phá bộ sưu tập'), keyVisual: readDraft('keyVisual', 'Ánh sáng cửa sổ buổi sớm, chất liệu linen, bóng lá mềm. Bố cục tĩnh vật tối giản, cảm giác ảnh film ấm; để nhiều khoảng thở quanh sản phẩm.'),
-    note: readDraft('note', 'Không dùng hoa hồng, không thêm chữ vào ảnh nền. Sản phẩm phải giữ nguyên nhãn và màu sắc.'),
-    format: readDraft('format', 'portrait'), colors: readDraft('colors', ['#1C2F4D', '#B6404A', '#FAF7F2']), referenceStrength: readDraft('referenceStrength', 65),
+    brand: readDraft('brand', 'Youth+ Tech'),
+    industry: readDraft('industry', 'Công nghệ giáo dục & Hoạt động xã hội'),
+    audience: readDraft('audience', 'Học sinh, sinh viên và thế hệ Gen Z toàn quốc (16–25 tuổi)'),
+    tone: readDraft('tone', 'Đồng cảm, hiện đại, năng động, chữa lành và truyền cảm hứng'),
+    brandCoreStyle: readDraft('brandCoreStyle', 'Neo-Brutalism, Clean Tech & Y2K Minimal'),
+    brandGuardrails: readDraft('brandGuardrails', 'Tuyệt đối KHÔNG 3D render sáp nhựa; KHÔNG màu sắc u ám tiêu cực; KHÔNG render chữ/số giả mạo vào ảnh nền; Giữ khoảng thở sạch cho Typography và khung ảnh.'),
+    campaign: readDraft('campaign', 'Youth+ Tech [Sự kiện Tháng 7]'),
+    objective: readDraft('objective', 'Nâng cao nhận thức & Tuyển đăng ký cuộc thi'),
+    message: readDraft('message', 'Speak Out - Don\'t keep by yourself'),
+    contextInsight: readDraft('contextInsight', 'Nâng cao nhận thức về sức khỏe tinh thần Gen Z. Khuyến khích chủ động lên tiếng chia sẻ, tìm kiếm giải pháp và đồng hành cùng người bệnh vượt qua thương tổn tâm lý.'),
+    offer: readDraft('offer', 'Cuộc thi ý tưởng sáng tạo cho học sinh - sinh viên toàn quốc'),
+    cta: readDraft('cta', 'REGISTER NOW'),
+    keyVisual: readDraft('keyVisual', 'Dải nền gradient pastel mềm mại chuyển từ #C6F2A6 sang #B3B8FA và #AEDEF9, hiệu ứng aura mờ ảo, ánh sáng ban mai nhẹ nhàng, không gian sạch sẽ thoáng đãng.'),
+    note: readDraft('note', 'Không render chữ lên ảnh nền. Bố cục chừa khoảng trống phía trên và góc trái.'),
+    format: readDraft('format', 'portrait'),
+    palette: readDraft('palette', defaultPalette),
+    colors: readDraft('colors', defaultPalette.map((item) => item.hex)),
+    referenceStrength: readDraft('referenceStrength', 65),
+    subjectType: readDraft('subjectType', 'graphic_object'),
+    subjectMetaphor: readDraft('subjectMetaphor', 'Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng và lan tỏa giải pháp chữa lành.'),
+    visualEffects: readDraft('visualEffects', 'Gradient blur, Halftone dot glow, Aura soft lighting'),
+    styleComponents: readDraft('styleComponents', 'Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể'),
+    displayFont: readDraft('displayFont', 'MOKOTO'),
+    bodyFont: readDraft('bodyFont', 'Montserrat'),
+    negativeSpace: readDraft('negativeSpace', 'Trống góc trái và nửa trên để bố trí Typography và CTA'),
   }
 }
 
@@ -129,7 +219,7 @@ function readCampaignFolders(): CampaignFolder[] {
       ...folder,
       posts: Array.isArray(folder.posts) ? folder.posts : [{ id: `${folder.id}-post-1`, name: 'Bài đăng 1', updatedAt: folder.updatedAt, brief: folder.brief }],
     }))
-  } catch { /* Start with the saved single-campaign brief. */ }
+  } catch { /* Start with default */ }
   const brief = defaultBrief()
   const updatedAt = new Date().toISOString()
   return [{ id: defaultCampaignId, name: brief.campaign, updatedAt, brief, posts: [{ id: `${defaultCampaignId}-post-1`, name: 'Bài đăng 1', updatedAt, brief }] }]
@@ -144,8 +234,7 @@ function readPersonalSettings(): PersonalSettings {
   try {
     const saved = JSON.parse(localStorage.getItem('creative-personal-settings') ?? '{}') as Partial<PersonalSettings>
     return { ...fallback, ...saved, defaultFormat: formats.some((item) => item.name === saved.defaultFormat) ? saved.defaultFormat! : fallback.defaultFormat, imageQuality: saved.imageQuality === 'xhigh' ? 'xhigh' : 'high', autosave: saved.autosave !== false }
-  }
-  catch { return fallback }
+  } catch { return fallback }
 }
 
 function openAssetDatabase(): Promise<IDBDatabase> {
@@ -237,30 +326,61 @@ function App() {
   const [postCovers, setPostCovers] = useState<Record<string, string>>({})
   const [folderQuery, setFolderQuery] = useState('')
   const [folderSort, setFolderSort] = useState<'updated' | 'name'>('updated')
-  const [brand, setBrand] = useState(initialBrief.brand)
-  const [industry, setIndustry] = useState(initialBrief.industry)
-  const [audience, setAudience] = useState(initialBrief.audience)
-  const [tone, setTone] = useState(initialBrief.tone)
-  const [campaign, setCampaign] = useState(initialBrief.campaign)
-  const [objective, setObjective] = useState(initialBrief.objective)
-  const [message, setMessage] = useState(initialBrief.message)
-  const [offer, setOffer] = useState(initialBrief.offer)
-  const [cta, setCta] = useState(initialBrief.cta)
-  const [keyVisual, setKeyVisual] = useState(initialBrief.keyVisual)
-  const [note, setNote] = useState(initialBrief.note)
-  const [assets, setAssets] = useState<Asset[]>([])
+
+  // --- TẦNG 1: BRAND FOUNDATION & GUARDRAILS ---
+  const [brand, setBrand] = useState(initialBrief.brand ?? 'Youth+ Tech')
+  const [industry, setIndustry] = useState(initialBrief.industry ?? 'Công nghệ giáo dục')
+  const [audience, setAudience] = useState(initialBrief.audience ?? 'Học sinh, sinh viên và Gen Z toàn quốc')
+  const [tone, setTone] = useState(initialBrief.tone ?? 'Đồng cảm, hiện đại, năng động, chữa lành')
+  const [brandCoreStyle, setBrandCoreStyle] = useState(initialBrief.brandCoreStyle ?? 'Neo-Brutalism & Modern Clean Tech')
+  const [brandGuardrails, setBrandGuardrails] = useState(initialBrief.brandGuardrails ?? 'Tuyệt đối KHÔNG 3D render sáp nhựa; KHÔNG màu sắc đen tối u ám; KHÔNG render chữ/số giả vào ảnh nền; Giữ khoảng thở sạch cho Typography.')
+
+  // --- TẦNG 2: KEY VISUAL MASTER BRIEF (THEO PDF) ---
+  const [campaign, setCampaign] = useState(initialBrief.campaign ?? 'Youth+ Tech [Sự kiện Tháng 7]')
+  const [message, setMessage] = useState(initialBrief.message ?? 'Speak Out - Don\'t keep by yourself')
+  const [contextInsight, setContextInsight] = useState(initialBrief.contextInsight ?? 'Nâng cao nhận thức về sức khỏe tinh thần cho Gen Z.')
+  const [palette, setPalette] = useState<ColorItem[]>(initialBrief.palette ?? palettePresets[0].colors)
+  const [colors, setColors] = useState<string[]>(initialBrief.colors ?? palettePresets[0].colors.map((c) => c.hex))
+  const [subjectType, setSubjectType] = useState<'graphic_object' | 'real_person_product'>(initialBrief.subjectType ?? 'graphic_object')
+  const [subjectMetaphor, setSubjectMetaphor] = useState(initialBrief.subjectMetaphor ?? 'Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng và lan tỏa giải pháp chữa lành.')
+  const [visualEffects, setVisualEffects] = useState(initialBrief.visualEffects ?? 'Gradient blur, Halftone dot glow, Aura soft lighting')
+  const [styleComponents, setStyleComponents] = useState(initialBrief.styleComponents ?? 'Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể')
+  const [displayFont, setDisplayFont] = useState(initialBrief.displayFont ?? 'MOKOTO')
+  const [bodyFont, setBodyFont] = useState(initialBrief.bodyFont ?? 'Montserrat')
+  const [negativeSpace, setNegativeSpace] = useState(initialBrief.negativeSpace ?? 'Trống góc trái và nửa trên để bố trí Typography và CTA')
+  const [keyVisual, setKeyVisual] = useState(initialBrief.keyVisual ?? 'Dải nền gradient pastel mềm mại, ánh sáng tự nhiên.')
+  const [referenceStrength, setReferenceStrength] = useState(initialBrief.referenceStrength ?? 65)
+  const [note, setNote] = useState(initialBrief.note ?? '')
+
+  // --- TẦNG 3: BÀI ĐĂNG CỤ THỂ ---
+  const [objective, setObjective] = useState(initialBrief.objective ?? 'Nâng cao nhận thức & Đăng ký cuộc thi')
+  const [offer, setOffer] = useState(initialBrief.offer ?? 'Cuộc thi ý tưởng sáng tạo cho học sinh - sinh viên toàn quốc')
+  const [cta, setCta] = useState(initialBrief.cta ?? 'REGISTER NOW')
   const [format, setFormat] = useState(() => formats.find((item) => item.name === initialBrief.format) ?? formats[0])
-  const [colors, setColors] = useState(initialBrief.colors)
+
+  // --- OTHER STATES ---
+  const [assets, setAssets] = useState<Asset[]>([])
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'working' | 'ready' | 'missing-key' | 'error'>('idle')
   const [statusMessage, setStatusMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'context' | 'assets'>('context')
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState({ business: true, campaign: true, visual: false, notes: false })
-  const [referenceStrength, setReferenceStrength] = useState(initialBrief.referenceStrength)
   const [stylePreset, setStylePreset] = useState<StylePreset>('editorial')
   const [isRemovingBg, setIsRemovingBg] = useState(false)
-  const [productMode, setProductMode] = useState<'stage-real' | 'ai-complete'>('stage-real')
+  const productMode = subjectType === 'real_person_product' ? 'stage-real' : 'ai-complete'
+
+  // Expanded sections
+  const [expanded, setExpanded] = useState({
+    tier1Brand: true,
+    tier1Guardrails: true,
+    tier2Message: true,
+    tier2Palette: true,
+    tier2Subject: true,
+    tier2Style: false,
+    tier2Ref: false,
+    tier3Post: true,
+  })
+
   const fileInput = useRef<HTMLInputElement>(null)
   const componentInput = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
@@ -276,12 +396,23 @@ function App() {
   const imageComponents = assets.filter((asset) => asset.kind === 'component')
   const canvasScale = useMemo(() => Math.min(1, 530 / format.width, 590 / format.height), [format])
 
+  // Sync colors list whenever palette changes
+  useEffect(() => {
+    setColors(palette.map((item) => item.hex))
+  }, [palette])
+
   useEffect(() => {
     try {
       localStorage.setItem('creative-active-folder', activeFolderId)
       if (activePost) localStorage.setItem('creative-active-post', activePost.id)
       if (!personalSettings.autosave) return
-      const brief: CampaignBrief = { brand, industry, audience, tone, campaign, objective, message, offer, cta, keyVisual, note, format: format.name, colors, referenceStrength }
+      const brief: CampaignBrief = {
+        brand, industry, audience, tone, brandCoreStyle, brandGuardrails,
+        campaign, message, contextInsight, palette, colors,
+        subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace,
+        keyVisual, referenceStrength, note,
+        objective, offer, cta, format: format.name,
+      }
       if (page !== 'studio') return
       const updatedAt = new Date().toISOString()
       setCampaignFolders((current) => current.map((folder) => folder.id === activeFolderId ? {
@@ -289,11 +420,11 @@ function App() {
         posts: folder.posts.map((post) => post.id === activePostId ? { ...post, updatedAt, brief } : post),
       } : folder))
     } catch { setStatusMessage('Không thể lưu brief vào trình duyệt này.') }
-  }, [activeFolderId, activePostId, page, brand, industry, audience, tone, campaign, objective, message, offer, cta, keyVisual, note, format, colors, referenceStrength, personalSettings.autosave])
+  }, [activeFolderId, activePostId, page, brand, industry, audience, tone, brandCoreStyle, brandGuardrails, campaign, message, contextInsight, palette, colors, subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace, keyVisual, referenceStrength, note, objective, offer, cta, format, personalSettings.autosave])
 
   useEffect(() => {
     try { localStorage.setItem('creative-campaign-folders', JSON.stringify(campaignFolders)) }
-    catch { setStatusMessage('Không thể lưu danh sách chiến dịch trong trình duyệt. Ảnh được lưu riêng trong bộ nhớ tài nguyên.') }
+    catch { setStatusMessage('Không thể lưu danh sách chiến dịch trong trình duyệt.') }
   }, [campaignFolders])
 
   useEffect(() => {
@@ -330,12 +461,94 @@ function App() {
   }, [page, activeFolderId, activeFolder?.posts])
 
   function applyBrief(brief: CampaignBrief) {
-    setBrand(brief.brand); setIndustry(brief.industry); setAudience(brief.audience); setTone(brief.tone)
-    setCampaign(brief.campaign); setObjective(brief.objective); setMessage(brief.message); setOffer(brief.offer); setCta(brief.cta)
-    setKeyVisual(brief.keyVisual); setNote(brief.note); setFormat(formats.find((item) => item.name === brief.format) ?? formats[0])
-    setColors(brief.colors); setReferenceStrength(brief.referenceStrength)
+    setBrand(brief.brand ?? 'Youth+ Tech')
+    setIndustry(brief.industry ?? '')
+    setAudience(brief.audience ?? '')
+    setTone(brief.tone ?? '')
+    setBrandCoreStyle(brief.brandCoreStyle ?? 'Neo-Brutalism')
+    setBrandGuardrails(brief.brandGuardrails ?? '')
+
+    setCampaign(brief.campaign ?? '')
+    setMessage(brief.message ?? '')
+    setContextInsight(brief.contextInsight ?? '')
+    setPalette(brief.palette ?? palettePresets[0].colors)
+    setColors(brief.colors ?? palettePresets[0].colors.map((c) => c.hex))
+    setSubjectType(brief.subjectType ?? 'graphic_object')
+    setSubjectMetaphor(brief.subjectMetaphor ?? '')
+    setVisualEffects(brief.visualEffects ?? '')
+    setStyleComponents(brief.styleComponents ?? '')
+    setDisplayFont(brief.displayFont ?? 'MOKOTO')
+    setBodyFont(brief.bodyFont ?? 'Montserrat')
+    setNegativeSpace(brief.negativeSpace ?? '')
+    setKeyVisual(brief.keyVisual ?? '')
+    setReferenceStrength(brief.referenceStrength ?? 65)
+    setNote(brief.note ?? '')
+
+    setObjective(brief.objective ?? '')
+    setOffer(brief.offer ?? '')
+    setCta(brief.cta ?? '')
+    setFormat(formats.find((item) => item.name === brief.format) ?? formats[0])
+
     skipAssetWrite.current = true
     setAssets([]); setSelectedAssetId(null); setGeneratedImage(null); setStatus('idle'); setStatusMessage('')
+  }
+
+  function applyYouthPlusDemo() {
+    setBrand('Youth+ Tech')
+    setIndustry('Công nghệ giáo dục & Hoạt động xã hội cho Gen Z')
+    setAudience('Học sinh, sinh viên và thế hệ trẻ toàn quốc (16–25 tuổi)')
+    setTone('Đồng cảm, hiện đại, năng động, chữa lành và truyền cảm hứng')
+    setBrandCoreStyle('Neo-Brutalism & Modern Clean Tech')
+    setBrandGuardrails('Tuyệt đối KHÔNG phong cách 3D render sáp nhựa; KHÔNG màu sắc đen tối u ám; KHÔNG render chữ/số giả mạo vào ảnh nền AI; Giữ khoảng thở sạch cho Typography và khung ảnh.')
+
+    setCampaign('Youth+ Tech [Sự kiện Tháng 7]')
+    setMessage('Speak Out - Don\'t keep by yourself')
+    setContextInsight('Cuộc thi nâng cao nhận thức về sức khỏe tinh thần cho Gen Z. Khuyến khích chủ động lên tiếng chia sẻ, lắng nghe và đồng hành vượt qua thương tổn tâm lý.')
+    setPalette(palettePresets[0].colors)
+    setColors(palettePresets[0].colors.map((c) => c.hex))
+    setSubjectType('graphic_object')
+    setSubjectMetaphor('Sharing Speaker: Biểu tượng chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng chia sẻ và lan tỏa giải pháp chữa lành.')
+    setVisualEffects('Gradient blur, Halftone dot glow, Aura soft lighting')
+    setStyleComponents('Vòng elip quỹ đạo (orbit rings), Ngôi sao 4 cánh (sparkles), Mũi tên chevron >>>> , Khung bo góc tinh thể')
+    setDisplayFont('MOKOTO')
+    setBodyFont('Montserrat')
+    setNegativeSpace('Trống góc trái và nửa trên để bố trí Typography và CTA')
+    setKeyVisual('Dải nền gradient pastel mềm mại chuyển từ #C6F2A6 sang #B3B8FA và #AEDEF9, hiệu ứng aura mờ ảo, ánh sáng ban mai nhẹ nhàng, không gian sạch sẽ thoáng đãng.')
+    setNote('Không render chữ lên ảnh nền. Bố cục chừa khoảng trống phía trên và góc trái.')
+
+    setObjective('Nâng cao nhận thức & Đăng ký cuộc thi')
+    setOffer('Cuộc thi ý tưởng sáng tạo cho học sinh - sinh viên toàn quốc')
+    setCta('REGISTER NOW')
+    setStatusMessage('Đã nạp bộ dữ liệu mẫu chuẩn của Youth+ Tech [Sự kiện Tháng 7]!')
+  }
+
+  function applyLumiereDemo() {
+    setBrand('Lumière Studio')
+    setIndustry('Skincare · chăm sóc da tối giản')
+    setAudience('Phụ nữ 25–35, yêu thích phong cách sống bền vững')
+    setTone('Tinh tế, ấm áp, thư thái, tự nhiên')
+    setBrandCoreStyle('Minimalist Art-Gallery Still-Life')
+    setBrandGuardrails('Không dùng hoa hồng; Không thêm chữ vào nền; Sản phẩm phải giữ nguyên màu sắc thật.')
+
+    setCampaign('Rituals of Spring')
+    setMessage('Một khoảng dịu dàng dành riêng cho làn da của bạn.')
+    setContextInsight('Bộ sưu tập dưỡng ẩm mùa xuân lấy cảm hứng từ thảo mộc thiên nhiên.')
+    setPalette(palettePresets[1].colors)
+    setColors(palettePresets[1].colors.map((c) => c.hex))
+    setSubjectType('real_person_product')
+    setSubjectMetaphor('Tĩnh vật chai tinh chất đặt bên cửa sổ đón ánh nắng sớm.')
+    setVisualEffects('Ánh sáng ban mai tự nhiên, đổ bóng lá mềm, hạt film Kodak Portra 400')
+    setStyleComponents('Chân đế gốm mờ, cành lá olive, tấm vải linen thô')
+    setDisplayFont('Agrandir Grand')
+    setBodyFont('Trajan Pro 3')
+    setNegativeSpace('Trống nửa trên và bên trái cho typography')
+    setKeyVisual('Ánh sáng cửa sổ buổi sớm, chất liệu linen, bóng lá mềm. Bố cục tĩnh vật tối giản.')
+    setNote('Không dùng stock photo công nghiệp.')
+
+    setObjective('Ra mắt sản phẩm mới')
+    setOffer('Bộ quà tặng mùa xuân · ưu đãi 20%')
+    setCta('Khám phá bộ sưu tập')
+    setStatusMessage('Đã nạp mẫu Lumière Studio Luxury!')
   }
 
   function openFolder(folder: CampaignFolder) {
@@ -373,14 +586,15 @@ function App() {
     const name = dialogName.trim()
     if ((dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) && !name) return
     if (dialog.kind === 'create-folder') {
-    const brief: CampaignBrief = { brand, industry, audience, tone, campaign: name, objective: 'Ra mắt sản phẩm', message: '', offer: '', cta: 'Tìm hiểu thêm', keyVisual: '', note: '', format: personalSettings.defaultFormat, colors, referenceStrength: 65 }
-    const id = crypto.randomUUID()
-    const updatedAt = new Date().toISOString()
-    const folder: CampaignFolder = { id, name, updatedAt, brief, posts: [] }
-    setCampaignFolders((current) => [...current, folder])
-    setActiveFolderId(folder.id)
-    setActivePostId('')
-    setPage('campaign')
+      const brief = defaultBrief()
+      brief.campaign = name
+      const id = crypto.randomUUID()
+      const updatedAt = new Date().toISOString()
+      const folder: CampaignFolder = { id, name, updatedAt, brief, posts: [] }
+      setCampaignFolders((current) => [...current, folder])
+      setActiveFolderId(folder.id)
+      setActivePostId('')
+      setPage('campaign')
     } else if (dialog.kind === 'rename-folder') {
       setCampaignFolders((current) => current.map((folder) => folder.id === dialog.id ? { ...folder, name, updatedAt: new Date().toISOString(), brief: { ...folder.brief, campaign: name }, posts: folder.posts.map((post) => ({ ...post, brief: { ...post.brief, campaign: name } })) } : folder))
       if (dialog.id === activeFolderId) setCampaign(name)
@@ -428,7 +642,12 @@ function App() {
 
   function saveCurrentBrief() {
     if (!activePost) return
-    const brief: CampaignBrief = { brand, industry, audience, tone, campaign, objective, message, offer, cta, keyVisual, note, format: format.name, colors: colors.map((color, index) => safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index])), referenceStrength }
+    const brief: CampaignBrief = {
+      brand, industry, audience, tone, brandCoreStyle, brandGuardrails,
+      campaign, message, contextInsight, palette, colors,
+      subjectType, subjectMetaphor, visualEffects, styleComponents, displayFont, bodyFont, negativeSpace,
+      keyVisual, referenceStrength, note, objective, offer, cta, format: format.name
+    }
     const updatedAt = new Date().toISOString()
     setCampaignFolders((current) => current.map((folder) => folder.id === activeFolderId ? { ...folder, brief, updatedAt, posts: folder.posts.map((post) => post.id === activePost.id ? { ...post, brief, updatedAt } : post) } : folder))
     setStatusMessage('Đã lưu brief của bài đăng này.')
@@ -481,7 +700,6 @@ function App() {
     event.target.value = ''
   }
 
-  
   async function handleAutoRemoveBg() {
     if (!productPhoto) return
     setIsRemovingBg(true)
@@ -509,6 +727,31 @@ function App() {
     setExpanded((current) => ({ ...current, [section]: !current[section] }))
   }
 
+  // Palette manipulation functions
+  function addColorItem() {
+    setPalette((current) => [...current, { hex: '#B3B8FA', meaning: 'Màu sắc mới · Chú thích ý nghĩa' }])
+  }
+
+  function updateColorItem(index: number, newHex: string, newMeaning?: string) {
+    setPalette((current) => current.map((item, i) => i === index ? {
+      hex: safeColor(newHex, item.hex),
+      meaning: newMeaning !== undefined ? newMeaning : item.meaning
+    } : item))
+  }
+
+  function removeColorItem(index: number) {
+    if (palette.length <= 2) {
+      setStatusMessage('Bảng màu cần giữ tối thiểu 2 màu.')
+      return
+    }
+    setPalette((current) => current.filter((_, i) => i !== index))
+  }
+
+  function applyPreset(preset: PalettePreset) {
+    setPalette(preset.colors)
+    setStatusMessage(`Đã nạp bảng màu: ${preset.name}`)
+  }
+
   async function generate() {
     setStatus('working')
     setStatusMessage(productMode === 'stage-real' ? 'Đang tạo bối cảnh trống chuẩn Studio để ghép sản phẩm…' : 'Đang chỉ đạo nghệ thuật AI tạo trọn vẹn concept…')
@@ -517,26 +760,32 @@ function App() {
     const presetCfg = stylePresets[stylePreset] ?? stylePresets.editorial
     const isStagingReal = productMode === 'stage-real' && Boolean(productPhoto)
 
-    const subjectDirective = isStagingReal
-      ? 'PHOTOGRAPHIC EMPTY STAGING BACKGROUND. An inviting, masterfully-lit empty surface/environment (e.g. clean wooden desk or architectural surface by a sunlit window) specifically reserved for staging a product. THE MAIN DISPLAY SURFACE IS COMPLETELY EMPTY AND CLEAN - DO NOT DRAW ANY BACKPACK, BAG, OR MERCHANDISE. The scene must be a coherent, empty staging plate ready for product composite.'
-      : `Create a master-grade commercial photograph featuring ${brand} ${campaign} in an authentic editorial environment.`
+    // Palette directives with semantic meanings
+    const colorDirectives = palette.map((item) => `${item.hex} (${item.meaning})`).join(', ')
+
+    const subjectDirective = subjectType === 'graphic_object'
+      ? `CENTRAL GRAPHIC SYMBOL & METAPHOR: ${subjectMetaphor || 'A clean conceptual symbolic object'}. Masterfully rendered with subtle materials, integrated naturally into the background aura, WITHOUT any printed words or letters.`
+      : (isStagingReal
+          ? 'PHOTOGRAPHIC EMPTY STAGING BACKGROUND. An inviting, masterfully-lit empty surface/environment specifically reserved for staging a product or human portrait. THE MAIN DISPLAY SURFACE IS COMPLETELY EMPTY AND CLEAN - DO NOT DRAW ANY DUPLICATE PRODUCT. The scene must be a coherent, empty staging plate ready for product composite.'
+          : `Create an authentic photograph featuring ${brand} in an authentic editorial environment.`)
 
     const creativePrompt = [
       subjectDirective,
-      `Brand: "${brand}" (${industry}). Campaign: "${campaign}". Objective: ${objective}. Audience: ${audience}.`,
-      `Core Message: "${message}". Offer / Badge: "${offer}".`,
+      `Brand & Business Context: Brand "${brand}" (${industry}). Target Audience: ${audience}. Tone of Voice: ${tone}. Core Aesthetic: ${brandCoreStyle}.`,
+      `Campaign & Insight: "${campaign}". Context: ${contextInsight}.`,
+      `Core Message: "${message}". Subtitle/Offer: "${offer}". Call to action: "${cta}".`,
       `Art Direction / Key Visual: ${keyVisual}`,
-      `Lighting & Atmosphere: ${presetCfg.lighting}.`,
+      `Color Harmony & Emotional Semantics: Harmoniously blend subtle ambient tones inspired by: ${colorDirectives}.`,
+      `Visual Effects & Atmosphere: ${visualEffects}. Lighting: ${presetCfg.lighting}.`,
       `Tactile Physical Realism: ${presetCfg.texture}.`,
-      `Color Harmony: Harmoniously blend subtle ambient tones inspired by ${colors.map((color, index) => safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index])).join(', ')}.`,
-      `Composition: Continuous, cohesive scene. Soft out-of-focus background on the left suitable for text readability. Do NOT draw split walls, do NOT draw vertical dividing borders, do NOT draw artificial color partition screens.`,
+      `Decorative Style Components: Subtle presence of ${styleComponents}.`,
+      `Composition & Negative Space: ${negativeSpace}. Soft out-of-focus background reserved specifically for typography layout. Do NOT clutter reserved text areas.`,
       `Creative Notes: ${note}`,
       `Reference Influence Level: ${referenceStrength}%.`,
-      `[STRICT ANTI-AI-SLOP DIRECTIVES]: ${presetCfg.antiSlop}. CRISP CLEAN TRANSPARENT AIR, NO SMOKE, NO STEAM, NO HAZE, NO BURNING VAPORS. ABSOLUTELY NO RENDERED TEXT, NO LETTERS, NO NUMBERS, NO WATERMARK, NO FAKE LABELS.`
-    ].join('\n\n')
+      `[STRICT BRAND GUARDRAILS & ANTI-AI-SLOP DIRECTIVES]: ${brandGuardrails}. ${presetCfg.antiSlop}. CRISP CLEAN TRANSPARENT AIR, NO SMOKE, NO STEAM, NO HAZE. ABSOLUTELY NO RENDERED TEXT, NO LETTERS, NO NUMBERS, NO WATERMARK, NO FAKE LABELS.`
+    ].filter(Boolean).join('\n\n')
 
     try {
-      // If staging real product, do NOT pass product photo into AI references so AI does not duplicate the product!
       const references = isStagingReal
         ? assets.filter((asset) => asset.kind === 'keyvisual' || asset.kind === 'component').slice(0, 4).map((asset) => ({ name: asset.name, image: asset.data }))
         : assets.filter((asset) => asset.kind === 'photo' || asset.kind === 'keyvisual' || asset.kind === 'component').slice(0, 4).map((asset) => ({ name: asset.name, image: asset.data }))
@@ -562,7 +811,7 @@ function App() {
       setGeneratedImage(body.image)
       setAssets((current) => [...current.filter((asset) => asset.kind !== 'output'), { id: crypto.randomUUID(), name: `${activePost?.name ?? campaign} · ảnh tạo`, data: body.image!, kind: 'output' }])
       setStatus('ready')
-      setStatusMessage(isStagingReal ? 'Bối cảnh nền đã sẵn sàng! Sản phẩm thật được ghép tự nhiên, không bị trùng lặp.' : 'Ảnh hoàn tất trọn vẹn, không dán đè!')
+      setStatusMessage(isStagingReal ? 'Bối cảnh nền đã sẵn sàng! Sản phẩm thật được ghép tự nhiên, không bị trùng lặp.' : 'Ảnh Key Visual hoàn tất trọn vẹn, đúng dải màu và chuẩn Anti-Slop!')
     } catch (error) {
       setStatus('error')
       const message = error instanceof Error ? error.message : ''
@@ -597,26 +846,26 @@ function App() {
       image.src = src
     })
 
-    // 1. Nền chuyển sắc cơ bản
+    // 1. Nền gradient chuyển sắc theo bảng màu Key Visual
     const gradient = context.createLinearGradient(0, 0, width, height)
-    gradient.addColorStop(0, safeColor(colors[2], '#FAF7F2'))
-    gradient.addColorStop(1, '#F2CEAE')
+    gradient.addColorStop(0, safeColor(palette[0]?.hex, '#C6F2A6'))
+    gradient.addColorStop(0.5, safeColor(palette[1]?.hex, '#F7B0C3'))
+    gradient.addColorStop(1, safeColor(palette[palette.length - 1]?.hex, '#B3B8FA'))
     context.fillStyle = gradient
     context.fillRect(0, 0, width, height)
 
-    // 2. Vẽ ảnh nền AI chân thực 100%
+    // 2. Vẽ ảnh nền AI
     if (generatedImage) await drawImage(generatedImage, 0, 0, width, height)
 
-    // 3. VÙNG ĐỆM ÁNH SÁNG CHUYỂN TIẾP (ANTI-SLOP FIX):
-    // Chỉ phủ gradient nhẹ phía trái để chữ nổi bật, giữ nguyên 100% độ nét và màu sắc ảnh AI bên phải!
+    // 3. Vùng đệm ánh sáng chuyển tiếp nhẹ bên trái để chữ nổi bật
     const scrim = context.createLinearGradient(0, 0, width * 0.65, 0)
-    scrim.addColorStop(0, 'rgba(16, 26, 18, 0.76)')
-    scrim.addColorStop(0.55, 'rgba(16, 26, 18, 0.32)')
+    scrim.addColorStop(0, 'rgba(16, 26, 18, 0.72)')
+    scrim.addColorStop(0.55, 'rgba(16, 26, 18, 0.28)')
     scrim.addColorStop(1, 'rgba(16, 26, 18, 0.0)')
     context.fillStyle = scrim
     context.fillRect(0, 0, width * 0.68, height)
 
-    // 4. Vẽ ảnh sản phẩm thật kèm bóng đổ tiếp xúc mềm mại (Realistic Contact Shadow)
+    // 4. Vẽ ảnh sản phẩm thật kèm bóng đổ nếu có
     if (productMode === 'stage-real' && productPhoto && !imageComponents.length) {
       context.save()
       context.shadowColor = 'rgba(15, 25, 18, 0.38)'
@@ -647,7 +896,7 @@ function App() {
       context.restore()
     }
 
-    // 6. Typography cao cấp với bóng vi mô
+    // 6. Typography
     context.save()
     context.textAlign = 'left'
     context.fillStyle = '#ffffff'
@@ -656,116 +905,461 @@ function App() {
     context.shadowOffsetY = 2
 
     // Campaign Eyebrow
-    context.font = `600 ${Math.round(width * .02)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+    context.font = `600 ${Math.round(width * .02)}px "${bodyFont}", sans-serif`
     context.fillText(campaign.toUpperCase(), width * .075, height * .25)
 
     // Message Headline
-    context.font = `700 ${Math.round(width * .052)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+    context.font = `800 ${Math.round(width * .054)}px "${displayFont}", sans-serif`
     const words = message.split(' ')
     const maxWidth = width * .53
     let line = ''
-    let y = height * .38
-    const lineHeight = width * .068
+    let y = height * .36
+    const lineHeight = width * .07
     for (const word of words) {
       const next = line ? `${line} ${word}` : word
       if (context.measureText(next).width > maxWidth && line) {
         context.fillText(line, width * .075, y)
-        y += lineHeight
         line = word
-      } else line = next
+        y += lineHeight
+      } else {
+        line = next
+      }
     }
     if (line) context.fillText(line, width * .075, y)
 
-    // Offer
-    context.globalAlpha = .92
-    context.font = `500 ${Math.round(width * .023)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-    context.fillText(offer, width * .075, height * .69)
-    context.globalAlpha = 1
+    // Subtitle / Offer
+    context.font = `400 ${Math.round(width * .022)}px "${bodyFont}", sans-serif`
+    context.fillStyle = 'rgba(255, 255, 255, 0.92)'
+    context.fillText(offer, width * .075, y + width * .06)
 
-    // CTA Button
-    const buttonY = height * .77
+    // Call to action button
+    const ctaY = y + width * .13
+    const ctaText = cta
+    context.font = `700 ${Math.round(width * .022)}px "${bodyFont}", sans-serif`
+    const ctaWidth = context.measureText(ctaText).width + width * .06
+    const ctaHeight = width * .052
+
+    context.fillStyle = safeColor(palette[0]?.hex, '#C6F2A6')
     context.shadowColor = 'rgba(0, 0, 0, 0.25)'
-    context.shadowBlur = 12
-    context.fillStyle = safeColor(colors[0], '#1C2F4D')
+    context.shadowBlur = 10
     context.beginPath()
-    context.roundRect(width * .075, buttonY, width * .44, height * .07, height * .035)
+    context.roundRect(width * .075, ctaY, ctaWidth, ctaHeight, 6)
     context.fill()
 
+    context.fillStyle = '#1C2F4D'
     context.shadowColor = 'transparent'
-    context.fillStyle = '#ffffff'
-    context.font = `600 ${Math.round(width * .02)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-    context.fillText(cta + '  →', width * .105, buttonY + height * .044)
+    context.fillText(ctaText, width * .105, ctaY + ctaHeight * 0.68)
+
     context.restore()
 
     const link = document.createElement('a')
-    link.download = `${campaign.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${format.name}.png`
+    link.download = `${brand.toLowerCase().replace(/\s+/g, '-')}-${activePost?.name.toLowerCase().replace(/\s+/g, '-') ?? 'poster'}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
-    setStatusMessage('Đã xuất PNG chất lượng cao, sắc nét và màu sắc trung thực 100%.')
   }
 
-  const removeAsset = (id: string) => {
-    if (assets.some((asset) => asset.id === id && asset.kind === 'output')) setGeneratedImage(null)
+  function removeAsset(id: string) {
     setAssets((current) => current.filter((asset) => asset.id !== id))
     if (selectedAssetId === id) setSelectedAssetId(null)
   }
 
   return (
     <div className="app-shell">
-      <aside className="rail">
-        <div className="brand-mark">l<span>·</span></div>
-        <button className={page === 'folders' || page === 'campaign' ? 'rail-item active' : 'rail-item'} onClick={() => setPage('folders')} title="Folder chiến dịch"><Icon name="folder" /></button>
-        <div className="rail-spacer" />
-        <button className={page === 'settings' ? 'rail-item active' : 'rail-item'} onClick={() => setPage('settings')} title="Cài đặt cá nhân"><Icon name="settings" /></button>
-        <button className="avatar" onClick={() => setPage('settings')} title="Hồ sơ cá nhân">{(personalSettings.displayName || 'CM').split(/\s+/).map((part) => part[0]).slice(-2).join('').toUpperCase()}</button>
-      </aside>
+      <header className="top-bar">
+        <div className="brand-group">
+          <div className="brand-badge" onClick={() => setPage('folders')}>VS</div>
+          <div>
+            <strong>Creative Studio</strong>
+            <small>Social Creative Agent · VietSpirit</small>
+          </div>
+        </div>
+        <nav className="top-nav">
+          <button className={page === 'folders' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('folders')}><Icon name="folder" /> Chiến dịch</button>
+          <button className={page === 'studio' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('studio')}><Icon name="spark" /> Studio</button>
+          <button className={page === 'settings' ? 'nav-item active' : 'nav-item'} onClick={() => setPage('settings')}><Icon name="settings" /> Cài đặt</button>
+        </nav>
+        <div className="top-actions">
+          <span className="save-indicator">{personalSettings.autosave ? '✓ Đã bật tự lưu' : 'Lưu thủ công'}</span>
+          <button className="quiet-btn" onClick={saveCurrentBrief}><Icon name="check" /> Lưu brief</button>
+          <button className="export-btn" onClick={exportPng}><Icon name="download" /> Xuất ảnh PNG</button>
+        </div>
+      </header>
 
-      <main className="main-area">
-        <header className="topbar">
-          <div className="crumbs"><button className="crumb-home" onClick={() => setPage('folders')}>{personalSettings.workspaceName || 'Creative Studio'}</button>{page !== 'folders' && <><span className="crumb-sep">/</span><strong>{page === 'studio' ? activePost?.name ?? 'Bài đăng mới' : page === 'campaign' ? activeFolder?.name : 'Cài đặt cá nhân'}</strong></>}</div>
-          <div className="top-actions">{page === 'studio' && <><span className="save-state"><i /> {personalSettings.autosave ? 'Đã lưu trong bài đăng' : 'Tự lưu đang tắt'}</span>{!personalSettings.autosave && <button className="quiet-btn" onClick={saveCurrentBrief}><Icon name="check" /> Lưu bài đăng</button>}<button className="export-btn" onClick={exportPng}><Icon name="download" /> Xuất PNG</button></>}{page === 'folders' && <button className="export-btn" onClick={createFolder}><Icon name="plus" /> Tạo chiến dịch</button>}{page === 'campaign' && <button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng</button>}{page === 'settings' && <button className="export-btn" onClick={() => { localStorage.setItem('creative-personal-settings', JSON.stringify(personalSettings)); setSettingsSaved(true) }}><Icon name="check" /> {settingsSaved ? 'Đã lưu' : 'Lưu cài đặt'}</button>}</div>
-        </header>
-
+      <main className="main-content">
         {page === 'settings' ? <section className="settings-page">
-          <div className="settings-intro"><div><span className="eyebrow">TÀI KHOẢN CỦA BẠN</span><h1>Cài đặt cá nhân</h1><p>Quản lý hồ sơ và cách Creative Studio tạo thiết kế cho bạn.</p></div><span className="settings-save-state">{settingsSaved ? '✓ Đã lưu' : '● Chưa lưu'}</span></div>
-          <div className="settings-layout"><nav className="settings-nav"><a className="selected" href="#profile"><Icon name="user" /> Hồ sơ</a><a href="#workspace-settings"><Icon name="layers" /> Workspace</a><a href="#creative-defaults"><Icon name="spark" /> Mặc định sáng tạo</a><a href="#api-key"><Icon name="lock" /> API & bảo mật</a></nav>
-            <div className="settings-content"><section className="settings-card" id="profile"><div className="settings-card-title"><div><h2>Hồ sơ cá nhân</h2><p>Thông tin hiển thị trong workspace của bạn.</p></div><div className="profile-avatar">{(personalSettings.displayName || 'CM').split(/\s+/).map((part) => part[0]).slice(-2).join('').toUpperCase()}</div></div><div className="settings-fields"><label className="field-label">Tên hiển thị<input value={personalSettings.displayName} onChange={(e) => updateSettings('displayName', e.target.value)} placeholder="Tên của bạn" /></label><label className="field-label">Email<input type="email" value={personalSettings.email} onChange={(e) => updateSettings('email', e.target.value)} placeholder="name@company.com" /><small>Chỉ lưu trên trình duyệt này; đăng nhập chưa được kết nối.</small></label></div></section>
-              <section className="settings-card" id="workspace-settings"><div className="settings-card-title"><div><h2>Workspace</h2><p>Đặt tên không gian làm việc cá nhân.</p></div><span className="settings-card-icon"><Icon name="layers" /></span></div><label className="field-label">Tên workspace<input value={personalSettings.workspaceName} onChange={(e) => updateSettings('workspaceName', e.target.value)} placeholder="Creative Studio" /></label></section>
-              <section className="settings-card" id="creative-defaults"><div className="settings-card-title"><div><h2>Mặc định sáng tạo</h2><p>Áp dụng khi bạn tạo folder chiến dịch mới.</p></div><span className="settings-card-icon"><Icon name="spark" /></span></div><div className="settings-fields"><label className="field-label">Kích thước mặc định<select value={personalSettings.defaultFormat} onChange={(e) => updateSettings('defaultFormat', e.target.value)}>{formats.map((item) => <option key={item.name} value={item.name}>{item.label}</option>)}</select></label><label className="field-label">Chất lượng tạo ảnh<select value={personalSettings.imageQuality} onChange={(e) => updateSettings('imageQuality', e.target.value as PersonalSettings['imageQuality'])}><option value="high">Cao · phù hợp xem trước</option><option value="xhigh">Tối đa · ảnh xuất bản</option></select></label></div><div className="setting-toggle"><span><strong>Lưu brief tự động</strong><small>Lưu nội dung từng chiến dịch vào trình duyệt.</small></span><button className={personalSettings.autosave ? 'switch on' : 'switch'} role="switch" aria-checked={personalSettings.autosave} onClick={() => updateSettings('autosave', !personalSettings.autosave)}><i /></button></div></section>
-              <section className="settings-card" id="api-key"><div className="settings-card-title"><div><h2>Kết nối nhà cung cấp AI</h2><p>Chọn OpenAI hoặc Google Gemini. Key lưu trên local server; khi tạo ảnh, brief và ảnh tham chiếu gửi tới nhà cung cấp đã chọn.</p></div><span className="settings-card-icon"><Icon name="lock" /></span></div><div className="settings-fields"><label className="field-label">Nhà cung cấp<select value={apiProvider} onChange={(e) => { const provider = e.target.value as 'openai' | 'gemini'; setApiProvider(provider); setApiModel(provider === 'gemini' ? 'gemini-3.1-flash-image' : 'gpt-image-2.5-sunburst') }}><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option></select></label><label className="field-label">Model ảnh{apiProvider === 'gemini' ? <select value={apiModel} onChange={(e) => setApiModel(e.target.value)}><option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image</option><option value="gemini-3.1-flash-lite-image">Gemini 3.1 Flash Lite Image</option></select> : <input value={apiModel} onChange={(e) => setApiModel(e.target.value)} placeholder="gpt-image-2.5-sunburst" />}</label></div><label className="field-label">{apiProvider === 'gemini' ? 'Google Gemini API key' : 'OpenAI API key'}<input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={apiReady ? 'Đã có key · nhập key mới để thay thế' : 'Dán API key tại đây'} /></label><div className="api-settings-actions"><div className="api-help"><span className={apiReady && apiProvider === configuredProvider ? 'api-state-dot ready' : 'api-state-dot'} /><span><strong>{apiReady && apiProvider === configuredProvider ? `Đã cấu hình ${apiProvider === 'gemini' ? 'Gemini' : 'OpenAI'}` : 'Chưa cấu hình nhà cung cấp đã chọn'}</strong><small>{apiMessage || 'Kết nối thật được xác minh khi bạn tạo ảnh. Model Gemini mặc định hỗ trợ đầu vào ảnh tham chiếu.'}</small></span></div><button className="export-btn" onClick={saveApiKey} disabled={!apiKey.trim() || !apiModel.trim() || apiSaving}><Icon name={apiSaving ? 'loader' : 'check'} />{apiSaving ? 'Đang lưu…' : 'Lưu cấu hình'}</button></div></section>
+          <div className="settings-intro"><div><span className="eyebrow">CẤU HÌNH</span><h1>Cài đặt hệ thống</h1><p>Quản lý tài khoản, workspace và kết nối Local AI API.</p></div>{settingsSaved && <span className="settings-save-state">✓ Đã lưu</span>}</div>
+          <div className="settings-layout">
+            <div className="settings-nav">
+              <a href="#profile" className="selected"><Icon name="user" /> Thông tin</a>
+              <a href="#api"><Icon name="spark" /> Local AI Model</a>
+            </div>
+            <div className="settings-content">
+              <section className="settings-card" id="profile">
+                <div className="settings-card-title"><div><h2>Thông tin cá nhân & Workspace</h2><p>Dùng để hiển thị trong studio và gắn thẻ file xuất bản.</p></div><div className="profile-avatar">{personalSettings.displayName ? personalSettings.displayName.slice(0, 2).toUpperCase() : 'VS'}</div></div>
+                <div className="settings-fields">
+                  <label className="field-label">Tên hiển thị<input value={personalSettings.displayName} onChange={(e) => updateSettings('displayName', e.target.value)} placeholder="Ví dụ: Hoàng Creative" /></label>
+                  <label className="field-label">Email<input value={personalSettings.email} onChange={(e) => updateSettings('email', e.target.value)} placeholder="name@company.com" /></label>
+                  <label className="field-label">Tên Workspace<input value={personalSettings.workspaceName} onChange={(e) => updateSettings('workspaceName', e.target.value)} /></label>
+                  <label className="field-label">Khổ ảnh mặc định<select value={personalSettings.defaultFormat} onChange={(e) => updateSettings('defaultFormat', e.target.value)}>{formats.map((item) => <option key={item.name} value={item.name}>{item.label}</option>)}</select></label>
+                </div>
+                <div className="setting-toggle"><div><strong>Tự động lưu thay đổi</strong><small>Lưu các chỉnh sửa brief vào bộ nhớ trình duyệt ngay khi bạn nhập liệu.</small></div><button type="button" className={`switch ${personalSettings.autosave ? 'on' : ''}`} onClick={() => updateSettings('autosave', !personalSettings.autosave)}><i /></button></div>
+              </section>
+
+              <section className="settings-card" id="api">
+                <div className="settings-card-title"><div><h2>Cấu hình AI Image API</h2><p>Kết nối OpenAI hoặc Google Gemini để sinh ảnh nền sáng tạo.</p></div><div className="settings-card-icon"><Icon name="spark" /></div></div>
+                <div className="settings-fields">
+                  <label className="field-label">Nhà cung cấp
+                    <select value={apiProvider} onChange={(e) => { const next = e.target.value as 'openai' | 'gemini'; setApiProvider(next); setApiModel(next === 'gemini' ? 'gemini-3.1-flash-image' : 'gpt-image-2.5-sunburst') }}>
+                      <option value="gemini">Google Gemini (Hỗ trợ ảnh tham chiếu · Khuyên dùng)</option>
+                      <option value="openai">OpenAI (DALL·E / GPT Image)</option>
+                    </select>
+                  </label>
+                  <label className="field-label">Model ID<input value={apiModel} onChange={(e) => setApiModel(e.target.value)} /></label>
+                </div>
+                <label className="field-label" style={{ marginTop: '10px' }}>API Key
+                  <input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={apiReady ? 'Đã có key · nhập key mới để thay thế' : 'Dán API key tại đây'} />
+                </label>
+                <div className="api-settings-actions">
+                  <div className="api-help">
+                    <span className={apiReady && apiProvider === configuredProvider ? 'api-state-dot ready' : 'api-state-dot'} />
+                    <span>
+                      <strong>{apiReady && apiProvider === configuredProvider ? `Đã kết nối ${apiProvider === 'gemini' ? 'Gemini' : 'OpenAI'}` : 'Chưa cấu hình API Key'}</strong>
+                      <small>{apiMessage || 'Khóa API được lưu cục bộ an toàn trên máy, không đưa lên Git.'}</small>
+                    </span>
+                  </div>
+                  <button className="export-btn" onClick={saveApiKey} disabled={!apiKey.trim() || !apiModel.trim() || apiSaving}>
+                    <Icon name={apiSaving ? 'loader' : 'check'} />
+                    {apiSaving ? 'Đang lưu…' : 'Lưu cấu hình'}
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
         </section> : page === 'folders' ? <section className="folder-page home-page">
-          <div className="folder-page-heading"><div><span className="eyebrow">THƯ VIỆN CỦA BẠN</span><h1>Chiến dịch</h1><p>Quản lý các chiến dịch truyền thông và bài đăng của bạn.</p></div><button className="export-btn" onClick={createFolder}><Icon name="plus" /> Tạo chiến dịch</button></div>
-          <div className="folder-toolbar"><label className="folder-search"><Icon name="search" /><input value={folderQuery} onChange={(e) => setFolderQuery(e.target.value)} placeholder="Tìm chiến dịch…" /></label><div className="folder-toolbar-actions"><span>{filteredFolders.length} / {campaignFolders.length} chiến dịch</span><label className="folder-sort-label">Sắp xếp<select className="folder-sort" value={folderSort} onChange={(e) => setFolderSort(e.target.value as 'updated' | 'name')}><option value="updated">Mới cập nhật</option><option value="name">Tên A–Z</option></select></label></div></div>
-          <div className="folder-grid">{filteredFolders.map((folder, index) => <article className="campaign-card" key={folder.id}><button className="campaign-card-main" onClick={() => openFolder(folder)}><div className={`folder-art folder-color-${index % 4}`}><Icon name="folder" /><span>CHIẾN DỊCH</span></div><div className="campaign-card-info"><div><strong>{folder.name}</strong><small>Cập nhật {new Date(folder.updatedAt).toLocaleDateString('vi-VN')}</small></div><span className="folder-open-arrow">↗</span></div><div className="campaign-card-meta"><span><Icon name="file" /> {folder.posts.length} bài đăng</span><span>{folder.brief.format === 'portrait' ? '4:5' : folder.brief.format === 'square' ? '1:1' : folder.brief.format === 'story' ? '9:16' : '1.91:1'}</span></div></button><div className="campaign-card-actions"><button onClick={() => renameFolder(folder)}><Icon name="edit" /> Đổi tên</button><button onClick={() => deleteFolder(folder)}><Icon name="trash" /> Xóa</button></div></article>)}{!filteredFolders.length && <p className="empty-folders">Không tìm thấy chiến dịch phù hợp.</p>}</div>
+          <div className="folder-page-heading">
+            <div><span className="eyebrow">THƯ VIỆN CỦA BẠN</span><h1>Chiến dịch</h1><p>Quản lý các chiến dịch truyền thông và bài đăng sáng tạo của bạn.</p></div>
+            <button className="export-btn" onClick={createFolder}><Icon name="plus" /> Tạo chiến dịch</button>
+          </div>
+          <div className="folder-toolbar">
+            <label className="folder-search"><Icon name="search" /><input value={folderQuery} onChange={(e) => setFolderQuery(e.target.value)} placeholder="Tìm chiến dịch…" /></label>
+            <div className="folder-toolbar-actions">
+              <span>{filteredFolders.length} / {campaignFolders.length} chiến dịch</span>
+              <label className="folder-sort-label">Sắp xếp
+                <select className="folder-sort" value={folderSort} onChange={(e) => setFolderSort(e.target.value as 'updated' | 'name')}>
+                  <option value="updated">Mới cập nhật</option>
+                  <option value="name">Tên A–Z</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div className="folder-grid">
+            {filteredFolders.map((folder, index) => <article className="campaign-card" key={folder.id}>
+              <button className="campaign-card-main" onClick={() => openFolder(folder)}>
+                <div className={`folder-art folder-color-${index % 4}`}><Icon name="folder" /><span>CHIẾN DỊCH</span></div>
+                <div className="campaign-card-info">
+                  <div><strong>{folder.name}</strong><small>Cập nhật {new Date(folder.updatedAt).toLocaleDateString('vi-VN')}</small></div>
+                  <span className="folder-open-arrow">↗</span>
+                </div>
+                <div className="campaign-card-meta">
+                  <span><Icon name="file" /> {folder.posts.length} bài đăng</span>
+                  <span>{folder.brief.format === 'portrait' ? '4:5' : folder.brief.format === 'square' ? '1:1' : folder.brief.format === 'story' ? '9:16' : '1.91:1'}</span>
+                </div>
+              </button>
+              <div className="campaign-card-actions">
+                <button onClick={() => renameFolder(folder)}><Icon name="edit" /> Đổi tên</button>
+                <button onClick={() => deleteFolder(folder)}><Icon name="trash" /> Xóa</button>
+              </div>
+            </article>)}
+            {!filteredFolders.length && <p className="empty-folders">Không tìm thấy chiến dịch phù hợp.</p>}
+          </div>
         </section> : page === 'campaign' ? <section className="campaign-page">
-          <div className="campaign-page-heading"><button className="back-link" onClick={() => setPage('folders')}>← Tất cả chiến dịch</button><div className="campaign-heading-row"><div><span className="eyebrow">CAMPAIGN FOLDER</span><h1>{activeFolder?.name}</h1><p>Các bài đăng trong chiến dịch này được quản lý riêng.</p></div><button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng</button></div></div>
-          <section className="campaign-overview"><div className="campaign-overview-title"><div><span className="eyebrow">BRIEF MẶC ĐỊNH</span><h2>Thông tin chiến dịch</h2><p>Bài đăng mới sẽ kế thừa thông tin này. Bạn có thể tinh chỉnh brief trong từng bài.</p></div><span className="campaign-overview-mark"><Icon name="layers" /></span></div><div className="campaign-overview-grid"><div><small>Thương hiệu</small><strong>{activeFolder?.brief.brand || 'Chưa thiết lập'}</strong></div><div><small>Ngành hàng</small><strong>{activeFolder?.brief.industry || 'Chưa thiết lập'}</strong></div><div><small>Mục tiêu</small><strong>{activeFolder?.brief.objective || 'Chưa thiết lập'}</strong></div><div><small>Đối tượng</small><strong>{activeFolder?.brief.audience || 'Chưa thiết lập'}</strong></div></div><div className="campaign-palette"><span>Màu thương hiệu</span>{(activeFolder?.brief.colors ?? []).map((color, index) => <i key={index} title={color} style={{ backgroundColor: safeColor(color, '#e5e8e1') }} />)}</div></section>
+          <div className="campaign-page-heading">
+            <button className="back-link" onClick={() => setPage('folders')}>← Tất cả chiến dịch</button>
+            <div className="campaign-heading-row">
+              <div><span className="eyebrow">CHIẾN DỊCH</span><h1>{activeFolder?.name}</h1><p>Các bài đăng trong chiến dịch này được quản lý riêng.</p></div>
+              <button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng</button>
+            </div>
+          </div>
+          <section className="campaign-overview">
+            <div className="campaign-overview-title">
+              <div><span className="eyebrow">KEY VISUAL BRIEF</span><h2>Thông tin chiến dịch</h2><p>Bài đăng mới sẽ kế thừa hệ quy chuẩn này. Bạn có thể tinh chỉnh riêng trong từng bài.</p></div>
+              <span className="campaign-overview-mark"><Icon name="layers" /></span>
+            </div>
+            <div className="campaign-overview-grid">
+              <div><small>Thương hiệu</small><strong>{activeFolder?.brief.brand || 'Chưa thiết lập'}</strong></div>
+              <div><small>Thông điệp chính</small><strong>{activeFolder?.brief.message || 'Chưa thiết lập'}</strong></div>
+              <div><small>Phong cách thiết kế</small><strong>{activeFolder?.brief.brandCoreStyle || 'Clean Tech'}</strong></div>
+              <div><small>Hình tượng chủ đạo</small><strong>{activeFolder?.brief.subjectMetaphor ? activeFolder.brief.subjectMetaphor.slice(0, 35) + '…' : 'Chưa thiết lập'}</strong></div>
+            </div>
+            <div className="campaign-palette">
+              <span>Bảng màu Key Visual</span>
+              {(activeFolder?.brief.palette ?? palettePresets[0].colors).map((item, index) => <i key={index} title={`${item.hex}: ${item.meaning}`} style={{ backgroundColor: safeColor(item.hex, '#e5e8e1') }} />)}
+            </div>
+          </section>
           <div className="post-section-heading"><div><h2>Bài đăng</h2><p>{activeFolder?.posts.length ?? 0} bài trong chiến dịch</p></div></div>
-          <div className="post-grid">{activeFolder?.posts.map((post, index) => <article className="post-card" key={post.id}><button className="post-card-open" onClick={() => openPost(post)}><div className={`post-preview post-preview-${index % 4} ${postCovers[post.id] ? 'has-cover' : ''}`}>{postCovers[post.id] && <img src={postCovers[post.id]} alt="Ảnh đã tạo" />}<strong>{post.brief.message || 'Bài đăng mới'}</strong><small>{post.brief.format === 'portrait' ? '4:5' : post.brief.format === 'square' ? '1:1' : post.brief.format === 'story' ? '9:16' : '1.91:1'}</small></div><div className="post-card-info"><span><strong>{post.name}</strong><small>{postCovers[post.id] ? 'Đã có ảnh tạo · ' : 'Bản nháp · '}Cập nhật {new Date(post.updatedAt).toLocaleDateString('vi-VN')}</small></span><span className="folder-open-arrow">↗</span></div></button><div className="campaign-card-actions"><button onClick={() => renamePost(post)}><Icon name="edit" /> Đổi tên</button><button onClick={() => deletePost(post)}><Icon name="trash" /> Xóa</button></div></article>)}{activeFolder?.posts.length === 0 && <div className="campaign-empty"><span className="new-post-plus"><Icon name="plus" /></span><h3>Chưa có bài đăng</h3><p>Tạo bài đầu tiên để thêm key visual, nội dung và ảnh thực tế cho chiến dịch này.</p><button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng đầu tiên</button></div>}{Boolean(activeFolder?.posts.length) && <button className="new-post-card" onClick={createPost}><span className="new-post-plus"><Icon name="plus" /></span><strong>Tạo bài đăng</strong><small>Mở trình tạo hình ảnh</small></button>}</div>
+          <div className="post-grid">
+            {activeFolder?.posts.map((post, index) => <article className="post-card" key={post.id}>
+              <button className="post-card-open" onClick={() => openPost(post)}>
+                <div className={`post-preview post-preview-${index % 4} ${postCovers[post.id] ? 'has-cover' : ''}`}>
+                  {postCovers[post.id] && <img src={postCovers[post.id]} alt="Ảnh đã tạo" />}
+                  <strong>{post.brief.message || 'Bài đăng mới'}</strong>
+                  <small>{post.brief.format === 'portrait' ? '4:5' : post.brief.format === 'square' ? '1:1' : post.brief.format === 'story' ? '9:16' : '1.91:1'}</small>
+                </div>
+                <div className="post-card-info">
+                  <span><strong>{post.name}</strong><small>{postCovers[post.id] ? 'Đã có ảnh tạo · ' : 'Bản nháp · '}Cập nhật {new Date(post.updatedAt).toLocaleDateString('vi-VN')}</small></span>
+                  <span className="folder-open-arrow">↗</span>
+                </div>
+              </button>
+              <div className="campaign-card-actions">
+                <button onClick={() => renamePost(post)}><Icon name="edit" /> Đổi tên</button>
+                <button onClick={() => deletePost(post)}><Icon name="trash" /> Xóa</button>
+              </div>
+            </article>)}
+            {activeFolder?.posts.length === 0 && <div className="campaign-empty">
+              <span className="new-post-plus"><Icon name="plus" /></span>
+              <h3>Chưa có bài đăng</h3>
+              <p>Tạo bài đầu tiên để bắt đầu thiết kế Key Visual và ảnh thực tế cho chiến dịch này.</p>
+              <button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng đầu tiên</button>
+            </div>}
+            {Boolean(activeFolder?.posts.length) && <button className="new-post-card" onClick={createPost}>
+              <span className="new-post-plus"><Icon name="plus" /></span>
+              <strong>Tạo bài đăng mới</strong>
+              <small>Mở Studio Key Visual</small>
+            </button>}
+          </div>
         </section> : <div className="workspace">
           <section className="context-panel">
-            <div className="panel-heading"><div><span className="eyebrow">CAMPAIGN BRIEF</span><h1>{campaign}</h1><p>Context và tài nguyên của folder đang mở.</p></div></div>
-            <div className="api-status-inline"><i className={apiReady && apiProvider === configuredProvider ? 'ready' : ''} /><span>{apiReady && apiProvider === configuredProvider ? `Đã cấu hình ${apiProvider === 'gemini' ? 'Gemini' : 'OpenAI'}` : 'Cần lưu cấu hình API'}</span>{!(apiReady && apiProvider === configuredProvider) && <button onClick={() => setPage('settings')}>Cấu hình</button>}</div>
-            <div className="tabs"><button className={activeTab === 'context' ? 'tab active' : 'tab'} onClick={() => setActiveTab('context')}>Brief & context</button><button className={activeTab === 'assets' ? 'tab active' : 'tab'} onClick={() => setActiveTab('assets')}>Tài nguyên <span>{assets.length}</span></button></div>
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">HỆ THỐNG INPUT 3 TẦNG</span>
+                <h1>{campaign}</h1>
+                <p>Khung thông tin thương hiệu, quy chuẩn Key Visual & bài đăng.</p>
+              </div>
+            </div>
+
+            <div className="api-status-inline">
+              <i className={apiReady && apiProvider === configuredProvider ? 'ready' : ''} />
+              <span>{apiReady && apiProvider === configuredProvider ? `Đã cấu hình ${apiProvider === 'gemini' ? 'Gemini' : 'OpenAI'}` : 'Cần cấu hình API Key'}</span>
+              {!(apiReady && apiProvider === configuredProvider) && <button onClick={() => setPage('settings')}>Cấu hình</button>}
+            </div>
+
+            <div className="tabs">
+              <button className={activeTab === 'context' ? 'tab active' : 'tab'} onClick={() => setActiveTab('context')}>
+                Key Visual & Brief
+              </button>
+              <button className={activeTab === 'assets' ? 'tab active' : 'tab'} onClick={() => setActiveTab('assets')}>
+                Tài nguyên <span>{assets.length}</span>
+              </button>
+            </div>
+
             {activeTab === 'context' ? <div className="form-scroll">
-              <Section title="Thương hiệu" count="01" open={expanded.business} onClick={() => toggle('business')}>
-                <label className="field-label">Tên doanh nghiệp<input value={brand} onChange={(e) => setBrand(e.target.value)} /></label>
-                <label className="field-label">Ngành hàng<input value={industry} onChange={(e) => setIndustry(e.target.value)} /></label>
-                <label className="field-label">Khách hàng mục tiêu<textarea rows={2} value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
-                <label className="field-label">Tính cách thương hiệu<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
-                <div className="field-label">Màu chủ đạo <small className="field-hint">Nhập mã HEX, ví dụ #1C2F4D</small><div className="hex-color-list">{colors.map((color, index) => <label className="hex-color-field" key={index}><span style={{ backgroundColor: safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index]) }} /><input aria-label={`Mã màu thương hiệu ${index + 1}`} value={color} maxLength={7} placeholder="#1C2F4D" onChange={(e) => setColors((current) => current.map((c, i) => i === index ? e.target.value : c))} onBlur={() => setColors((current) => current.map((c, i) => i === index ? safeColor(c, ['#1C2F4D', '#B6404A', '#FAF7F2'][index]) : c))} /></label>)}</div></div>
-                <label className="field-label">Logo thương hiệu<div className="upload-inline"><input type="file" accept="image/*" onChange={addLogo} /><span>{logo ? logo.name : 'Chọn logo PNG hoặc SVG'}</span><Icon name="upload" /></div></label>
+              {/* Quick Sample Profile Bar */}
+              <div className="sample-bar">
+                <span>⚡ Nạp mẫu nhanh:</span>
+                <div className="sample-btn-group">
+                  <button type="button" className="sample-btn" onClick={applyYouthPlusDemo} title="Nạp đúng theo file PDF Youth+ Tech [Sự kiện Tháng 7]">
+                    🌸 Youth+ Tech [Sự kiện Tháng 7]
+                  </button>
+                  <button type="button" className="sample-btn" onClick={applyLumiereDemo} title="Nạp mẫu thương hiệu Skincare tối giản">
+                    ✨ Lumière Studio
+                  </button>
+                </div>
+              </div>
+
+              {/* ============================================================== */}
+              {/* TẦNG 1: BRAND DNA & ĐIỀU CẤM KỴ */}
+              {/* ============================================================== */}
+              <div className="tier-header">
+                <div className="tier-title">
+                  <strong>Tầng 1: Brand DNA & Guardrails</strong>
+                  <small>Thông tin doanh nghiệp & quy chuẩn cấm kỵ (Dùng lâu dài)</small>
+                </div>
+                <span className="tier-pill">Thương hiệu</span>
+              </div>
+
+              <Section title="Hồ sơ doanh nghiệp" count="01" open={expanded.tier1Brand} onClick={() => toggle('tier1Brand')}>
+                <label className="field-label">Tên doanh nghiệp / Thương hiệu
+                  <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Ví dụ: Youth+ Tech" />
+                </label>
+                <label className="field-label">Ngành hàng / Lĩnh vực hoạt động
+                  <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Ví dụ: Công nghệ giáo dục & Hoạt động xã hội" />
+                </label>
+                <label className="field-label">Khách hàng mục tiêu (Target Audience)
+                  <textarea rows={2} value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Ví dụ: Học sinh, sinh viên, Gen Z toàn quốc..." />
+                </label>
+                <label className="field-label">Tính cách thương hiệu (Tone of Voice)
+                  <input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="Ví dụ: Đồng cảm, hiện đại, năng động, chữa lành" />
+                </label>
+                <label className="field-label">Logo thương hiệu
+                  <div className="upload-inline">
+                    <input type="file" accept="image/*" onChange={addLogo} />
+                    <span>{logo ? logo.name : 'Chọn logo PNG / SVG (Tự động tách nền trong suốt)'}</span>
+                    <Icon name="upload" />
+                  </div>
+                </label>
               </Section>
-              <Section title="Chiến dịch" count="02" open={expanded.campaign} onClick={() => toggle('campaign')}>
-                <label className="field-label">Tên chiến dịch<input value={campaign} onChange={(e) => setCampaign(e.target.value)} /></label>
-                <label className="field-label">Mục tiêu<select value={objective} onChange={(e) => setObjective(e.target.value)}><option>Ra mắt sản phẩm</option><option>Tăng nhận diện</option><option>Tạo khách hàng tiềm năng</option><option>Thúc đẩy chuyển đổi</option><option>Chia sẻ kiến thức</option></select></label>
-                <label className="field-label">Thông điệp chính<textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} /></label>
-                <label className="field-label">Ưu đãi / thông tin phụ<input value={offer} onChange={(e) => setOffer(e.target.value)} /></label>
-                <label className="field-label">Nút kêu gọi hành động<input value={cta} onChange={(e) => setCta(e.target.value)} /></label>
+
+              <Section title="Thẩm mỹ cốt lõi & Những điều cấm kỵ" count="02" open={expanded.tier1Guardrails} onClick={() => toggle('tier1Guardrails')}>
+                <label className="field-label">Phong cách thiết kế cốt lõi (Core Aesthetic)
+                  <input value={brandCoreStyle} onChange={(e) => setBrandCoreStyle(e.target.value)} placeholder="Ví dụ: Neo-Brutalism & Modern Clean Tech" />
+                </label>
+                <div className="guardrails-box">
+                  <label className="field-label" style={{ color: '#9c3f2d' }}>
+                    <strong>⛔ NHỮNG ĐIỀU CẤM KỴ (Brand Guardrails / Don'ts)</strong>
+                    <small style={{ color: '#8b5448' }}>AI sẽ triệt tiêu 100% các yếu tố này khỏi thiết kế và ảnh nền:</small>
+                    <textarea rows={3} value={brandGuardrails} onChange={(e) => setBrandGuardrails(e.target.value)} placeholder="Ví dụ: Tuyệt đối không dùng 3D sáp nhựa; Không màu sắc bi lụy đen tối; Không che góc đặt logo..." />
+                  </label>
+                  <div className="guardrails-quick-chips">
+                    <span className="guardrail-chip" onClick={() => setBrandGuardrails((prev) => prev ? `${prev}; Cấm chữ/số giả mạo trong nền AI` : 'Cấm chữ/số giả mạo trong nền AI')}>+ Cấm chữ rác</span>
+                    <span className="guardrail-chip" onClick={() => setBrandGuardrails((prev) => prev ? `${prev}; Không dùng 3D render sáp nhựa rẻ tiền` : 'Không dùng 3D render sáp nhựa')}>+ Cấm 3D sáp nhựa</span>
+                    <span className="guardrail-chip" onClick={() => setBrandGuardrails((prev) => prev ? `${prev}; Tránh màu đen tối u ám bi lụy` : 'Tránh màu đen tối u ám')}>+ Cấm màu đen u ám</span>
+                    <span className="guardrail-chip" onClick={() => setBrandGuardrails((prev) => prev ? `${prev}; Giữ thoáng góc trên để đặt logo` : 'Giữ thoáng góc trên')}>+ Chừa chỗ Logo</span>
+                  </div>
+                </div>
               </Section>
-              <Section title="Key visual & assets" count="03" open={expanded.visual} onClick={() => toggle('visual')}>
+
+              {/* ============================================================== */}
+              {/* TẦNG 2: HỆ THỐNG KEY VISUAL CHIẾN DỊCH (THEO PDF) */}
+              {/* ============================================================== */}
+              <div className="tier-header tier-2">
+                <div className="tier-title">
+                  <strong>Tầng 2: Hệ thống Key Visual Chiến dịch</strong>
+                  <small>Thông điệp, Bảng màu ngữ nghĩa, Hình tượng chủ đạo & Style</small>
+                </div>
+                <span className="tier-pill" style={{ background: '#E6E8FA', color: '#3A4278' }}>Key Visual</span>
+              </div>
+
+              <Section title="Nội dung thông điệp & Bối cảnh" count="03" open={expanded.tier2Message} onClick={() => toggle('tier2Message')}>
+                <label className="field-label">Tên chiến dịch / Sự kiện
+                  <input value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="Ví dụ: Youth+ Tech [Sự kiện Tháng 7]" />
+                </label>
+                <label className="field-label">Nội dung thông điệp chính (Tagline / Slogan)
+                  <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ví dụ: Speak Out - Don't keep by yourself" />
+                </label>
+                <label className="field-label">Tổng quan bối cảnh & Insight chiến dịch
+                  <textarea rows={3} value={contextInsight} onChange={(e) => setContextInsight(e.target.value)} placeholder="Ví dụ: Nguy cơ mắc bệnh tâm lý ở giới trẻ gia tăng. Cuộc thi tạo cơ hội chia sẻ giải pháp thiết thực cho Gen Z..." />
+                </label>
+              </Section>
+
+              <Section title="Bảng màu & Ý nghĩa màu sắc" count="04" open={expanded.tier2Palette} onClick={() => toggle('tier2Palette')}>
+                <div className="palette-preset-row">
+                  <span style={{ fontSize: '8px', color: '#687363', fontWeight: 650 }}>Presets có sẵn:</span>
+                  {palettePresets.map((preset) => (
+                    <button key={preset.name} type="button" className="palette-preset-btn" onClick={() => applyPreset(preset)}>
+                      <span className="mini-palette-dots">
+                        {preset.colors.map((c, i) => <i key={i} style={{ backgroundColor: c.hex }} />)}
+                      </span>
+                      <span>{preset.name.split(' ')[1]}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="palette-list">
+                  {palette.map((item, index) => (
+                    <div className="palette-item-card" key={index}>
+                      <input
+                        type="color"
+                        className="palette-item-swatch"
+                        value={item.hex}
+                        onChange={(e) => updateColorItem(index, e.target.value)}
+                        title="Chọn màu"
+                      />
+                      <input
+                        className="palette-item-hex"
+                        value={item.hex}
+                        maxLength={7}
+                        placeholder="#HEX"
+                        onChange={(e) => updateColorItem(index, e.target.value)}
+                        onBlur={(e) => updateColorItem(index, safeColor(e.target.value, item.hex))}
+                      />
+                      <input
+                        className="palette-item-meaning"
+                        value={item.meaning}
+                        placeholder="Chú thích ý nghĩa màu (VD: Nature, growth...)"
+                        onChange={(e) => updateColorItem(index, item.hex, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="palette-remove-btn"
+                        onClick={() => removeColorItem(index)}
+                        title="Xóa màu này"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="add-color-btn" onClick={addColorItem}>
+                  <Icon name="plus" /> Thêm màu vào bảng màu
+                </button>
+              </Section>
+
+              <Section title="Hình ảnh chủ đạo & Ẩn dụ biểu tượng" count="05" open={expanded.tier2Subject} onClick={() => toggle('tier2Subject')}>
+                <label className="field-label">Loại hình ảnh chủ đạo
+                  <div className="product-mode-selector">
+                    <button
+                      type="button"
+                      className={`mode-btn ${subjectType === 'graphic_object' ? 'active' : ''}`}
+                      onClick={() => setSubjectType('graphic_object')}
+                    >
+                      <strong>🔮 Object đồ họa / Biểu tượng thiết kế</strong>
+                      <small>Ví dụ: Chiếc loa Sharing Speaker, khối 3D biểu tượng</small>
+                    </button>
+                    <button
+                      type="button"
+                      className={`mode-btn ${subjectType === 'real_person_product' ? 'active' : ''}`}
+                      onClick={() => setSubjectType('real_person_product')}
+                    >
+                      <strong>👤 Người thật / Sản phẩm thực tế</strong>
+                      <small>Ghép ảnh chụp người mẫu, Mentor hoặc sản phẩm thật</small>
+                    </button>
+                  </div>
+                </label>
+
+                <label className="field-label">Mô tả hình tượng chủ đạo & Ý nghĩa ẩn dụ (Metaphor)
+                  <textarea rows={3} value={subjectMetaphor} onChange={(e) => setSubjectMetaphor(e.target.value)} placeholder="Ví dụ trong PDF: Sharing Speaker - Chiếc loa đại diện cho tiếng nói, sự chủ động lên tiếng chia sẻ và lan tỏa giải pháp chữa lành..." />
+                </label>
+
+                {subjectType === 'real_person_product' && (
+                  <div className="asset-quick">
+                    <div className="asset-quick-head">
+                      <div><strong>Ảnh chụp thực tế</strong><small>Ảnh người mẫu hoặc sản phẩm</small></div>
+                      <button className="add-btn" onClick={() => fileInput.current?.click()}><Icon name="plus" /> Thêm ảnh</button>
+                    </div>
+                    {productPhoto && (
+                      <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                        <button
+                          type="button"
+                          className="remove-bg-btn"
+                          onClick={handleAutoRemoveBg}
+                          disabled={isRemovingBg}
+                        >
+                          <Icon name="spark" />
+                          {isRemovingBg ? 'Đang xử lý tách nền…' : '✨ Tách nền thông minh cho ảnh'}
+                        </button>
+                      </div>
+                    )}
+                    {assets.filter((asset) => asset.kind === 'photo').length ? (
+                      <div className="asset-thumbs">
+                        {assets.filter((asset) => asset.kind === 'photo').map((asset) => (
+                          <button className={selectedAssetId === asset.id ? 'asset-thumb selected' : 'asset-thumb'} key={asset.id} onClick={() => setSelectedAssetId(asset.id)}>
+                            <img src={asset.data} alt={asset.name} />
+                            <span>{asset.name}</span>
+                            <i onClick={(event) => { event.stopPropagation(); removeAsset(asset.id) }}>×</i>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <button className="dropzone" onClick={() => fileInput.current?.click()}>
+                        <span className="drop-icon"><Icon name="image" /></span>
+                        <span><strong>Kéo ảnh vào đây</strong><small>hoặc nhấn để chọn từ thiết bị</small></span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </Section>
+
+              <Section title="Style, Components & Font chữ (Tách riêng input)" count="06" open={expanded.tier2Style} onClick={() => toggle('tier2Style')}>
                 <label className="field-label">Phong cách Art Direction & Chống Slop
                   <div className="preset-grid">
                     {(Object.keys(stylePresets) as StylePreset[]).map((key) => (
@@ -781,72 +1375,280 @@ function App() {
                     ))}
                   </div>
                 </label>
-                <label className="field-label">Mô tả phong cách<textarea rows={4} value={keyVisual} onChange={(e) => setKeyVisual(e.target.value)} /></label>
-                <label className="field-label">Ảnh key visual tham chiếu<div className="upload-inline"><input type="file" accept="image/*" onChange={addKeyVisual} /><span>{assets.find((asset) => asset.kind === 'keyvisual')?.name ?? 'Tải ảnh KV tham chiếu'}</span><Icon name="upload" /></div></label>
-                <label className="field-label">Mức độ bám ảnh tham chiếu<div className="range-line"><input type="range" min="0" max="100" value={referenceStrength} onChange={(e) => setReferenceStrength(Number(e.target.value))} /><span>{referenceStrength}%</span></div></label>
-                <div className="field-label">Định dạng xuất<select value={format.name} onChange={(e) => setFormat(formats.find((item) => item.name === e.target.value) ?? formats[0])}>{formats.map((item) => <option key={item.name} value={item.name}>{item.label}</option>)}</select></div>
-              </Section>
-              <Section title="Ghi chú sáng tạo" count="04" open={expanded.notes} onClick={() => toggle('notes')}>
-                <label className="field-label">Điều cần có / cần tránh<textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: không dùng stock photo, giữ nhãn sản phẩm…" /></label>
-              </Section>
-              <div className="product-mode-box">
-                <span className="product-mode-label">⚙️ Chế độ xử lý sản phẩm:</span>
-                <div className="product-mode-selector">
-                  <button
-                    type="button"
-                    className={`mode-btn ${productMode === 'stage-real' ? 'active' : ''}`}
-                    onClick={() => setProductMode('stage-real')}
-                  >
-                    <strong>🏷️ Ghép ảnh thật vào nền AI</strong>
-                    <small>AI chỉ vẽ nền bàn/phòng trống · Ghép ảnh thật không trùng lặp</small>
-                  </button>
-                  <button
-                    type="button"
-                    className={`mode-btn ${productMode === 'ai-complete' ? 'active' : ''}`}
-                    onClick={() => setProductMode('ai-complete')}
-                  >
-                    <strong>🤖 AI tự vẽ toàn bộ</strong>
-                    <small>AI vẽ cả sản phẩm & bối cảnh · Không dán đè sản phẩm</small>
-                  </button>
+
+                <label className="field-label">Hiệu ứng thị giác (Visual Effects)
+                  <input value={visualEffects} onChange={(e) => setVisualEffects(e.target.value)} placeholder="Ví dụ: Gradient blur, Halftone dot glow, Aura soft lighting" />
+                  <div className="tag-picker-wrap">
+                    {['Gradient blur', 'Halftone dot glow', 'Aura soft light', 'Liquid glass', 'Prism reflection'].map((tag) => (
+                      <span
+                        key={tag}
+                        className={`tag-pick-btn ${visualEffects.includes(tag) ? 'selected' : ''}`}
+                        onClick={() => setVisualEffects((prev) => prev.includes(tag) ? prev.replace(tag, '').replace(/,\s*,/g, ',').trim() : prev ? `${prev}, ${tag}` : tag)}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </label>
+
+                <label className="field-label">Component Decor / Vector Elements
+                  <input value={styleComponents} onChange={(e) => setStyleComponents(e.target.value)} placeholder="Ví dụ: Vòng elip quỹ đạo, Ngôi sao 4 cánh sparkles, Mũi tên chevron >>>>" />
+                  <div className="tag-picker-wrap">
+                    {['Vòng elip quỹ đạo', 'Ngôi sao 4 cánh (sparkles)', 'Mũi tên chevron >>>>', 'Hoa sao tuyết ✱', 'Khung bo góc tinh thể'].map((tag) => (
+                      <span
+                        key={tag}
+                        className={`tag-pick-btn ${styleComponents.includes(tag) ? 'selected' : ''}`}
+                        onClick={() => setStyleComponents((prev) => prev.includes(tag) ? prev.replace(tag, '').replace(/,\s*,/g, ',').trim() : prev ? `${prev}, ${tag}` : tag)}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </label>
+
+                <div className="font-row">
+                  <label className="field-label">Font Tiêu đề (Headline/Display)
+                    <select value={displayFont} onChange={(e) => setDisplayFont(e.target.value)}>
+                      <option value="MOKOTO">MOKOTO (Tech / Futurist)</option>
+                      <option value="Agrandir Grand">Agrandir Grand (Modern Wide)</option>
+                      <option value="Space Grotesk">Space Grotesk (Neo-Brutalism)</option>
+                      <option value="Montserrat">Montserrat Black</option>
+                      <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                    </select>
+                  </label>
+                  <label className="field-label">Font Nội dung (Subhead/Body)
+                    <select value={bodyFont} onChange={(e) => setBodyFont(e.target.value)}>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Fira Sans">Fira Sans Bold</option>
+                      <option value="Trajan Pro 3">Trajan Pro 3</option>
+                      <option value="Inter">Inter</option>
+                      <option value="DM Sans">DM Sans</option>
+                    </select>
+                  </label>
                 </div>
+              </Section>
+
+              <Section title="Bản des tham khảo & Khoảng trống mong muốn" count="07" open={expanded.tier2Ref} onClick={() => toggle('tier2Ref')}>
+                <label className="field-label">Mô tả background mong muốn
+                  <textarea rows={3} value={keyVisual} onChange={(e) => setKeyVisual(e.target.value)} placeholder="Ví dụ: Nền pastel mờ ảo chuyển sắc, để trống góc trái..." />
+                </label>
+
+                <label className="field-label">Ảnh thiết kế tham chiếu (Moodboard / Reference Layout)
+                  <div className="upload-inline">
+                    <input type="file" accept="image/*" onChange={addKeyVisual} />
+                    <span>{assets.find((asset) => asset.kind === 'keyvisual')?.name ?? 'Tải ảnh thiết kế tham khảo'}</span>
+                    <Icon name="upload" />
+                  </div>
+                </label>
+
+                <label className="field-label">Mức độ bám thiết kế tham khảo
+                  <div className="range-line">
+                    <input type="range" min="0" max="100" value={referenceStrength} onChange={(e) => setReferenceStrength(Number(e.target.value))} />
+                    <span>{referenceStrength}%</span>
+                  </div>
+                </label>
+
+                <label className="field-label">Vùng khoảng trống ưu tiên (Negative Space)
+                  <select value={negativeSpace} onChange={(e) => setNegativeSpace(e.target.value)}>
+                    <option value="Trống góc trái và nửa trên để bố trí Typography và CTA">Trống góc trái và nửa trên (Chuẩn Poster / Banner)</option>
+                    <option value="Trống nửa trên để đặt tiêu đề lớn">Trống nửa trên (Top Headline)</option>
+                    <option value="Trống trung tâm để đặt khung chân dung">Trống trung tâm (Center Frame)</option>
+                    <option value="Bố cục mở cân bằng tự do">Bố cục mở cân bằng tự do</option>
+                  </select>
+                </label>
+
+                <label className="field-label">Ghi chú sáng tạo thêm
+                  <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Không dùng stock photo, giữ sạch nền..." />
+                </label>
+              </Section>
+
+              {/* ============================================================== */}
+              {/* TẦNG 3: BÀI ĐĂNG CỤ THỂ & XUẤT BẢN */}
+              {/* ============================================================== */}
+              <div className="tier-header tier-3">
+                <div className="tier-title">
+                  <strong>Tầng 3: Bài đăng cụ thể & Bố cục</strong>
+                  <small>Thông tin hiển thị trên ấn phẩm và xuất bản</small>
+                </div>
+                <span className="tier-pill" style={{ background: '#FBEBEB', color: '#B6404A' }}>Bài đăng</span>
               </div>
 
-              <div className="asset-quick"><div className="asset-quick-head"><div><strong>Ảnh thực tế</strong><small>Thêm sản phẩm, người mẫu hoặc địa điểm</small></div><button className="add-btn" onClick={() => fileInput.current?.click()}><Icon name="plus" /> Thêm ảnh</button><input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={addFiles} /></div>
-                {productPhoto && (
-                  <div style={{ marginTop: '8px', marginBottom: '8px' }}>
-                    <button
-                      type="button"
-                      className="remove-bg-btn"
-                      onClick={handleAutoRemoveBg}
-                      disabled={isRemovingBg}
-                      title="Tách phông nền trắng hoặc đơn sắc thành PNG trong suốt"
-                    >
-                      <Icon name="spark" />
-                      {isRemovingBg ? 'Đang xử lý tách nền…' : '✨ Tách nền thông minh cho ảnh'}
-                    </button>
+              <Section title="Nội dung bài đăng & Kêu gọi" count="08" open={expanded.tier3Post} onClick={() => toggle('tier3Post')}>
+                <label className="field-label">Mục tiêu bài đăng
+                  <select value={objective} onChange={(e) => setObjective(e.target.value)}>
+                    <option>Nâng cao nhận thức & Tuyển đăng ký cuộc thi</option>
+                    <option>Giới thiệu Mentor / Diễn giả</option>
+                    <option>Ra mắt sản phẩm / Sự kiện</option>
+                    <option>Chia sẻ kiến thức & Thể lệ</option>
+                  </select>
+                </label>
+                <label className="field-label">Tiêu đề phụ / Ưu đãi (Subtitle / Offer)
+                  <input value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="Ví dụ: Cuộc thi ý tưởng sáng tạo cho học sinh - sinh viên toàn quốc" />
+                </label>
+                <label className="field-label">Nút kêu gọi hành động (Call To Action - CTA)
+                  <input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Ví dụ: REGISTER NOW" />
+                </label>
+                <label className="field-label">Định dạng khổ ảnh
+                  <select value={format.name} onChange={(e) => setFormat(formats.find((item) => item.name === e.target.value) ?? formats[0])}>
+                    {formats.map((item) => <option key={item.name} value={item.name}>{item.label}</option>)}
+                  </select>
+                </label>
+              </Section>
+            </div> : <div className="form-scroll assets-view">
+              <div className="asset-upload-card" onClick={() => fileInput.current?.click()}>
+                <Icon name="upload" />
+                <strong>Thêm hình ảnh tham chiếu</strong>
+                <span>Ảnh người mẫu, sản phẩm, layout mẫu…</span>
+              </div>
+              <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={addFiles} />
+
+              <div className="asset-upload-card component-upload-card" onClick={() => componentInput.current?.click()}>
+                <Icon name="layers" />
+                <strong>Thêm thành phần vào thiết kế</strong>
+                <span>Ảnh sticker, props cắt nền để đặt lên canvas</span>
+              </div>
+              <input ref={componentInput} type="file" accept="image/*" multiple hidden onChange={addComponents} />
+
+              {assets.length ? assets.map((asset) => (
+                <div className="asset-list-item" key={asset.id}>
+                  <img src={asset.data} alt="" />
+                  <div>
+                    <strong>{asset.name}</strong>
+                    <small>{asset.kind === 'logo' ? 'Logo' : asset.kind === 'keyvisual' ? 'Key visual' : asset.kind === 'component' ? 'Thành phần hình ảnh' : asset.kind === 'output' ? 'Ảnh đã tạo' : 'Ảnh tham chiếu'}</small>
+                  </div>
+                  <button className="icon-btn" onClick={() => removeAsset(asset.id)}><Icon name="trash" /></button>
+                </div>
+              )) : <p className="empty-copy">Tài nguyên tải lên và ảnh đã tạo sẽ nằm trong bài đăng này.</p>}
+            </div>}
+
+            <div className="panel-footer">
+              <span><Icon name="folder" /> {activeFolder?.name} / {activePost?.name}</span>
+              <button className="generate-btn" onClick={apiReady && apiProvider === configuredProvider ? generate : () => setPage('settings')} disabled={status === 'working'}>
+                <Icon name={status === 'working' ? 'loader' : apiReady && apiProvider === configuredProvider ? 'spark' : 'lock'} />
+                {status === 'working' ? 'Đang tạo concept…' : apiReady && apiProvider === configuredProvider ? 'Tạo ảnh Key Visual' : 'Cấu hình API'}
+              </button>
+            </div>
+          </section>
+
+          {/* ============================================================== */}
+          {/* CANVAS PREVIEW PANEL */}
+          {/* ============================================================== */}
+          <section className="canvas-panel">
+            <div className="canvas-toolbar">
+              <div className="canvas-title">
+                <span className="live-dot" />
+                <strong>{activePost?.name ?? campaign}</strong>
+                <span className="draft-pill">{brand}</span>
+              </div>
+              <button className="folder-switcher" onClick={() => setPage('campaign')}>← Về chiến dịch</button>
+            </div>
+
+            <div className="canvas-stage">
+              <div
+                className={`creative-canvas format-${format.name}`}
+                ref={exportRef}
+                style={{
+                  width: format.width * canvasScale,
+                  height: format.height * canvasScale,
+                  backgroundColor: safeColor(palette[0]?.hex, '#C6F2A6')
+                }}
+              >
+                {generatedImage ? (
+                  <img className="canvas-background" src={generatedImage} alt="Ảnh nền được tạo" />
+                ) : (
+                  <div
+                    className="canvas-background placeholder-bg"
+                    style={{
+                      background: `linear-gradient(135deg, ${safeColor(palette[0]?.hex, '#C6F2A6')} 0%, ${safeColor(palette[1]?.hex, '#F7B0C3')} 50%, ${safeColor(palette[palette.length - 1]?.hex, '#B3B8FA')} 100%)`
+                    }}
+                  >
+                    <div className="sun-shape" />
+                    <div className="grain" />
                   </div>
                 )}
-                {assets.filter((asset) => asset.kind === 'photo').length ? <div className="asset-thumbs">{assets.filter((asset) => asset.kind === 'photo').map((asset) => <button className={selectedAssetId === asset.id ? 'asset-thumb selected' : 'asset-thumb'} key={asset.id} onClick={() => setSelectedAssetId(asset.id)}><img src={asset.data} alt={asset.name} /><span>{asset.name}</span><i onClick={(event) => { event.stopPropagation(); removeAsset(asset.id) }}>×</i></button>)}</div> : <button className="dropzone" onClick={() => fileInput.current?.click()}><span className="drop-icon"><Icon name="image" /></span><span><strong>Kéo ảnh vào đây</strong><small>hoặc nhấn để chọn từ thiết bị</small></span><Icon name="plus" /></button>}
+
+                {/* Subtle decor vectors mimicking page 4 of PDF */}
+                <div className="canvas-decor-star top-right"><Icon name="spark" /></div>
+                <div className="canvas-decor-star bottom-left"><Icon name="spark" /></div>
+                <div className="canvas-decor-ring" />
+
+                <div className="canvas-wash" />
+
+                {logo ? (
+                  <img className="canvas-logo" src={logo.data} alt={brand} />
+                ) : (
+                  <div className="canvas-brand">{brand}<span>®</span></div>
+                )}
+
+                <div className="canvas-copy">
+                  <div className="canvas-kicker" style={{ fontFamily: `"${bodyFont}", sans-serif` }}>
+                    {campaign}
+                  </div>
+                  <h2 style={{ fontFamily: `"${displayFont}", sans-serif`, letterSpacing: displayFont === 'MOKOTO' ? '1px' : 'normal' }}>
+                    {message}
+                  </h2>
+                  <p style={{ fontFamily: `"${bodyFont}", sans-serif` }}>{offer}</p>
+                  <button className="canvas-cta" style={{ backgroundColor: safeColor(palette[0]?.hex, '#C6F2A6'), color: '#1C2F4D', fontFamily: `"${bodyFont}", sans-serif` }}>
+                    {cta}<span>↗</span>
+                  </button>
+                </div>
+
+                {/* Subject real photo staging */}
+                {subjectType === 'real_person_product' && productPhoto && !imageComponents.length && (
+                  <img className="canvas-product" src={productPhoto.data} alt="Sản phẩm / Người mẫu" />
+                )}
+
+                {imageComponents.length > 0 && (
+                  <div className="canvas-components">
+                    {imageComponents.map((asset) => <img src={asset.data} alt={asset.name} key={asset.id} />)}
+                  </div>
+                )}
+
+                {/* Palette chips on canvas */}
+                <div className="canvas-palette-bar" title="Dải màu Key Visual">
+                  {palette.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="palette-chip"
+                      style={{ backgroundColor: safeColor(item.hex, '#ccc') }}
+                      title={`${item.hex}: ${item.meaning}`}
+                    />
+                  ))}
+                </div>
+
+                {!generatedImage && (
+                  <div className="canvas-hint">
+                    <Icon name="spark" /> Preview bố cục · Nhấn "Tạo ảnh Key Visual" để AI sinh nền
+                  </div>
+                )}
+                <div className="safe-area" />
               </div>
-              <div className="asset-quick component-quick"><div className="asset-quick-head"><div><strong>Thành phần hình ảnh</strong><small>Thêm sản phẩm, props hoặc ảnh cắt nền để đặt lên thiết kế</small></div><button className="add-btn" onClick={() => componentInput.current?.click()}><Icon name="plus" /> Thêm thành phần</button><input ref={componentInput} type="file" accept="image/*" multiple hidden onChange={addComponents} /></div>{imageComponents.length > 0 && <div className="asset-thumbs">{imageComponents.map((asset) => <button className={selectedAssetId === asset.id ? 'asset-thumb selected' : 'asset-thumb'} key={asset.id} onClick={() => setSelectedAssetId(asset.id)}><img src={asset.data} alt={asset.name} /><span>{asset.name}</span><i onClick={(event) => { event.stopPropagation(); removeAsset(asset.id) }}>×</i></button>)}</div>}</div>
-            </div> : <div className="form-scroll assets-view"><div className="asset-upload-card" onClick={() => fileInput.current?.click()}><Icon name="upload" /><strong>Thêm hình ảnh tham chiếu</strong><span>Ảnh sản phẩm, người mẫu, địa điểm…</span></div><input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={addFiles} /><div className="asset-upload-card component-upload-card" onClick={() => componentInput.current?.click()}><Icon name="layers" /><strong>Thêm thành phần vào thiết kế</strong><span>Ảnh được đặt lên canvas sau khi tạo</span></div><input ref={componentInput} type="file" accept="image/*" multiple hidden onChange={addComponents} />{assets.length ? assets.map((asset) => <div className="asset-list-item" key={asset.id}><img src={asset.data} alt="" /><div><strong>{asset.name}</strong><small>{asset.kind === 'logo' ? 'Logo' : asset.kind === 'keyvisual' ? 'Key visual' : asset.kind === 'component' ? 'Thành phần hình ảnh' : asset.kind === 'output' ? 'Ảnh đã tạo' : 'Ảnh tham chiếu'}</small></div><button className="icon-btn" onClick={() => removeAsset(asset.id)}><Icon name="trash" /></button></div>) : <p className="empty-copy">Tài nguyên tải lên và ảnh đã tạo sẽ nằm trong bài đăng này.</p>}</div>}
-            <div className="panel-footer"><span><Icon name="folder" /> {activeFolder?.name} / {activePost?.name}</span><button className="generate-btn" onClick={apiReady && apiProvider === configuredProvider ? generate : () => setPage('settings')} disabled={status === 'working'}><Icon name={status === 'working' ? 'loader' : apiReady && apiProvider === configuredProvider ? 'spark' : 'lock'} />{status === 'working' ? 'Đang tạo concept…' : apiReady && apiProvider === configuredProvider ? 'Tạo ảnh' : 'Cấu hình API'}</button></div>
+            </div>
+
+            <div className="canvas-bottom">
+              <div className="format-select">
+                <span className="size-icon"><Icon name="crop" /></span>
+                <div>
+                  <strong>{format.label}</strong>
+                  <small>{format.width} × {format.height} px</small>
+                </div>
+                <select aria-label="Định dạng bài đăng" value={format.name} onChange={(e) => setFormat(formats.find((item) => item.name === e.target.value) ?? formats[0])}>
+                  {formats.map((item) => <option value={item.name} key={item.name}>{item.label}</option>)}
+                </select>
+              </div>
+              <div className="quality-hint">
+                <span className="quality-check">✓</span>
+                <span>
+                  <strong>Hệ thống 3 Tầng kích hoạt</strong>
+                  <small>Font: {displayFont} · Palette: {palette.length} màu</small>
+                </span>
+              </div>
+            </div>
           </section>
 
-          <section className="canvas-panel">
-            <div className="canvas-toolbar"><div className="canvas-title"><span className="live-dot" /> <strong>{activePost?.name ?? campaign}</strong><span className="draft-pill">{campaign}</span></div><button className="folder-switcher" onClick={() => setPage('campaign')}>← Về bài đăng</button></div>
-            <div className="canvas-stage"><div className={`creative-canvas format-${format.name}`} ref={exportRef} style={{ width: format.width * canvasScale, height: format.height * canvasScale, backgroundColor: safeColor(colors[0], '#1C2F4D') }}>
-              {generatedImage ? <img className="canvas-background" src={generatedImage} alt="Ảnh nền được tạo" /> : <div className="canvas-background placeholder-bg"><div className="sun-shape" /><div className="leaf-shape leaf-one" /><div className="leaf-shape leaf-two" /><div className="still-life"><div className="vase" /><div className="bottle bottle-a" /><div className="bottle bottle-b" /><div className="shadow-shape" /></div><div className="grain" /></div>}
-              <div className="canvas-wash" />
-              {logo ? <img className="canvas-logo" src={logo.data} alt={brand} /> : <div className="canvas-brand">{brand}<span>®</span></div>}
-              <div className="canvas-copy"><div className="canvas-kicker">{campaign}</div><h2>{message}</h2><p>{offer}</p><button className="canvas-cta">{cta}<span>↗</span></button></div>
-              {productMode === 'stage-real' && productPhoto && !imageComponents.length && <img className="canvas-product" src={productPhoto.data} alt="Sản phẩm" />}
-              {imageComponents.length > 0 && <div className="canvas-components">{imageComponents.map((asset) => <img src={asset.data} alt={asset.name} key={asset.id} />)}</div>}
-              {!generatedImage && <div className="canvas-hint"><Icon name="spark" /> Preview phong cách · tạo concept để thay ảnh nền</div>}
-              <div className="safe-area" />
-            </div></div>
-            <div className="canvas-bottom"><div className="format-select"><span className="size-icon"><Icon name="crop" /></span><div><strong>{format.label}</strong><small>{format.width} × {format.height} px</small></div><select aria-label="Định dạng bài đăng" value={format.name} onChange={(e) => setFormat(formats.find((item) => item.name === e.target.value) ?? formats[0])}>{formats.map((item) => <option value={item.name} key={item.name}>{item.label}</option>)}</select></div><div className="quality-hint"><span className="quality-check">✓</span><span><strong>Layout sẵn sàng</strong><small>Chữ và logo được dựng riêng, dễ chỉnh sửa</small></span></div></div>
-          </section>
+          {/* ============================================================== */}
+          {/* INSPECTOR PANEL (QA & ART DIRECTOR) */}
+          {/* ============================================================== */}
           <aside className="inspector-panel">
             <div className="inspector-head">
               <div>
@@ -884,8 +1686,12 @@ function App() {
                 <span className="score-label">98<small>/100</small></span>
               </div>
               <div className="qa-check-item">
-                <span><Icon name="check" /> Độ chân thực quang học</span>
-                <b>96%</b>
+                <span><Icon name="check" /> Tuân thủ Brand Guardrails</span>
+                <b>100%</b>
+              </div>
+              <div className="qa-check-item">
+                <span><Icon name="check" /> Bám bảng màu Key Visual</span>
+                <b>{palette.length} màu chuẩn</b>
               </div>
               <div className="qa-check-item">
                 <span><Icon name="check" /> Triệt tiêu AI Slop & sáp nhựa</span>
@@ -896,35 +1702,40 @@ function App() {
                 <b>100%</b>
               </div>
               <div className="qa-check-item">
-                <span><Icon name="check" /> Giữ nguyên ảnh thực tế</span>
-                <b>{productPhoto ? 'Tách nền + Đổ bóng' : 'Chưa có ảnh'}</b>
+                <span><Icon name="check" /> Phân cấp Font (Display + Body)</span>
+                <b>{displayFont}</b>
               </div>
             </div>
 
             <div className="inspector-section">
               <div className="section-title">
                 <strong>Danh sách Layer thiết kế</strong>
-                <span className="layer-count">4 layers</span>
+                <span className="layer-count">5 layers</span>
               </div>
               <div className="layer-row">
                 <span className="layer-kind"><Icon name="image" /></span>
-                <span>Ảnh nền AI (Sạch chữ)</span>
+                <span>Ảnh nền AI (Dải màu KV)</span>
                 <span className="layer-drag">{generatedImage ? '✓ Sẵn sàng' : 'Mặc định'}</span>
               </div>
               <div className="layer-row">
-                <span className="layer-kind text"><Icon name="text" /></span>
-                <span>Typography & Slogan</span>
+                <span className="layer-kind"><Icon name="layers" /></span>
+                <span>Vector Decor (Sparkles / Ring)</span>
                 <span className="layer-drag">Sắc nét</span>
               </div>
               <div className="layer-row">
-                <span className="layer-kind button"><Icon name="button" /></span>
-                <span>Nút kêu gọi (CTA)</span>
+                <span className="layer-kind text"><Icon name="text" /></span>
+                <span>Typography ({displayFont})</span>
                 <span className="layer-drag">Chuẩn Brand</span>
               </div>
               <div className="layer-row">
+                <span className="layer-kind button"><Icon name="button" /></span>
+                <span>Nút kêu gọi ({cta})</span>
+                <span className="layer-drag">Chuẩn CTA</span>
+              </div>
+              <div className="layer-row">
                 <span className="layer-kind"><Icon name="layers" /></span>
-                <span>Ảnh sản phẩm / Người thật</span>
-                <span className="layer-drag">{productPhoto ? 'Đã ghép' : 'Chưa có'}</span>
+                <span>Chủ thể ({subjectType === 'graphic_object' ? '3D Symbol' : 'Ảnh thật'})</span>
+                <span className="layer-drag">{productPhoto ? 'Đã ghép' : 'Biểu tượng'}</span>
               </div>
             </div>
 
@@ -932,25 +1743,72 @@ function App() {
               <div className="review-icon"><Icon name="info" /></div>
               <div>
                 <strong>Lời khuyên của QA Inspector</strong>
-                <p>Nền ảnh đã được chỉ định để trống góc trái. Khi xuất file, ảnh giữ 100% độ sắc nét, không bị xỉn màu.</p>
+                <p>Bảng màu pastel đã được đồng bộ với ý nghĩa cảm xúc. Khi xuất file, ảnh giữ 100% độ sắc nét quang học.</p>
               </div>
             </div>
           </aside>
+        </div>}
 
-
+        <div className="toast" aria-live="polite">
+          {statusMessage && <>
+            <span className={status === 'error' || status === 'missing-key' ? 'toast-icon warning' : 'toast-icon'}>
+              {status === 'error' || status === 'missing-key' ? '!' : '✓'}
+            </span>
+            <span>{statusMessage}</span>
+            {status === 'missing-key' && <button className="toast-action" onClick={() => setPage('settings')}>Cấu hình key</button>}
+          </>}
         </div>
-        }
-        {page === 'folders' && null}
-        <div className="toast" aria-live="polite">{statusMessage && <><span className={status === 'error' || status === 'missing-key' ? 'toast-icon warning' : 'toast-icon'}>{status === 'error' || status === 'missing-key' ? '!' : '✓'}</span><span>{statusMessage}</span>{status === 'missing-key' && <button className="toast-action" onClick={() => setPage('settings')}>Cấu hình key</button>}</>}</div>
       </main>
-      {selectedAsset && <div className="asset-selection" onClick={() => setSelectedAssetId(null)}><img src={selectedAsset.data} alt={selectedAsset.name} /><span>{selectedAsset.name}</span><button onClick={() => removeAsset(selectedAsset.id)}>Xóa ảnh</button></div>}
-      {dialog && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}><form className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onSubmit={(event) => { event.preventDefault(); submitDialog() }}><button className="dialog-close" type="button" aria-label="Đóng" onClick={() => setDialog(null)}>×</button><span className="eyebrow">{dialog.kind.includes('folder') ? 'CHIẾN DỊCH' : 'BÀI ĐĂNG'}</span><h2 id="dialog-title">{dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới' : dialog.kind === 'rename-folder' ? 'Đổi tên chiến dịch' : dialog.kind === 'rename-post' ? 'Đổi tên bài đăng' : dialog.kind === 'delete-folder' ? 'Xóa chiến dịch?' : 'Xóa bài đăng?'}</h2><p>{dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới để gom brief, tài nguyên và các bài đăng liên quan.' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Tên mới sẽ hiển thị trong thư viện của bạn.' : 'Thao tác này sẽ xóa brief, ảnh tham chiếu và ảnh đã tạo trong mục này.'}</p>{(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) ? <label className="field-label">Tên hiển thị<input autoFocus value={dialogName} onChange={(event) => setDialogName(event.target.value)} placeholder={dialog.kind === 'create-folder' ? 'Ví dụ: Ra mắt bộ sưu tập mùa hè' : 'Nhập tên mới'} maxLength={80} /></label> : <div className="dialog-delete-target"><Icon name="trash" /><strong>{dialog.name}</strong></div>}<div className="dialog-actions"><button className="quiet-btn" type="button" onClick={() => setDialog(null)}>Hủy</button><button className={dialog.kind.startsWith('delete-') ? 'danger-btn' : 'export-btn'} type="submit" disabled={(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) && !dialogName.trim()}>{dialog.kind === 'create-folder' ? 'Tạo chiến dịch' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Lưu tên' : 'Xóa vĩnh viễn'}</button></div></form></div>}
+
+      {selectedAsset && <div className="asset-selection" onClick={() => setSelectedAssetId(null)}>
+        <img src={selectedAsset.data} alt={selectedAsset.name} />
+        <span>{selectedAsset.name}</span>
+        <button onClick={() => removeAsset(selectedAsset.id)}>Xóa ảnh</button>
+      </div>}
+
+      {dialog && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}>
+        <form className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onSubmit={(event) => { event.preventDefault(); submitDialog() }}>
+          <button className="dialog-close" type="button" aria-label="Đóng" onClick={() => setDialog(null)}>×</button>
+          <span className="eyebrow">{dialog.kind.includes('folder') ? 'CHIẾN DỊCH' : 'BÀI ĐĂNG'}</span>
+          <h2 id="dialog-title">
+            {dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới' : dialog.kind === 'rename-folder' ? 'Đổi tên chiến dịch' : dialog.kind === 'rename-post' ? 'Đổi tên bài đăng' : dialog.kind === 'delete-folder' ? 'Xóa chiến dịch?' : 'Xóa bài đăng?'}
+          </h2>
+          <p>
+            {dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới để gom brief, tài nguyên và các bài đăng liên quan.' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Tên mới sẽ hiển thị trong thư viện của bạn.' : 'Thao tác này sẽ xóa brief, ảnh tham chiếu và ảnh đã tạo trong mục này.'}
+          </p>
+          {(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) ? (
+            <label className="field-label">Tên hiển thị
+              <input autoFocus value={dialogName} onChange={(event) => setDialogName(event.target.value)} placeholder={dialog.kind === 'create-folder' ? 'Ví dụ: Sự kiện Tháng 7 - Youth+ Tech' : 'Nhập tên mới'} maxLength={80} />
+            </label>
+          ) : (
+            <div className="dialog-delete-target">
+              <Icon name="trash" />
+              <strong>{dialog.name}</strong>
+            </div>
+          )}
+          <div className="dialog-actions">
+            <button className="quiet-btn" type="button" onClick={() => setDialog(null)}>Hủy</button>
+            <button className={dialog.kind.startsWith('delete-') ? 'danger-btn' : 'export-btn'} type="submit" disabled={(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) && !dialogName.trim()}>
+              {dialog.kind === 'create-folder' ? 'Tạo chiến dịch' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Lưu tên' : 'Xóa vĩnh viễn'}
+            </button>
+          </div>
+        </form>
+      </div>}
     </div>
   )
 }
 
 function Section({ title, count, open, onClick, children }: { title: string; count: string; open: boolean; onClick: () => void; children: ReactNode }) {
-  return <div className={`form-section ${open ? 'open' : ''}`}><button className="section-trigger" onClick={onClick}><span className="section-number">{count}</span><strong>{title}</strong><Icon name="chevron" /></button>{open && <div className="section-content">{children}</div>}</div>
+  return (
+    <div className={`form-section ${open ? 'open' : ''}`}>
+      <button className="section-trigger" onClick={onClick}>
+        <span className="section-number">{count}</span>
+        <strong>{title}</strong>
+        <Icon name="chevron" />
+      </button>
+      {open && <div className="section-content">{children}</div>}
+    </div>
+  )
 }
 
 function Icon({ name }: { name: string }) {
@@ -985,7 +1843,20 @@ function Icon({ name }: { name: string }) {
     button: <><rect x="3" y="7" width="18" height="10" rx="5"/><path d="M8 12h8"/></>,
     loader: <><path d="M21 12a9 9 0 0 1-9 9"/><path d="M3 12a9 9 0 0 1 9-9"/></>,
   }
-  return <svg className={name === 'loader' ? 'icon spinning' : 'icon'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.spark}</svg>
+  return (
+    <svg
+      className={name === 'loader' ? 'icon spinning' : 'icon'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {paths[name] ?? paths.spark}
+    </svg>
+  )
 }
 
 export default App

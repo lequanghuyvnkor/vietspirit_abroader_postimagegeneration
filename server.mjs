@@ -66,7 +66,15 @@ async function generate(req, res) {
   const quality = ['high', 'xhigh'].includes(input.quality) ? input.quality : 'high'
   const references = Array.isArray(input.references) ? input.references.slice(0, 4) : []
     // Multi-Agent Anti-AI-Slop Quality Enhancer
-  const antiSlopBooster = "\n\n[STRICT VISUAL QUALITY & ANTI-AI-SLOP DIRECTIVES]\n- Photographic authenticity: Real optical camera characteristics (Hasselblad 80mm lens, natural 35mm film grain, authentic physical textures, true surface reflections).\n- Natural lighting: Directional natural daylight or soft diffused window light with realistic bounce and organic shadow falloff. Avoid harsh artificial studio glows.\n- PROHIBITED ARTIFACTS: Absolutely NO plastic or waxy skin, NO cartoon 3D render CGI aesthetic, NO oversaturated fantasy neon, NO glowing outlines, NO uncanny valley, NO deformed hands, NO floating digital junk.\n- ZERO TEXT: Absolutely NO rendered letters, NO words, NO numbers, NO fake gibberish packaging text, NO logos or watermarks. Must be a completely clean photographic plate for overlay typesetting.";
+    // Multi-Agent Anti-AI-Slop Quality & Brand Guardrails Enhancer
+  const antiSlopBooster = `
+
+[MULTI-AGENT ART DIRECTOR & ANTI-AI-SLOP DIRECTIVES]
+- PHOTOGRAPHIC AUTHENTICITY: Shot on Hasselblad H6D-100c or Leica M11, authentic 35mm film grain (Kodak Portra 400), physical surface textures (matte ceramics, raw linen, natural paper).
+- ATMOSPHERIC LIGHTING: Directional natural morning daylight or soft diffused window ambient with organic shadow falloff. NO harsh studio flash, NO artificial neon glow halos.
+- PROHIBITED AI ARTIFACTS: ABSOLUTELY NO waxy/plastic skin, NO 3D render CGI cartoon aesthetic, NO oversaturated fantasy neon, NO glowing outlines, NO uncanny valley, NO deformed hands.
+- ZERO TEXT RULE: ABSOLUTELY NO rendered letters, NO words, NO numbers, NO fake gibberish labels, NO logos or watermarks. Must be a completely clean background plate for high-precision typographic overlay.
+- NEGATIVE SPACE INTEGRITY: Keep designated layout areas (top/left) uncluttered and clean for high WCAG AAA contrast readability.`;
   
   const finalPrompt = input.prompt.includes('STRICT VISUAL QUALITY') ? input.prompt : (input.prompt + antiSlopBooster);
   const content = [{ type: 'input_text', text: finalPrompt }]
