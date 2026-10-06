@@ -9,9 +9,9 @@ export function Section({ title, children, aside }: { title: string; children: R
   return <section className="card"><header className="card-head"><h2>{title}</h2>{aside}</header>{children}</section>
 }
 
-export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+export function Modal({ title, children, onClose, wide }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
   return <div className="modal-backdrop" onMouseDown={onClose}>
-    <div className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
+    <div className={wide ? 'modal wide' : 'modal'} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
       <h2>{title}</h2>
       {children}
     </div>

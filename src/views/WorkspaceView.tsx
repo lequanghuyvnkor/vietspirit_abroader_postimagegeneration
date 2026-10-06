@@ -3,12 +3,13 @@ import { emptyKeyVisual, newId, now } from '../lib/types.ts'
 import type { Company, Store, Workspace } from '../lib/types.ts'
 import { navigate } from '../lib/route.ts'
 import { ConfirmDialog, Field, ImageSlot, NameDialog, Section } from './ui.tsx'
+import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { api } from '../lib/api.ts'
 
 type Props = { store: Store; update: (change: (draft: Store) => void) => void; workspace: Workspace; onError: (message: string) => void }
 
 export function WorkspaceView({ update, workspace, onError }: Props) {
-  const [dialog, setDialog] = useState<'create' | { delete: string } | null>(null)
+  const [dialog, setDialog] = useState<'create' | 'import' | { delete: string } | null>(null)
   const target = typeof dialog === 'object' && dialog ? workspace.campaigns.find((item) => item.id === dialog.delete) : undefined
 
   function edit(change: (draft: Workspace) => void) {
@@ -25,6 +26,12 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
     navigate({ workspace: workspace.id, campaign: id })
   }
 
+  function importCampaign({ name, keyVisual }: ImportResult) {
+    const id = newId()
+    edit((draft) => { draft.campaigns.push({ id, name, keyVisual, backgrounds: [], posts: [], updatedAt: now() }) })
+    navigate({ workspace: workspace.id, campaign: id })
+  }
+
   function removeCampaign(id: string) {
     const campaign = workspace.campaigns.find((item) => item.id === id)
     if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...campaign.backgrounds.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
@@ -37,7 +44,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
       <div><span className="eyebrow">Workspace</span><h1>{workspace.name}</h1></div>
     </div>
     <div className="two-col">
-      <Section title="Chiến dịch" aside={<button className="btn primary small" onClick={() => setDialog('create')}>+ Tạo chiến dịch</button>}>
+      <Section title="Chiến dịch" aside={<div className="row"><button className="btn small" onClick={() => setDialog('create')}>+ Chiến dịch trống</button><button className="btn primary small" onClick={() => setDialog('import')}>Nhập từ PDF Key Visual</button></div>}>
         {workspace.campaigns.length === 0
           ? <div className="empty small"><p>Chưa có chiến dịch. Tạo chiến dịch để nhập key visual và bắt đầu tạo bài đăng.</p></div>
           : <div className="list">
@@ -67,6 +74,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
       </Section>
     </div>
     {dialog === 'create' && <NameDialog title="Tạo chiến dịch" confirm="Tạo" onSubmit={createCampaign} onClose={() => setDialog(null)} />}
+    {dialog === 'import' && <ImportPdf confirmLabel="Tạo chiến dịch" onApply={importCampaign} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa chiến dịch" message={`Xóa "${target.name}" cùng toàn bộ bài đăng và ảnh nền?`} confirm="Xóa" onConfirm={() => removeCampaign(target.id)} onClose={() => setDialog(null)} />}
   </div>
 }

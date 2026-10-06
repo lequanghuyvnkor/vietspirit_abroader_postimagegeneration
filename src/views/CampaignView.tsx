@@ -6,6 +6,7 @@ import { navigate } from '../lib/route.ts'
 import { buildBackgroundPrompt } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, NameDialog, Section } from './ui.tsx'
+import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -17,7 +18,7 @@ type Props = {
 
 export function CampaignView({ update, workspace, campaign, aiReady, onError }: Props) {
   const kv = campaign.keyVisual
-  const [dialog, setDialog] = useState<'rename' | { delete: string } | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'import' | { delete: string } | null>(null)
   const [genFormat, setGenFormat] = useState<FormatKey>('feed')
   const [variation, setVariation] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -107,6 +108,10 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
     navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })
   }
 
+  function applyImport({ name, keyVisual }: ImportResult) {
+    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual })
+  }
+
   function renameCampaign(name: string) {
     update((draft) => {
       const found = draft.workspaces.find((entry) => entry.id === workspace.id)?.campaigns.find((entry) => entry.id === campaign.id)
@@ -117,7 +122,7 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
   return <div className="page">
     <div className="page-head">
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
-      <button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button>
+      <div className="row"><button className="btn" onClick={() => setDialog('import')}>Nhập lại từ PDF Key Visual</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
     <div className="two-col">
       <div className="stack">
@@ -165,6 +170,7 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
       <Section title="Key Visual (đầu vào)">
         <Field label="Ý tưởng chủ đạo" hint="Mô tả cảnh/phong cách nền bạn muốn. Đây là phần quan trọng nhất của prompt."><textarea rows={4} value={kv.concept} onChange={(event) => setKv('concept', event.target.value)} /></Field>
         <Field label="Hình ảnh/biểu tượng chính (nếu có)"><input value={kv.subject} onChange={(event) => setKv('subject', event.target.value)} /></Field>
+        <Field label="Guideline: đồ họa, bố cục, mood" hint="Được đưa vào prompt khi tạo nền. Nhập từ PDF sẽ điền sẵn."><textarea rows={5} value={kv.guideline ?? ''} onChange={(event) => setKv('guideline', event.target.value)} /></Field>
         <Field label="Điều cần tránh"><textarea rows={2} value={kv.avoid} onChange={(event) => setKv('avoid', event.target.value)} /></Field>
 
         <div className="field">
@@ -214,6 +220,7 @@ export function CampaignView({ update, workspace, campaign, aiReady, onError }: 
       </Section>
     </div>
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
+    {dialog === 'import' && <ImportPdf base={kv} confirmLabel="Cập nhật chiến dịch" onApply={applyImport} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa bài đăng" message={`Xóa "${target.name}"?`} confirm="Xóa" onConfirm={() => edit((draft) => { draft.posts = draft.posts.filter((item) => item.id !== target.id) })} onClose={() => setDialog(null)} />}
   </div>
 }

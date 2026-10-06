@@ -25,6 +25,8 @@ export type KeyVisual = {
   displayFontAssetId: string | null
   bodyFont: string
   avoid: string
+  /** Free-form guideline notes (graphic elements, layout, mood) fed into the image prompt. */
+  guideline: string
   referenceIds: string[]
 }
 
@@ -98,7 +100,7 @@ export function emptyCompany(name = ''): Company {
 export function emptyKeyVisual(): KeyVisual {
   return {
     concept: '', subject: '', palette: ['#0A1A44', '#12307A', '#1B4AA8'], accentColor: '#FF4D5E', textTone: 'light',
-    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', referenceIds: [],
+    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', guideline: '', referenceIds: [],
   }
 }
 
