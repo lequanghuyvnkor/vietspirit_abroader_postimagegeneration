@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { zipSync, strToU8 } from 'fflate'
-import { api, assetUrl, type ApiKey } from '../lib/api.ts'
-import { buildDraftRequest, parseDraft } from '../lib/ai.ts'
-import { draftSlides, formatKeyOf, pieceTexts } from '../lib/plan.ts'
-import { buildBackgroundPrompt } from '../lib/prompt.ts'
+import { assetUrl, type ApiKey } from '../lib/api.ts'
+import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
+import { draftSlides, pieceTexts } from '../lib/plan.ts'
 import { renderBlob } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
-import { applyVars, lintText, splitSlides, unresolvedIn } from '../lib/text.ts'
-import { STATUS_LABELS, formatOf, newId, now } from '../lib/types.ts'
-import type { Campaign, Piece, PieceStatus, Post, Store, Workspace } from '../lib/types.ts'
+import { applyVars, lintText, unresolvedIn } from '../lib/text.ts'
+import { STATUS_LABELS, newId, now } from '../lib/types.ts'
+import type { Campaign, Piece, PieceStatus, Store, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Field, Section } from './ui.tsx'
 
 type Props = {
@@ -68,33 +67,13 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   }
 
   async function aiDraft() {
-    const existing = slides.length || splitSlides(piece.plan.structure).length || 1
-    const { system, prompt } = buildDraftRequest(workspace, campaign, piece, existing)
-    const { text } = await api.generateText({ system, prompt, json: true, keyId: activeKey?.id })
-    const draft = parseDraft(text)
-    edit((c, item) => {
-      let targets = c.posts.filter((post) => post.pieceId === item.id)
-      if (targets.length === 0) { c.posts.push(...draftSlides(item, workspace.company, c.backgrounds)); targets = c.posts.filter((post) => post.pieceId === item.id) }
-      targets.forEach((post: Post, index) => {
-        const slide = draft.slides[index]
-        if (slide) Object.assign(post, { eyebrow: slide.eyebrow, headline: slide.headline, accent: slide.accent, subtitle: slide.subtitle, cta: slide.cta, updatedAt: now() })
-      })
-      if (!item.caption.trim() && draft.caption) item.caption = draft.caption
-      if (!item.hashtags.trim() && draft.hashtags) item.hashtags = draft.hashtags
-      if (item.status === 'brief') item.status = 'copy'
-    })
+    const draft = await fetchDraft(workspace, campaign, piece, activeKey?.id)
+    edit((c, item) => applyDraft(c, item.id, draft, workspace.company))
   }
 
   async function makeBackground() {
-    const format = formatKeyOf(piece.visual.format)
-    const [width, height] = formatOf(format).generate
-    const variation = [piece.visual.hero, piece.visual.palette && `Palette: ${piece.visual.palette}`, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
-    const assetId = await api.generate({ prompt: buildBackgroundPrompt(workspace, campaign, format, variation), width, height, quality: 'high', referenceIds: campaign.keyVisual.referenceIds, keyId: activeKey?.id })
-    edit((c, item) => {
-      const id = newId()
-      c.backgrounds.push({ id, assetId, format, label: `${item.code} · ${piece.visual.hero.slice(0, 28) || 'nền'}` })
-      c.posts.filter((post) => post.pieceId === item.id && post.format === format).forEach((post) => { post.backgroundId = id })
-    })
+    const result = await generatePieceBackground(workspace, campaign, piece, activeKey?.id)
+    edit((c, item) => attachBackground(c, item.id, result))
   }
 
   async function exportPack() {

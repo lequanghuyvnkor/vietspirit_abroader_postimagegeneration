@@ -144,7 +144,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     </div>
     <div className="two-col">
       <div className="stack">
-        <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} />
+        <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} keys={keys} onManageKeys={onManageKeys} />
 
         <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
           {campaign.posts.filter((post) => !post.pieceId).length === 0

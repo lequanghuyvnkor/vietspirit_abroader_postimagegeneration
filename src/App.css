@@ -179,3 +179,6 @@ textarea { resize: vertical; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .88rem; }
 .check-row input { margin-top: 3px; }
 .check-row .done { text-decoration: line-through; color: var(--muted); }
+
+.batch { display: grid; gap: 8px; }
+.batch .block { display: block; }

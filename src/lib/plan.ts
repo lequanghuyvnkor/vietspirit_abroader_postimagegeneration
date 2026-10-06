@@ -136,7 +136,7 @@ export function draftSlides(piece: Piece, company: Company, backgrounds: Backgro
     const last = index === entries.length - 1 && entries.length > 1
     return {
       id: newId(), name: `${piece.code} · ${entries.length > 1 ? `Slide ${entry.n}` : 'Ảnh'}`, pieceId: piece.id, format,
-      eyebrow: '', headline: first ? piece.visual.onImage || piece.plan.hook : capitalize(entry.label.replace(/\s*\+\s*CTA$/i, '')),
+      eyebrow: piece.plan.pillar.split('·').pop()!.trim().toUpperCase(), headline: first ? piece.visual.onImage || piece.plan.hook : capitalize(entry.label.replace(/\s*\+\s*CTA$/i, '')),
       accent: '', subtitle: '', cta: last || entries.length === 1 ? piece.plan.cta : '', footer: company.footer,
       backgroundId: background, scrim: true, layers: [], updatedAt: now(),
     }
