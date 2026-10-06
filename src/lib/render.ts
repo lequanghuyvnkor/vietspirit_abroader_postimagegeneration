@@ -79,7 +79,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 type Ctx = CanvasRenderingContext2D & { letterSpacing: string }
 
 /** Draws a post at its native size. Single source of truth for preview and export. */
-export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace): Promise<void> {
+export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null } = {}): Promise<void> {
   const format = formatOf(post.format)
   const { width, height } = format
   const kv = campaign.keyVisual
@@ -96,6 +96,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const body = `"${kv.bodyFont || 'Be Vietnam Pro'}", sans-serif`
   const logoId = !dark && workspace.company.logoDarkId ? workspace.company.logoDarkId : workspace.company.logoId
 
+  const layerImages = await Promise.all(post.layers.map((layer) => loadImage(campaign.components.find((item) => item.id === layer.componentId)?.assetId ?? null)))
   const [bgImage, logo] = await Promise.all([
     loadImage(background?.assetId ?? null),
     loadImage(logoId),
@@ -126,6 +127,27 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.fillStyle = bottom
     ctx.fillRect(0, height * 0.65, width, height * 0.35)
   }
+
+  // Graphic components cut from the key visual, drawn under the text.
+  post.layers.forEach((layer, index) => {
+    const image = layerImages[index]
+    if (!image) return
+    const w = layer.w * width
+    const h = w * (image.naturalHeight / image.naturalWidth)
+    ctx.save()
+    ctx.globalAlpha = layer.opacity
+    ctx.translate(layer.x * width, layer.y * height)
+    ctx.rotate((layer.rotation * Math.PI) / 180)
+    ctx.drawImage(image, -w / 2, -h / 2, w, h)
+    if (options.selectedLayerId === layer.id) {
+      ctx.globalAlpha = 1
+      ctx.strokeStyle = '#4da3ff'
+      ctx.lineWidth = Math.max(2, width / 400)
+      ctx.setLineDash([width / 80, width / 120])
+      ctx.strokeRect(-w / 2, -h / 2, w, h)
+    }
+    ctx.restore()
+  })
 
   const isCover = post.format === 'cover'
   const safe = post.format === 'story' ? STORY_SAFE : 0

@@ -7,6 +7,7 @@ import { buildBackgroundPrompt } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
+import { ComponentCutter } from './ComponentCutter.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -19,7 +20,7 @@ type Props = {
 
 export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError }: Props) {
   const kv = campaign.keyVisual
-  const [dialog, setDialog] = useState<'rename' | 'import' | { delete: string } | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | { delete: string } | null>(null)
   const [genFormat, setGenFormat] = useState<FormatKey>('feed')
   const [variation, setVariation] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -112,8 +113,20 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })
   }
 
-  function applyImport({ name, keyVisual }: ImportResult) {
-    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual })
+  function applyImport({ name, keyVisual, sources }: ImportResult) {
+    campaign.sources.forEach((item) => { void api.deleteAsset(item.assetId) })
+    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual; draft.sources = sources })
+  }
+
+  function removeComponent(id: string) {
+    const found = campaign.components.find((item) => item.id === id)
+    if (found) void api.deleteAsset(found.assetId)
+    update((draft) => {
+      const item = draft.workspaces.find((entry) => entry.id === workspace.id)?.campaigns.find((entry) => entry.id === campaign.id)
+      if (!item) return
+      item.components = item.components.filter((entry) => entry.id !== id)
+      item.posts.forEach((post) => { post.layers = post.layers.filter((layer) => layer.componentId !== id) })
+    })
   }
 
   function renameCampaign(name: string) {
@@ -145,6 +158,17 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
                   <button className="btn small ghost" onClick={() => setDialog({ delete: post.id })}>Xóa</button>
                 </div>
               })}
+            </div>}
+        </Section>
+
+        <Section title="Thành phần đồ họa" aside={<button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>}>
+          {campaign.components.length === 0
+            ? <p className="muted">Chưa có thành phần. Cắt các phần tử đồ họa (sao, đường bay, thẻ kính, logo…) từ key visual để đặt lên bài đăng.</p>
+            : <div className="components">
+              {campaign.components.map((item) => <figure key={item.id} title={item.name}>
+                <div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div>
+                <figcaption><span>{item.name}</span><button className="btn small ghost" aria-label={`Xóa ${item.name}`} onClick={() => removeComponent(item.id)}>×</button></figcaption>
+              </figure>)}
             </div>}
         </Section>
 
@@ -225,6 +249,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       </Section>
     </div>
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
+    {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}
     {dialog === 'import' && <ImportPdf base={kv} confirmLabel="Cập nhật chiến dịch" onApply={applyImport} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa bài đăng" message={`Xóa "${target.name}"?`} confirm="Xóa" onConfirm={() => edit((draft) => { draft.posts = draft.posts.filter((item) => item.id !== target.id) })} onClose={() => setDialog(null)} />}
   </div>

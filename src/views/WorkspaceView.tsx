@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { emptyKeyVisual, newId, now } from '../lib/types.ts'
+import { newCampaign, now } from '../lib/types.ts'
 import type { Company, Store, Workspace } from '../lib/types.ts'
 import { navigate } from '../lib/route.ts'
 import { ConfirmDialog, Field, ImageSlot, NameDialog, Section } from './ui.tsx'
@@ -21,20 +21,20 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
   const setCompany = <K extends keyof Company>(key: K, value: Company[K]) => edit((draft) => { draft.company[key] = value })
 
   function createCampaign(name: string) {
-    const id = newId()
-    edit((draft) => { draft.campaigns.push({ id, name, keyVisual: emptyKeyVisual(), backgrounds: [], posts: [], updatedAt: now() }) })
-    navigate({ workspace: workspace.id, campaign: id })
+    const campaign = newCampaign(name)
+    edit((draft) => { draft.campaigns.push(campaign) })
+    navigate({ workspace: workspace.id, campaign: campaign.id })
   }
 
-  function importCampaign({ name, keyVisual }: ImportResult) {
-    const id = newId()
-    edit((draft) => { draft.campaigns.push({ id, name, keyVisual, backgrounds: [], posts: [], updatedAt: now() }) })
-    navigate({ workspace: workspace.id, campaign: id })
+  function importCampaign({ name, keyVisual, sources }: ImportResult) {
+    const campaign = newCampaign(name, keyVisual, sources)
+    edit((draft) => { draft.campaigns.push(campaign) })
+    navigate({ workspace: workspace.id, campaign: campaign.id })
   }
 
   function removeCampaign(id: string) {
     const campaign = workspace.campaigns.find((item) => item.id === id)
-    if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...campaign.backgrounds.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
+    if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
     edit((draft) => { draft.campaigns = draft.campaigns.filter((item) => item.id !== id) })
   }
 

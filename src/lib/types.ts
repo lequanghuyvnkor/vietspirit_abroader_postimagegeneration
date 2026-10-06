@@ -50,14 +50,26 @@ export type Post = {
   footer: string
   backgroundId: string | null
   scrim: boolean
+  layers: Layer[]
   updatedAt: string
 }
+
+/** A full-size image (PDF page or upload) that components are cut from. */
+export type Source = { id: string; assetId: string; label: string }
+
+/** A cut-out graphic element (transparent PNG) reusable across the campaign's posts. */
+export type Component = { id: string; name: string; assetId: string; width: number; height: number }
+
+/** A component placed on a post. Position is the center, as a fraction of the canvas. */
+export type Layer = { id: string; componentId: string; x: number; y: number; /** width as a fraction of canvas width */ w: number; opacity: number; rotation: number }
 
 export type Campaign = {
   id: string
   name: string
   keyVisual: KeyVisual
   backgrounds: Background[]
+  sources: Source[]
+  components: Component[]
   posts: Post[]
   updatedAt: string
 }
@@ -107,6 +119,10 @@ export function emptyKeyVisual(): KeyVisual {
 export function newPost(name: string, company: Company): Post {
   return {
     id: newId(), name, format: 'feed', eyebrow: '', headline: '', accent: '', subtitle: '', cta: '',
-    footer: company.footer, backgroundId: null, scrim: true, updatedAt: now(),
+    footer: company.footer, backgroundId: null, scrim: true, layers: [], updatedAt: now(),
   }
+}
+
+export function newCampaign(name: string, keyVisual: KeyVisual = emptyKeyVisual(), sources: Source[] = []): Campaign {
+  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], updatedAt: now() }
 }

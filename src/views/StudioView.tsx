@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { FORMATS, formatOf, now } from '../lib/types.ts'
-import type { Campaign, FormatKey, Post, Store, Workspace } from '../lib/types.ts'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { FORMATS, formatOf, newId, now } from '../lib/types.ts'
+import type { Campaign, FormatKey, Layer, Post, Store, Workspace } from '../lib/types.ts'
 import { assetUrl } from '../lib/api.ts'
 import { exportPost, renderPost } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
@@ -17,6 +17,8 @@ type Props = {
 export function StudioView({ update, workspace, campaign, post, onError }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [exporting, setExporting] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const format = formatOf(post.format)
 
   function edit(change: (draft: Post) => void) {
@@ -40,10 +42,54 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
   useEffect(() => {
     let cancelled = false
     const timer = window.setTimeout(() => {
-      if (canvas.current && !cancelled) renderPost(canvas.current, post, campaign, workspace).catch(() => onError('Không vẽ được bản xem trước.'))
+      if (canvas.current && !cancelled) renderPost(canvas.current, post, campaign, workspace, { selectedLayerId: selectedId }).catch(() => onError('Không vẽ được bản xem trước.'))
     }, 120)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [post, campaign, workspace, onError])
+  }, [post, campaign, workspace, selectedId, onError])
+
+  const patchLayer = (id: string, change: Partial<Layer>) => edit((draft) => { const layer = draft.layers.find((item) => item.id === id); if (layer) Object.assign(layer, change) })
+
+  function addLayer(componentId: string) {
+    const layer: Layer = { id: newId(), componentId, x: 0.5, y: 0.5, w: 0.3, opacity: 1, rotation: 0 }
+    edit((draft) => { draft.layers.push(layer) })
+    setSelectedId(layer.id)
+  }
+
+  function removeLayer(id: string) {
+    edit((draft) => { draft.layers = draft.layers.filter((item) => item.id !== id) })
+    if (selectedId === id) setSelectedId(null)
+  }
+
+  const canvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    return { x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height }
+  }
+
+  function pickLayer(event: PointerEvent<HTMLCanvasElement>) {
+    const p = canvasPoint(event)
+    const aspect = format.width / format.height
+    for (let index = post.layers.length - 1; index >= 0; index--) {
+      const layer = post.layers[index]
+      const component = campaign.components.find((item) => item.id === layer.componentId)
+      if (!component) continue
+      const halfW = layer.w / 2
+      const halfH = (layer.w * (component.height / component.width) * aspect) / 2
+      if (Math.abs(p.x - layer.x) <= halfW && Math.abs(p.y - layer.y) <= halfH) {
+        setSelectedId(layer.id)
+        dragging.current = { id: layer.id, dx: layer.x - p.x, dy: layer.y - p.y }
+        event.currentTarget.setPointerCapture(event.pointerId)
+        return
+      }
+    }
+    setSelectedId(null)
+  }
+
+  function dragLayer(event: PointerEvent<HTMLCanvasElement>) {
+    const active = dragging.current
+    if (!active) return
+    const p = canvasPoint(event)
+    patchLayer(active.id, { x: Math.min(1.2, Math.max(-0.2, p.x + active.dx)), y: Math.min(1.2, Math.max(-0.2, p.y + active.dy)) })
+  }
 
   async function download() {
     setExporting(true)
@@ -78,6 +124,32 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
           <Field label="Dòng chân bài"><input value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
           <label className="check"><input type="checkbox" checked={post.scrim} onChange={(event) => set('scrim', event.target.checked)} /> Làm tối/sáng nhẹ mép trên và dưới để chữ dễ đọc</label>
         </Section>
+        <Section title="Thành phần đồ họa">
+          {campaign.components.length === 0
+            ? <p className="notice">Chiến dịch chưa có thành phần. Vào chiến dịch, bấm "Cắt từ ảnh/PDF" để tạo.</p>
+            : <>
+              <div className="components small">
+                {campaign.components.map((item) => <button key={item.id} className="comp-add" title={`Thêm ${item.name}`} onClick={() => addLayer(item.id)}><div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div></button>)}
+              </div>
+              {post.layers.length === 0 && <p className="muted">Bấm một thành phần để đặt lên bài, rồi kéo trên bản xem trước để di chuyển.</p>}
+              <div className="list">
+                {post.layers.map((layer) => {
+                  const component = campaign.components.find((item) => item.id === layer.componentId)
+                  return <div className={layer.id === selectedId ? 'layer selected' : 'layer'} key={layer.id}>
+                    <div className="row">
+                      <button className="list-main" onClick={() => setSelectedId(layer.id)}><strong>{component?.name ?? 'Đã xóa'}</strong></button>
+                      <button className="btn small ghost" onClick={() => removeLayer(layer.id)}>Xóa</button>
+                    </div>
+                    {layer.id === selectedId && <div className="layer-controls">
+                      <label className="field"><span className="field-label">Kích thước {Math.round(layer.w * 100)}%</span><input type="range" min={3} max={150} value={Math.round(layer.w * 100)} onChange={(event) => patchLayer(layer.id, { w: Number(event.target.value) / 100 })} /></label>
+                      <label className="field"><span className="field-label">Độ đậm {Math.round(layer.opacity * 100)}%</span><input type="range" min={5} max={100} value={Math.round(layer.opacity * 100)} onChange={(event) => patchLayer(layer.id, { opacity: Number(event.target.value) / 100 })} /></label>
+                      <label className="field"><span className="field-label">Xoay {layer.rotation}°</span><input type="range" min={-180} max={180} value={layer.rotation} onChange={(event) => patchLayer(layer.id, { rotation: Number(event.target.value) })} /></label>
+                    </div>}
+                  </div>
+                })}
+              </div>
+            </>}
+        </Section>
         <Section title="Chọn nền">
           {backgrounds.length === 0
             ? <p className="notice">Chiến dịch chưa có nền. Quay lại chiến dịch để tạo hoặc tải nền; hiện dùng dải màu từ bảng màu.</p>
@@ -91,7 +163,7 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
         </Section>
       </div>
       <div className="preview">
-        <canvas ref={canvas} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
+        <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
         <small className="muted">Xem trước đúng bố cục khi xuất. Nền khác khổ ảnh sẽ được cắt vừa khung.</small>
       </div>
     </div>

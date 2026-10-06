@@ -1,12 +1,12 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { api } from '../lib/api.ts'
-import { analyzePdf, type PdfAnalysis } from '../lib/pdf.ts'
+import { analyzePdf, downscaleDataUrl, type PdfAnalysis } from '../lib/pdf.ts'
 import { safeColor } from '../lib/render.ts'
 import { FORMATS, emptyKeyVisual, formatOf } from '../lib/types.ts'
-import type { KeyVisual } from '../lib/types.ts'
+import type { KeyVisual, Source } from '../lib/types.ts'
 import { Field, Modal } from './ui.tsx'
 
-export type ImportResult = { name: string; keyVisual: KeyVisual }
+export type ImportResult = { name: string; keyVisual: KeyVisual; sources: Source[] }
 
 type Props = {
   /** Existing key visual to fill gaps from and to keep untouched fields (update mode). */
@@ -78,10 +78,12 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
     setError('')
     try {
       const chosen = analysis.pages.filter((page) => picked.has(page.index))
-      const ids = await Promise.all(chosen.map((page) => api.uploadAsset(`page-${page.index}.webp`, page.dataUrl)))
+      const ids = await Promise.all(chosen.map(async (page) => api.uploadAsset(`page-${page.index}.webp`, await downscaleDataUrl(page.dataUrl, 1800))))
+      // Every page is kept at full resolution so components can be cut from it later.
+      const sources = await Promise.all(analysis.pages.map(async (page): Promise<Source> => ({ id: crypto.randomUUID(), assetId: await api.uploadAsset(`source-${page.index}.webp`, page.dataUrl), label: `Trang ${page.index}` })))
       const palette = paletteText.split(/[,\s]+/).map((value) => value.trim().toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value))
       base?.referenceIds.forEach((id) => { void api.deleteAsset(id) })
-      onApply({ name: name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...kv, palette: palette.length ? palette : kv.palette, referenceIds: ids } })
+      onApply({ name: name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...kv, palette: palette.length ? palette : kv.palette, referenceIds: ids }, sources })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không lưu được ảnh từ PDF.')
@@ -119,9 +121,9 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
 
       <div className="field">
         <span className="field-label">Trang làm ảnh tham chiếu (tối đa {MAX_REFERENCES})</span>
-        <div className="pages">
-          {analysis.pages.map((page) => <button key={page.index} className={picked.has(page.index) ? 'page selected' : 'page'} onClick={() => toggle(page.index)} aria-pressed={picked.has(page.index)} title={page.format ? 'Bài mẫu' : 'Trang guideline'}>
-            <img src={page.dataUrl} alt={`Trang ${page.index}`} />
+        <div className="pdf-pages">
+          {analysis.pages.map((page) => <button key={page.index} className={picked.has(page.index) ? 'pdf-page selected' : 'pdf-page'} onClick={() => toggle(page.index)} aria-pressed={picked.has(page.index)} title={page.format ? 'Bài mẫu' : 'Trang guideline'}>
+            <img src={page.thumb} alt={`Trang ${page.index}`} />
             <small>Trang {page.index} · {page.format ? formatOf(page.format).label : 'Guideline'}</small>
           </button>)}
         </div>
