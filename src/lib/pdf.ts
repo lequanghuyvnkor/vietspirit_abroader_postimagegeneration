@@ -41,7 +41,7 @@ function sampleColors(canvas: HTMLCanvasElement): { luminance: number; colors: M
 
 /** Reads a key visual PDF: renders every page and parses the guideline text layer. Runs in the browser. */
 export async function analyzePdf(file: File): Promise<PdfAnalysis> {
-  const [pdfjs, worker] = await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')])
+  const [pdfjs, worker] = await Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')])
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
   const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
   const meta = await doc.getMetadata().catch(() => null)
