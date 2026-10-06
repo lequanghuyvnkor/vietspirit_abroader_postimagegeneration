@@ -65,7 +65,11 @@ async function generate(req, res) {
   }
   const quality = ['high', 'xhigh'].includes(input.quality) ? input.quality : 'high'
   const references = Array.isArray(input.references) ? input.references.slice(0, 4) : []
-  const content = [{ type: 'input_text', text: input.prompt }]
+    // Multi-Agent Anti-AI-Slop Quality Enhancer
+  const antiSlopBooster = "\n\n[STRICT VISUAL QUALITY & ANTI-AI-SLOP DIRECTIVES]\n- Photographic authenticity: Real optical camera characteristics (Hasselblad 80mm lens, natural 35mm film grain, authentic physical textures, true surface reflections).\n- Natural lighting: Directional natural daylight or soft diffused window light with realistic bounce and organic shadow falloff. Avoid harsh artificial studio glows.\n- PROHIBITED ARTIFACTS: Absolutely NO plastic or waxy skin, NO cartoon 3D render CGI aesthetic, NO oversaturated fantasy neon, NO glowing outlines, NO uncanny valley, NO deformed hands, NO floating digital junk.\n- ZERO TEXT: Absolutely NO rendered letters, NO words, NO numbers, NO fake gibberish packaging text, NO logos or watermarks. Must be a completely clean photographic plate for overlay typesetting.";
+  
+  const finalPrompt = input.prompt.includes('STRICT VISUAL QUALITY') ? input.prompt : (input.prompt + antiSlopBooster);
+  const content = [{ type: 'input_text', text: finalPrompt }]
   for (const reference of references) {
     if (typeof reference?.image !== 'string' || !reference.image.startsWith('data:image/')) continue
     content.push({ type: 'input_image', image_url: reference.image, detail: 'high' })
@@ -73,7 +77,7 @@ async function generate(req, res) {
   try {
     const isGemini = provider === 'gemini'
     const geminiModel = process.env.AI_MODEL || 'gemini-3.1-flash-image'
-    const geminiParts = [{ type: 'text', text: input.prompt }]
+    const geminiParts = [{ type: 'text', text: finalPrompt }]
     for (const reference of references) {
       if (typeof reference?.image !== 'string') continue
       const match = reference.image.match(/^data:(image\/[\w.+-]+);base64,(.+)$/)

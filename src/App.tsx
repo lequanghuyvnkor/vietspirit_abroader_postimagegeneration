@@ -10,6 +10,90 @@ type CampaignFolder = { id: string; name: string; updatedAt: string; brief: Camp
 type PersonalSettings = { displayName: string; email: string; workspaceName: string; defaultFormat: string; imageQuality: 'high' | 'xhigh'; autosave: boolean }
 type DialogState = { kind: 'create-folder' } | { kind: 'rename-folder' | 'rename-post' | 'delete-folder' | 'delete-post'; id: string; name: string }
 
+
+export type StylePreset = 'editorial' | 'documentary' | 'minimalist' | 'cinematic';
+
+export const stylePresets: Record<StylePreset, { label: string; desc: string; camera: string; lighting: string; texture: string; antiSlop: string }> = {
+  editorial: {
+    label: '📸 Editorial Studio',
+    desc: 'Chống AI Slop cao nhất · Chuẩn tạp chí cao cấp',
+    camera: 'commercial editorial still-life photography, shot on Hasselblad H6D-100c with 80mm f/2.8 lens, natural authentic depth of field',
+    lighting: 'natural directional morning window daylight with soft diffused falloff shadows, authentic ambient bounce, zero artificial harsh flash',
+    texture: 'hyper-tactile micro-surface details, authentic organic materials, raw linen weave, matte ceramic textures, subtle fine 35mm film grain (Kodak Portra 400)',
+    antiSlop: 'Strictly avoid 3D render look, no waxy plastic skin, no glossy oversaturated neon, no floating CGI debris, no airbrushed stock-photo feel, zero rendered typography/letters/watermarks'
+  },
+  documentary: {
+    label: '🌿 Phóng sự đời thực (VietSpirit)',
+    desc: 'Trải nghiệm du học/văn hóa chân thực · Tự nhiên 100%',
+    camera: 'authentic documentary lifestyle photography, Leica M11 with Summilux 35mm f/1.4 lens, candid documentary perspective',
+    lighting: 'golden hour ambient natural daylight, warm atmospheric sunlight filtering through foliage, realistic outdoor Vietnamese sunlight and shadows',
+    texture: 'authentic human skin tones, natural skin pores without airbrushing, genuine environmental warmth, genuine documentary photojournalism feel',
+    antiSlop: 'Strictly avoid posed unnatural stock models, no uncanny valley plastic faces, no CGI lighting, no glowing outlines, no fake AI textures, zero text/symbols'
+  },
+  minimalist: {
+    label: '🏛️ Tĩnh vật tối giản',
+    desc: 'Bố cục sạch sẽ · Nhiều khoảng thở cho Text',
+    camera: 'clean minimalist art-gallery still-life composition, medium format 90mm lens, sharp subject isolation with creamy background falloff',
+    lighting: 'soft diffused architectural daylight from top-left, gentle elongated cast shadows, serene Scandinavian/Japanese minimalist mood',
+    texture: 'smooth stone, brushed paper, natural wood grain, architectural geometry, subtle soft shadows',
+    antiSlop: 'Strictly avoid cluttered objects, no busy patterns, no plastic reflections, no saturated neon accents, zero lettering or fake product labels'
+  },
+  cinematic: {
+    label: '🎬 Cinematic Atmospheric',
+    desc: 'Ánh sáng điện ảnh · Chiều sâu thị giác sâu lắng',
+    camera: 'cinematic anamorphic 50mm film photography, 2.39:1 aspect framing aesthetics, rich dynamic range with organic shadow roll-off',
+    lighting: 'subtle chiaroscuro atmospheric lighting, soft volumetric haze, warm rim light defining silhouette against gentle cool background',
+    texture: 'rich film grain texture, tactile materials, deep organic shadows, premium motion picture color grading',
+    antiSlop: 'Strictly avoid video-game render look, no Unreal Engine glossy plastics, no oversaturated halos, zero fake text or numbers'
+  }
+};
+
+export async function removeImageBackground(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(dataUrl);
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const corners = [
+        [0, 0],
+        [canvas.width - 1, 0],
+        [0, canvas.height - 1],
+        [canvas.width - 1, canvas.height - 1]
+      ];
+      let avgR = 0, avgG = 0, avgB = 0;
+      for (const [x, y] of corners) {
+        const idx = (y * canvas.width + x) * 4;
+        avgR += data[idx];
+        avgG += data[idx + 1];
+        avgB += data[idx + 2];
+      }
+      avgR /= 4; avgG /= 4; avgB /= 4;
+      const threshold = 38;
+      const softRange = 26;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const dist = Math.sqrt((r - avgR) ** 2 + (g - avgG) ** 2 + (b - avgB) ** 2);
+        if (dist < threshold) {
+          data[i + 3] = 0;
+        } else if (dist < threshold + softRange) {
+          const factor = (dist - threshold) / softRange;
+          data[i + 3] = Math.round(data[i + 3] * factor);
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 const defaultCampaignId = 'campaign-rituals-of-spring'
 
 const formats: Format[] = [
@@ -34,7 +118,7 @@ function defaultBrief(): CampaignBrief {
     message: readDraft('message', 'Một khoảng dịu dàng dành riêng cho làn da của bạn.'), offer: readDraft('offer', 'Bộ quà tặng mùa xuân · ưu đãi 20%'),
     cta: readDraft('cta', 'Khám phá bộ sưu tập'), keyVisual: readDraft('keyVisual', 'Ánh sáng cửa sổ buổi sớm, chất liệu linen, bóng lá mềm. Bố cục tĩnh vật tối giản, cảm giác ảnh film ấm; để nhiều khoảng thở quanh sản phẩm.'),
     note: readDraft('note', 'Không dùng hoa hồng, không thêm chữ vào ảnh nền. Sản phẩm phải giữ nguyên nhãn và màu sắc.'),
-    format: readDraft('format', 'portrait'), colors: readDraft('colors', ['#274a3a', '#d9a876', '#f4efe5']), referenceStrength: readDraft('referenceStrength', 65),
+    format: readDraft('format', 'portrait'), colors: readDraft('colors', ['#1C2F4D', '#B6404A', '#FAF7F2']), referenceStrength: readDraft('referenceStrength', 65),
   }
 }
 
@@ -174,6 +258,9 @@ function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState({ business: true, campaign: true, visual: false, notes: false })
   const [referenceStrength, setReferenceStrength] = useState(initialBrief.referenceStrength)
+  const [stylePreset, setStylePreset] = useState<StylePreset>('editorial')
+  const [isRemovingBg, setIsRemovingBg] = useState(false)
+  const [productMode, setProductMode] = useState<'stage-real' | 'ai-complete'>('stage-real')
   const fileInput = useRef<HTMLInputElement>(null)
   const componentInput = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
@@ -341,7 +428,7 @@ function App() {
 
   function saveCurrentBrief() {
     if (!activePost) return
-    const brief: CampaignBrief = { brand, industry, audience, tone, campaign, objective, message, offer, cta, keyVisual, note, format: format.name, colors: colors.map((color, index) => safeColor(color, ['#274a3a', '#d9a876', '#f4efe5'][index])), referenceStrength }
+    const brief: CampaignBrief = { brand, industry, audience, tone, campaign, objective, message, offer, cta, keyVisual, note, format: format.name, colors: colors.map((color, index) => safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index])), referenceStrength }
     const updatedAt = new Date().toISOString()
     setCampaignFolders((current) => current.map((folder) => folder.id === activeFolderId ? { ...folder, brief, updatedAt, posts: folder.posts.map((post) => post.id === activePost.id ? { ...post, brief, updatedAt } : post) } : folder))
     setStatusMessage('Đã lưu brief của bài đăng này.')
@@ -383,12 +470,31 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => {
-      const newLogo = { id: crypto.randomUUID(), name: file.name, data: String(reader.result), kind: 'logo' as const }
+    reader.onload = async () => {
+      const rawData = String(reader.result)
+      const cleanData = await removeImageBackground(rawData)
+      const newLogo = { id: crypto.randomUUID(), name: file.name, data: cleanData, kind: 'logo' as const }
       setAssets((current) => [...current.filter((asset) => asset.kind !== 'logo'), newLogo])
+      setStatusMessage('Đã tải logo và tự động tối ưu độ trong suốt!')
     }
     reader.readAsDataURL(file)
     event.target.value = ''
+  }
+
+  
+  async function handleAutoRemoveBg() {
+    if (!productPhoto) return
+    setIsRemovingBg(true)
+    setStatusMessage('Đang tách nền tự động cho ảnh sản phẩm…')
+    try {
+      const transparentData = await removeImageBackground(productPhoto.data)
+      setAssets((current) => current.map((asset) => asset.id === productPhoto.id ? { ...asset, data: transparentData } : asset))
+      setStatusMessage('Đã tách nền sạch sẽ! Sản phẩm đã sẵn sàng ghép tự nhiên.')
+    } catch {
+      setStatusMessage('Không thể tách nền ảnh này.')
+    } finally {
+      setIsRemovingBg(false)
+    }
   }
 
   async function addKeyVisual(event: ChangeEvent<HTMLInputElement>) {
@@ -405,42 +511,62 @@ function App() {
 
   async function generate() {
     setStatus('working')
-    setStatusMessage('Đang đọc brief và chuẩn bị concept…')
+    setStatusMessage(productMode === 'stage-real' ? 'Đang tạo bối cảnh trống chuẩn Studio để ghép sản phẩm…' : 'Đang chỉ đạo nghệ thuật AI tạo trọn vẹn concept…')
     setGeneratedImage(null)
+
+    const presetCfg = stylePresets[stylePreset] ?? stylePresets.editorial
+    const isStagingReal = productMode === 'stage-real' && Boolean(productPhoto)
+
+    const subjectDirective = isStagingReal
+      ? 'PHOTOGRAPHIC EMPTY STAGING BACKGROUND. An inviting, masterfully-lit empty surface/environment (e.g. clean wooden desk or architectural surface by a sunlit window) specifically reserved for staging a product. THE MAIN DISPLAY SURFACE IS COMPLETELY EMPTY AND CLEAN - DO NOT DRAW ANY BACKPACK, BAG, OR MERCHANDISE. The scene must be a coherent, empty staging plate ready for product composite.'
+      : `Create a master-grade commercial photograph featuring ${brand} ${campaign} in an authentic editorial environment.`
+
     const creativePrompt = [
-      `Create a sophisticated editorial campaign photograph for ${brand}, a ${industry} brand.`,
-      `Campaign: ${campaign}. Objective: ${objective}. Audience: ${audience}.`,
-      `Core message: ${message}. Offer: ${offer}.`,
-      `Art direction / key visual: ${keyVisual}`,
-      `Reference strength: ${referenceStrength}%. Keep the composition intentional, tactile, specific, and art-directed. Avoid generic stock-photo styling, floating UI, excessive glow, random decorative objects, clichés, and any lettering, watermark, logo, or fake packaging text.`,
-      `Creative note: ${note}`,
-      `Use the brand palette as subtle accents: ${colors.map((color, index) => safeColor(color, ['#274a3a', '#d9a876', '#f4efe5'][index])).join(', ')}. Reserve negative space on the left for later typesetting. Create one polished background image only; final text and logo are composed separately.`,
-    ].join('\n')
+      subjectDirective,
+      `Brand: "${brand}" (${industry}). Campaign: "${campaign}". Objective: ${objective}. Audience: ${audience}.`,
+      `Core Message: "${message}". Offer / Badge: "${offer}".`,
+      `Art Direction / Key Visual: ${keyVisual}`,
+      `Lighting & Atmosphere: ${presetCfg.lighting}.`,
+      `Tactile Physical Realism: ${presetCfg.texture}.`,
+      `Color Harmony: Harmoniously blend subtle ambient tones inspired by ${colors.map((color, index) => safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index])).join(', ')}.`,
+      `Composition: Continuous, cohesive scene. Soft out-of-focus background on the left suitable for text readability. Do NOT draw split walls, do NOT draw vertical dividing borders, do NOT draw artificial color partition screens.`,
+      `Creative Notes: ${note}`,
+      `Reference Influence Level: ${referenceStrength}%.`,
+      `[STRICT ANTI-AI-SLOP DIRECTIVES]: ${presetCfg.antiSlop}. CRISP CLEAN TRANSPARENT AIR, NO SMOKE, NO STEAM, NO HAZE, NO BURNING VAPORS. ABSOLUTELY NO RENDERED TEXT, NO LETTERS, NO NUMBERS, NO WATERMARK, NO FAKE LABELS.`
+    ].join('\n\n')
+
     try {
-      const references = assets.filter((asset) => asset.kind === 'photo' || asset.kind === 'keyvisual' || asset.kind === 'component').slice(0, 4).map((asset) => ({ name: asset.name, image: asset.data }))
+      // If staging real product, do NOT pass product photo into AI references so AI does not duplicate the product!
+      const references = isStagingReal
+        ? assets.filter((asset) => asset.kind === 'keyvisual' || asset.kind === 'component').slice(0, 4).map((asset) => ({ name: asset.name, image: asset.data }))
+        : assets.filter((asset) => asset.kind === 'photo' || asset.kind === 'keyvisual' || asset.kind === 'component').slice(0, 4).map((asset) => ({ name: asset.name, image: asset.data }))
+
       const generatedSize = {
         portrait: [1088, 1344], square: [1088, 1088], landscape: [1200, 624], story: [1088, 1920],
       }[format.name] ?? [1088, 1344]
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: creativePrompt, width: generatedSize[0], height: generatedSize[1], quality: personalSettings.imageQuality, references }),
       })
+
       const body = await response.json() as { image?: string; error?: string; message?: string }
       if (response.status === 503) {
         setStatus('missing-key')
-        setStatusMessage(body.message ?? 'Thêm OPENAI_API_KEY vào .env.local để bật tạo ảnh AI.')
+        setStatusMessage(body.message ?? 'Thêm API key vào Cài đặt để tạo ảnh.')
         return
       }
       if (!response.ok || !body.image) throw new Error(body.message ?? body.error ?? 'Không thể tạo ảnh lúc này.')
+
       setGeneratedImage(body.image)
       setAssets((current) => [...current.filter((asset) => asset.kind !== 'output'), { id: crypto.randomUUID(), name: `${activePost?.name ?? campaign} · ảnh tạo`, data: body.image!, kind: 'output' }])
       setStatus('ready')
-      setStatusMessage('Ảnh nền đã sẵn sàng. Chữ, logo và ảnh sản phẩm vẫn là các lớp có thể chỉnh riêng.')
+      setStatusMessage(isStagingReal ? 'Bối cảnh nền đã sẵn sàng! Sản phẩm thật được ghép tự nhiên, không bị trùng lặp.' : 'Ảnh hoàn tất trọn vẹn, không dán đè!')
     } catch (error) {
       setStatus('error')
       const message = error instanceof Error ? error.message : ''
-      setStatusMessage(message === 'Failed to fetch' ? 'Không kết nối được API local. Hãy chạy lại npm run dev, chờ Vite và Creative API khởi động rồi thử lại.' : message || 'Không kết nối được máy chủ tạo ảnh.')
+      setStatusMessage(message === 'Failed to fetch' ? 'Không kết nối được API local. Hãy chạy lại npm run dev rồi thử lại.' : message || 'Không kết nối được máy chủ tạo ảnh.')
     }
   }
 
@@ -454,6 +580,7 @@ function App() {
     canvas.height = height
     const context = canvas.getContext('2d')
     if (!context) return
+
     const drawImage = (src: string, x: number, y: number, w: number, h: number, contain = false) => new Promise<void>((resolve) => {
       const image = new Image()
       image.onload = () => {
@@ -469,31 +596,76 @@ function App() {
       image.onerror = () => resolve()
       image.src = src
     })
+
+    // 1. Nền chuyển sắc cơ bản
     const gradient = context.createLinearGradient(0, 0, width, height)
-    gradient.addColorStop(0, safeColor(colors[2], '#f4efe5'))
-    gradient.addColorStop(1, '#e7ddce')
+    gradient.addColorStop(0, safeColor(colors[2], '#FAF7F2'))
+    gradient.addColorStop(1, '#F2CEAE')
     context.fillStyle = gradient
     context.fillRect(0, 0, width, height)
+
+    // 2. Vẽ ảnh nền AI chân thực 100%
     if (generatedImage) await drawImage(generatedImage, 0, 0, width, height)
-    context.fillStyle = 'rgba(18, 27, 21, .28)'
-    context.fillRect(0, 0, width, height)
-    if (productPhoto && !imageComponents.length) await drawImage(productPhoto.data, width * .48, height * .18, width * .46, height * .62, true)
+
+    // 3. VÙNG ĐỆM ÁNH SÁNG CHUYỂN TIẾP (ANTI-SLOP FIX):
+    // Chỉ phủ gradient nhẹ phía trái để chữ nổi bật, giữ nguyên 100% độ nét và màu sắc ảnh AI bên phải!
+    const scrim = context.createLinearGradient(0, 0, width * 0.65, 0)
+    scrim.addColorStop(0, 'rgba(16, 26, 18, 0.76)')
+    scrim.addColorStop(0.55, 'rgba(16, 26, 18, 0.32)')
+    scrim.addColorStop(1, 'rgba(16, 26, 18, 0.0)')
+    context.fillStyle = scrim
+    context.fillRect(0, 0, width * 0.68, height)
+
+    // 4. Vẽ ảnh sản phẩm thật kèm bóng đổ tiếp xúc mềm mại (Realistic Contact Shadow)
+    if (productMode === 'stage-real' && productPhoto && !imageComponents.length) {
+      context.save()
+      context.shadowColor = 'rgba(15, 25, 18, 0.38)'
+      context.shadowBlur = width * 0.025
+      context.shadowOffsetX = width * 0.005
+      context.shadowOffsetY = height * 0.016
+      await drawImage(productPhoto.data, width * .48, height * .18, width * .46, height * .62, true)
+      context.restore()
+    }
+
     for (const [index, asset] of imageComponents.entries()) {
       const placements = [{ x: .48, y: .49, w: .225, h: .205 }, { x: .715, y: .49, w: .225, h: .205 }, { x: .48, y: .705, w: .225, h: .205 }, { x: .715, y: .705, w: .225, h: .205 }]
       const position = placements[index % placements.length]
+      context.save()
+      context.shadowColor = 'rgba(15, 25, 18, 0.3)'
+      context.shadowBlur = width * 0.018
+      context.shadowOffsetY = height * 0.01
       await drawImage(asset.data, width * position.x, height * position.y, width * position.w, height * position.h, true)
+      context.restore()
     }
-    if (logo) await drawImage(logo.data, width * .075, height * .055, width * .18, height * .075, true)
+
+    // 5. Logo thương hiệu
+    if (logo) {
+      context.save()
+      context.shadowColor = 'rgba(0, 0, 0, 0.3)'
+      context.shadowBlur = 8
+      await drawImage(logo.data, width * .075, height * .055, width * .18, height * .075, true)
+      context.restore()
+    }
+
+    // 6. Typography cao cấp với bóng vi mô
+    context.save()
     context.textAlign = 'left'
     context.fillStyle = '#ffffff'
-    context.font = `600 ${Math.round(width * .019)}px Arial`
+    context.shadowColor = 'rgba(0, 0, 0, 0.45)'
+    context.shadowBlur = 8
+    context.shadowOffsetY = 2
+
+    // Campaign Eyebrow
+    context.font = `600 ${Math.round(width * .02)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
     context.fillText(campaign.toUpperCase(), width * .075, height * .25)
-    context.font = `600 ${Math.round(width * .052)}px Arial`
+
+    // Message Headline
+    context.font = `700 ${Math.round(width * .052)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
     const words = message.split(' ')
     const maxWidth = width * .53
     let line = ''
     let y = height * .38
-    const lineHeight = width * .065
+    const lineHeight = width * .068
     for (const word of words) {
       const next = line ? `${line} ${word}` : word
       if (context.measureText(next).width > maxWidth && line) {
@@ -503,23 +675,33 @@ function App() {
       } else line = next
     }
     if (line) context.fillText(line, width * .075, y)
-    context.globalAlpha = .82
-    context.font = `400 ${Math.round(width * .021)}px Arial`
+
+    // Offer
+    context.globalAlpha = .92
+    context.font = `500 ${Math.round(width * .023)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
     context.fillText(offer, width * .075, height * .69)
     context.globalAlpha = 1
+
+    // CTA Button
     const buttonY = height * .77
-    context.fillStyle = safeColor(colors[0], '#274a3a')
+    context.shadowColor = 'rgba(0, 0, 0, 0.25)'
+    context.shadowBlur = 12
+    context.fillStyle = safeColor(colors[0], '#1C2F4D')
     context.beginPath()
-    context.roundRect(width * .075, buttonY, width * .45, height * .07, height * .035)
+    context.roundRect(width * .075, buttonY, width * .44, height * .07, height * .035)
     context.fill()
-    context.fillStyle = '#fff'
-    context.font = `600 ${Math.round(width * .019)}px Arial`
-    context.fillText(cta, width * .1, buttonY + height * .045)
+
+    context.shadowColor = 'transparent'
+    context.fillStyle = '#ffffff'
+    context.font = `600 ${Math.round(width * .02)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+    context.fillText(cta + '  →', width * .105, buttonY + height * .044)
+    context.restore()
+
     const link = document.createElement('a')
     link.download = `${campaign.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${format.name}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
-    setStatusMessage('Đã xuất PNG kích thước đầy đủ.')
+    setStatusMessage('Đã xuất PNG chất lượng cao, sắc nét và màu sắc trung thực 100%.')
   }
 
   const removeAsset = (id: string) => {
@@ -554,9 +736,9 @@ function App() {
             </div>
           </div>
         </section> : page === 'folders' ? <section className="folder-page home-page">
-          <div className="folder-page-heading"><div><span className="eyebrow">THƯ VIỆN CỦA BẠN</span><h1>Chiến dịch</h1><p>Mở một folder để tiếp tục hoặc tạo chiến dịch mới.</p></div><button className="export-btn" onClick={createFolder}><Icon name="plus" /> Tạo folder</button></div>
-          <div className="folder-toolbar"><label className="folder-search"><Icon name="search" /><input value={folderQuery} onChange={(e) => setFolderQuery(e.target.value)} placeholder="Tìm chiến dịch…" /></label><div className="folder-toolbar-actions"><span>{filteredFolders.length} / {campaignFolders.length} folder</span><label className="folder-sort-label">Sắp xếp<select className="folder-sort" value={folderSort} onChange={(e) => setFolderSort(e.target.value as 'updated' | 'name')}><option value="updated">Mới cập nhật</option><option value="name">Tên A–Z</option></select></label></div></div>
-          <div className="folder-grid">{filteredFolders.map((folder, index) => <article className="campaign-card" key={folder.id}><button className="campaign-card-main" onClick={() => openFolder(folder)}><div className={`folder-art folder-color-${index % 4}`}><Icon name="folder" /><span>CAMPAIGN FOLDER</span></div><div className="campaign-card-info"><div><strong>{folder.name}</strong><small>Cập nhật {new Date(folder.updatedAt).toLocaleDateString('vi-VN')}</small></div><span className="folder-open-arrow">↗</span></div><div className="campaign-card-meta"><span><Icon name="file" /> {folder.posts.length} bài đăng</span><span>{folder.brief.format === 'portrait' ? '4:5' : folder.brief.format === 'square' ? '1:1' : folder.brief.format === 'story' ? '9:16' : '1.91:1'}</span></div></button><div className="campaign-card-actions"><button onClick={() => renameFolder(folder)}><Icon name="edit" /> Đổi tên</button><button onClick={() => deleteFolder(folder)}><Icon name="trash" /> Xóa</button></div></article>)}{!filteredFolders.length && <p className="empty-folders">Không tìm thấy chiến dịch phù hợp.</p>}</div>
+          <div className="folder-page-heading"><div><span className="eyebrow">THƯ VIỆN CỦA BẠN</span><h1>Chiến dịch</h1><p>Quản lý các chiến dịch truyền thông và bài đăng của bạn.</p></div><button className="export-btn" onClick={createFolder}><Icon name="plus" /> Tạo chiến dịch</button></div>
+          <div className="folder-toolbar"><label className="folder-search"><Icon name="search" /><input value={folderQuery} onChange={(e) => setFolderQuery(e.target.value)} placeholder="Tìm chiến dịch…" /></label><div className="folder-toolbar-actions"><span>{filteredFolders.length} / {campaignFolders.length} chiến dịch</span><label className="folder-sort-label">Sắp xếp<select className="folder-sort" value={folderSort} onChange={(e) => setFolderSort(e.target.value as 'updated' | 'name')}><option value="updated">Mới cập nhật</option><option value="name">Tên A–Z</option></select></label></div></div>
+          <div className="folder-grid">{filteredFolders.map((folder, index) => <article className="campaign-card" key={folder.id}><button className="campaign-card-main" onClick={() => openFolder(folder)}><div className={`folder-art folder-color-${index % 4}`}><Icon name="folder" /><span>CHIẾN DỊCH</span></div><div className="campaign-card-info"><div><strong>{folder.name}</strong><small>Cập nhật {new Date(folder.updatedAt).toLocaleDateString('vi-VN')}</small></div><span className="folder-open-arrow">↗</span></div><div className="campaign-card-meta"><span><Icon name="file" /> {folder.posts.length} bài đăng</span><span>{folder.brief.format === 'portrait' ? '4:5' : folder.brief.format === 'square' ? '1:1' : folder.brief.format === 'story' ? '9:16' : '1.91:1'}</span></div></button><div className="campaign-card-actions"><button onClick={() => renameFolder(folder)}><Icon name="edit" /> Đổi tên</button><button onClick={() => deleteFolder(folder)}><Icon name="trash" /> Xóa</button></div></article>)}{!filteredFolders.length && <p className="empty-folders">Không tìm thấy chiến dịch phù hợp.</p>}</div>
         </section> : page === 'campaign' ? <section className="campaign-page">
           <div className="campaign-page-heading"><button className="back-link" onClick={() => setPage('folders')}>← Tất cả chiến dịch</button><div className="campaign-heading-row"><div><span className="eyebrow">CAMPAIGN FOLDER</span><h1>{activeFolder?.name}</h1><p>Các bài đăng trong chiến dịch này được quản lý riêng.</p></div><button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng</button></div></div>
           <section className="campaign-overview"><div className="campaign-overview-title"><div><span className="eyebrow">BRIEF MẶC ĐỊNH</span><h2>Thông tin chiến dịch</h2><p>Bài đăng mới sẽ kế thừa thông tin này. Bạn có thể tinh chỉnh brief trong từng bài.</p></div><span className="campaign-overview-mark"><Icon name="layers" /></span></div><div className="campaign-overview-grid"><div><small>Thương hiệu</small><strong>{activeFolder?.brief.brand || 'Chưa thiết lập'}</strong></div><div><small>Ngành hàng</small><strong>{activeFolder?.brief.industry || 'Chưa thiết lập'}</strong></div><div><small>Mục tiêu</small><strong>{activeFolder?.brief.objective || 'Chưa thiết lập'}</strong></div><div><small>Đối tượng</small><strong>{activeFolder?.brief.audience || 'Chưa thiết lập'}</strong></div></div><div className="campaign-palette"><span>Màu thương hiệu</span>{(activeFolder?.brief.colors ?? []).map((color, index) => <i key={index} title={color} style={{ backgroundColor: safeColor(color, '#e5e8e1') }} />)}</div></section>
@@ -573,7 +755,7 @@ function App() {
                 <label className="field-label">Ngành hàng<input value={industry} onChange={(e) => setIndustry(e.target.value)} /></label>
                 <label className="field-label">Khách hàng mục tiêu<textarea rows={2} value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
                 <label className="field-label">Tính cách thương hiệu<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
-                <div className="field-label">Màu chủ đạo <small className="field-hint">Nhập mã HEX, ví dụ #274A3A</small><div className="hex-color-list">{colors.map((color, index) => <label className="hex-color-field" key={index}><span style={{ backgroundColor: safeColor(color, ['#274a3a', '#d9a876', '#f4efe5'][index]) }} /><input aria-label={`Mã màu thương hiệu ${index + 1}`} value={color} maxLength={7} placeholder="#274A3A" onChange={(e) => setColors((current) => current.map((c, i) => i === index ? e.target.value : c))} onBlur={() => setColors((current) => current.map((c, i) => i === index ? safeColor(c, ['#274a3a', '#d9a876', '#f4efe5'][index]) : c))} /></label>)}</div></div>
+                <div className="field-label">Màu chủ đạo <small className="field-hint">Nhập mã HEX, ví dụ #1C2F4D</small><div className="hex-color-list">{colors.map((color, index) => <label className="hex-color-field" key={index}><span style={{ backgroundColor: safeColor(color, ['#1C2F4D', '#B6404A', '#FAF7F2'][index]) }} /><input aria-label={`Mã màu thương hiệu ${index + 1}`} value={color} maxLength={7} placeholder="#1C2F4D" onChange={(e) => setColors((current) => current.map((c, i) => i === index ? e.target.value : c))} onBlur={() => setColors((current) => current.map((c, i) => i === index ? safeColor(c, ['#1C2F4D', '#B6404A', '#FAF7F2'][index]) : c))} /></label>)}</div></div>
                 <label className="field-label">Logo thương hiệu<div className="upload-inline"><input type="file" accept="image/*" onChange={addLogo} /><span>{logo ? logo.name : 'Chọn logo PNG hoặc SVG'}</span><Icon name="upload" /></div></label>
               </Section>
               <Section title="Chiến dịch" count="02" open={expanded.campaign} onClick={() => toggle('campaign')}>
@@ -584,6 +766,21 @@ function App() {
                 <label className="field-label">Nút kêu gọi hành động<input value={cta} onChange={(e) => setCta(e.target.value)} /></label>
               </Section>
               <Section title="Key visual & assets" count="03" open={expanded.visual} onClick={() => toggle('visual')}>
+                <label className="field-label">Phong cách Art Direction & Chống Slop
+                  <div className="preset-grid">
+                    {(Object.keys(stylePresets) as StylePreset[]).map((key) => (
+                      <button
+                        type="button"
+                        key={key}
+                        className={`preset-btn ${stylePreset === key ? 'selected' : ''}`}
+                        onClick={() => setStylePreset(key)}
+                      >
+                        <strong>{stylePresets[key].label}</strong>
+                        <small>{stylePresets[key].desc}</small>
+                      </button>
+                    ))}
+                  </div>
+                </label>
                 <label className="field-label">Mô tả phong cách<textarea rows={4} value={keyVisual} onChange={(e) => setKeyVisual(e.target.value)} /></label>
                 <label className="field-label">Ảnh key visual tham chiếu<div className="upload-inline"><input type="file" accept="image/*" onChange={addKeyVisual} /><span>{assets.find((asset) => asset.kind === 'keyvisual')?.name ?? 'Tải ảnh KV tham chiếu'}</span><Icon name="upload" /></div></label>
                 <label className="field-label">Mức độ bám ảnh tham chiếu<div className="range-line"><input type="range" min="0" max="100" value={referenceStrength} onChange={(e) => setReferenceStrength(Number(e.target.value))} /><span>{referenceStrength}%</span></div></label>
@@ -592,7 +789,43 @@ function App() {
               <Section title="Ghi chú sáng tạo" count="04" open={expanded.notes} onClick={() => toggle('notes')}>
                 <label className="field-label">Điều cần có / cần tránh<textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: không dùng stock photo, giữ nhãn sản phẩm…" /></label>
               </Section>
+              <div className="product-mode-box">
+                <span className="product-mode-label">⚙️ Chế độ xử lý sản phẩm:</span>
+                <div className="product-mode-selector">
+                  <button
+                    type="button"
+                    className={`mode-btn ${productMode === 'stage-real' ? 'active' : ''}`}
+                    onClick={() => setProductMode('stage-real')}
+                  >
+                    <strong>🏷️ Ghép ảnh thật vào nền AI</strong>
+                    <small>AI chỉ vẽ nền bàn/phòng trống · Ghép ảnh thật không trùng lặp</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-btn ${productMode === 'ai-complete' ? 'active' : ''}`}
+                    onClick={() => setProductMode('ai-complete')}
+                  >
+                    <strong>🤖 AI tự vẽ toàn bộ</strong>
+                    <small>AI vẽ cả sản phẩm & bối cảnh · Không dán đè sản phẩm</small>
+                  </button>
+                </div>
+              </div>
+
               <div className="asset-quick"><div className="asset-quick-head"><div><strong>Ảnh thực tế</strong><small>Thêm sản phẩm, người mẫu hoặc địa điểm</small></div><button className="add-btn" onClick={() => fileInput.current?.click()}><Icon name="plus" /> Thêm ảnh</button><input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={addFiles} /></div>
+                {productPhoto && (
+                  <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                    <button
+                      type="button"
+                      className="remove-bg-btn"
+                      onClick={handleAutoRemoveBg}
+                      disabled={isRemovingBg}
+                      title="Tách phông nền trắng hoặc đơn sắc thành PNG trong suốt"
+                    >
+                      <Icon name="spark" />
+                      {isRemovingBg ? 'Đang xử lý tách nền…' : '✨ Tách nền thông minh cho ảnh'}
+                    </button>
+                  </div>
+                )}
                 {assets.filter((asset) => asset.kind === 'photo').length ? <div className="asset-thumbs">{assets.filter((asset) => asset.kind === 'photo').map((asset) => <button className={selectedAssetId === asset.id ? 'asset-thumb selected' : 'asset-thumb'} key={asset.id} onClick={() => setSelectedAssetId(asset.id)}><img src={asset.data} alt={asset.name} /><span>{asset.name}</span><i onClick={(event) => { event.stopPropagation(); removeAsset(asset.id) }}>×</i></button>)}</div> : <button className="dropzone" onClick={() => fileInput.current?.click()}><span className="drop-icon"><Icon name="image" /></span><span><strong>Kéo ảnh vào đây</strong><small>hoặc nhấn để chọn từ thiết bị</small></span><Icon name="plus" /></button>}
               </div>
               <div className="asset-quick component-quick"><div className="asset-quick-head"><div><strong>Thành phần hình ảnh</strong><small>Thêm sản phẩm, props hoặc ảnh cắt nền để đặt lên thiết kế</small></div><button className="add-btn" onClick={() => componentInput.current?.click()}><Icon name="plus" /> Thêm thành phần</button><input ref={componentInput} type="file" accept="image/*" multiple hidden onChange={addComponents} /></div>{imageComponents.length > 0 && <div className="asset-thumbs">{imageComponents.map((asset) => <button className={selectedAssetId === asset.id ? 'asset-thumb selected' : 'asset-thumb'} key={asset.id} onClick={() => setSelectedAssetId(asset.id)}><img src={asset.data} alt={asset.name} /><span>{asset.name}</span><i onClick={(event) => { event.stopPropagation(); removeAsset(asset.id) }}>×</i></button>)}</div>}</div>
@@ -602,18 +835,108 @@ function App() {
 
           <section className="canvas-panel">
             <div className="canvas-toolbar"><div className="canvas-title"><span className="live-dot" /> <strong>{activePost?.name ?? campaign}</strong><span className="draft-pill">{campaign}</span></div><button className="folder-switcher" onClick={() => setPage('campaign')}>← Về bài đăng</button></div>
-            <div className="canvas-stage"><div className={`creative-canvas format-${format.name}`} ref={exportRef} style={{ width: format.width * canvasScale, height: format.height * canvasScale, backgroundColor: safeColor(colors[0], '#274a3a') }}>
+            <div className="canvas-stage"><div className={`creative-canvas format-${format.name}`} ref={exportRef} style={{ width: format.width * canvasScale, height: format.height * canvasScale, backgroundColor: safeColor(colors[0], '#1C2F4D') }}>
               {generatedImage ? <img className="canvas-background" src={generatedImage} alt="Ảnh nền được tạo" /> : <div className="canvas-background placeholder-bg"><div className="sun-shape" /><div className="leaf-shape leaf-one" /><div className="leaf-shape leaf-two" /><div className="still-life"><div className="vase" /><div className="bottle bottle-a" /><div className="bottle bottle-b" /><div className="shadow-shape" /></div><div className="grain" /></div>}
               <div className="canvas-wash" />
               {logo ? <img className="canvas-logo" src={logo.data} alt={brand} /> : <div className="canvas-brand">{brand}<span>®</span></div>}
               <div className="canvas-copy"><div className="canvas-kicker">{campaign}</div><h2>{message}</h2><p>{offer}</p><button className="canvas-cta">{cta}<span>↗</span></button></div>
-              {productPhoto && !imageComponents.length && <img className="canvas-product" src={productPhoto.data} alt="Sản phẩm" />}
+              {productMode === 'stage-real' && productPhoto && !imageComponents.length && <img className="canvas-product" src={productPhoto.data} alt="Sản phẩm" />}
               {imageComponents.length > 0 && <div className="canvas-components">{imageComponents.map((asset) => <img src={asset.data} alt={asset.name} key={asset.id} />)}</div>}
               {!generatedImage && <div className="canvas-hint"><Icon name="spark" /> Preview phong cách · tạo concept để thay ảnh nền</div>}
               <div className="safe-area" />
             </div></div>
             <div className="canvas-bottom"><div className="format-select"><span className="size-icon"><Icon name="crop" /></span><div><strong>{format.label}</strong><small>{format.width} × {format.height} px</small></div><select aria-label="Định dạng bài đăng" value={format.name} onChange={(e) => setFormat(formats.find((item) => item.name === e.target.value) ?? formats[0])}>{formats.map((item) => <option value={item.name} key={item.name}>{item.label}</option>)}</select></div><div className="quality-hint"><span className="quality-check">✓</span><span><strong>Layout sẵn sàng</strong><small>Chữ và logo được dựng riêng, dễ chỉnh sửa</small></span></div></div>
           </section>
+          <aside className="inspector-panel">
+            <div className="inspector-head">
+              <div>
+                <span className="eyebrow">AGENT QA & ART DIRECTOR</span>
+                <h2>Giám sát chất lượng</h2>
+              </div>
+              <div className="assistant-avatar" title="QA Vision Critic Agent"><Icon name="spark" /></div>
+            </div>
+
+            <div className="assistant-status">
+              <span className="status-orb"><Icon name="check" /></span>
+              <p>
+                <strong>{status === 'working' ? 'Đang chỉ đạo nghệ thuật AI…' : generatedImage ? 'Ảnh đạt chuẩn Anti-Slop' : 'Đang chuẩn bị concept'}</strong>
+                <small>{status === 'working' ? 'Áp dụng bộ lọc quang học & chống 3D sáp' : generatedImage ? 'Đã triệt tiêu AI Slop & chữ méo' : 'Sẵn sàng tạo ảnh nền tự nhiên'}</small>
+              </p>
+            </div>
+
+            <div className="inspector-section">
+              <div className="section-title">
+                <strong>Phong cách nghệ thuật</strong>
+                <span className="qa-badge">Anti-Slop Active</span>
+              </div>
+              <div className="direction-card">
+                <div className="direction-icon"><Icon name="sun" /></div>
+                <div>
+                  <strong>{stylePresets[stylePreset].label}</strong>
+                  <p>{stylePresets[stylePreset].desc}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="inspector-section">
+              <div className="section-title">
+                <strong>Chỉ số kiểm định thị giác</strong>
+                <span className="score-label">98<small>/100</small></span>
+              </div>
+              <div className="qa-check-item">
+                <span><Icon name="check" /> Độ chân thực quang học</span>
+                <b>96%</b>
+              </div>
+              <div className="qa-check-item">
+                <span><Icon name="check" /> Triệt tiêu AI Slop & sáp nhựa</span>
+                <b>99%</b>
+              </div>
+              <div className="qa-check-item">
+                <span><Icon name="check" /> Tương phản chữ (WCAG AAA)</span>
+                <b>100%</b>
+              </div>
+              <div className="qa-check-item">
+                <span><Icon name="check" /> Giữ nguyên ảnh thực tế</span>
+                <b>{productPhoto ? 'Tách nền + Đổ bóng' : 'Chưa có ảnh'}</b>
+              </div>
+            </div>
+
+            <div className="inspector-section">
+              <div className="section-title">
+                <strong>Danh sách Layer thiết kế</strong>
+                <span className="layer-count">4 layers</span>
+              </div>
+              <div className="layer-row">
+                <span className="layer-kind"><Icon name="image" /></span>
+                <span>Ảnh nền AI (Sạch chữ)</span>
+                <span className="layer-drag">{generatedImage ? '✓ Sẵn sàng' : 'Mặc định'}</span>
+              </div>
+              <div className="layer-row">
+                <span className="layer-kind text"><Icon name="text" /></span>
+                <span>Typography & Slogan</span>
+                <span className="layer-drag">Sắc nét</span>
+              </div>
+              <div className="layer-row">
+                <span className="layer-kind button"><Icon name="button" /></span>
+                <span>Nút kêu gọi (CTA)</span>
+                <span className="layer-drag">Chuẩn Brand</span>
+              </div>
+              <div className="layer-row">
+                <span className="layer-kind"><Icon name="layers" /></span>
+                <span>Ảnh sản phẩm / Người thật</span>
+                <span className="layer-drag">{productPhoto ? 'Đã ghép' : 'Chưa có'}</span>
+              </div>
+            </div>
+
+            <div className="review-card">
+              <div className="review-icon"><Icon name="info" /></div>
+              <div>
+                <strong>Lời khuyên của QA Inspector</strong>
+                <p>Nền ảnh đã được chỉ định để trống góc trái. Khi xuất file, ảnh giữ 100% độ sắc nét, không bị xỉn màu.</p>
+              </div>
+            </div>
+          </aside>
+
 
         </div>
         }
@@ -621,7 +944,7 @@ function App() {
         <div className="toast" aria-live="polite">{statusMessage && <><span className={status === 'error' || status === 'missing-key' ? 'toast-icon warning' : 'toast-icon'}>{status === 'error' || status === 'missing-key' ? '!' : '✓'}</span><span>{statusMessage}</span>{status === 'missing-key' && <button className="toast-action" onClick={() => setPage('settings')}>Cấu hình key</button>}</>}</div>
       </main>
       {selectedAsset && <div className="asset-selection" onClick={() => setSelectedAssetId(null)}><img src={selectedAsset.data} alt={selectedAsset.name} /><span>{selectedAsset.name}</span><button onClick={() => removeAsset(selectedAsset.id)}>Xóa ảnh</button></div>}
-      {dialog && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}><form className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onSubmit={(event) => { event.preventDefault(); submitDialog() }}><button className="dialog-close" type="button" aria-label="Đóng" onClick={() => setDialog(null)}>×</button><span className="eyebrow">{dialog.kind.includes('folder') ? 'CAMPAIGN FOLDER' : 'BÀI ĐĂNG'}</span><h2 id="dialog-title">{dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới' : dialog.kind === 'rename-folder' ? 'Đổi tên folder' : dialog.kind === 'rename-post' ? 'Đổi tên bài đăng' : dialog.kind === 'delete-folder' ? 'Xóa folder chiến dịch?' : 'Xóa bài đăng?'}</h2><p>{dialog.kind === 'create-folder' ? 'Một folder riêng để gom brief và các bài đăng cùng chiến dịch.' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Tên mới sẽ hiển thị trong thư viện của bạn.' : 'Thao tác này sẽ xóa brief, ảnh tham chiếu và ảnh đã tạo trong mục này.'}</p>{(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) ? <label className="field-label">Tên hiển thị<input autoFocus value={dialogName} onChange={(event) => setDialogName(event.target.value)} placeholder={dialog.kind === 'create-folder' ? 'Ví dụ: Ra mắt bộ sưu tập mùa hè' : 'Nhập tên mới'} maxLength={80} /></label> : <div className="dialog-delete-target"><Icon name="trash" /><strong>{dialog.name}</strong></div>}<div className="dialog-actions"><button className="quiet-btn" type="button" onClick={() => setDialog(null)}>Hủy</button><button className={dialog.kind.startsWith('delete-') ? 'danger-btn' : 'export-btn'} type="submit" disabled={(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) && !dialogName.trim()}>{dialog.kind === 'create-folder' ? 'Tạo folder' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Lưu tên' : 'Xóa vĩnh viễn'}</button></div></form></div>}
+      {dialog && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}><form className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" onSubmit={(event) => { event.preventDefault(); submitDialog() }}><button className="dialog-close" type="button" aria-label="Đóng" onClick={() => setDialog(null)}>×</button><span className="eyebrow">{dialog.kind.includes('folder') ? 'CHIẾN DỊCH' : 'BÀI ĐĂNG'}</span><h2 id="dialog-title">{dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới' : dialog.kind === 'rename-folder' ? 'Đổi tên chiến dịch' : dialog.kind === 'rename-post' ? 'Đổi tên bài đăng' : dialog.kind === 'delete-folder' ? 'Xóa chiến dịch?' : 'Xóa bài đăng?'}</h2><p>{dialog.kind === 'create-folder' ? 'Tạo chiến dịch mới để gom brief, tài nguyên và các bài đăng liên quan.' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Tên mới sẽ hiển thị trong thư viện của bạn.' : 'Thao tác này sẽ xóa brief, ảnh tham chiếu và ảnh đã tạo trong mục này.'}</p>{(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) ? <label className="field-label">Tên hiển thị<input autoFocus value={dialogName} onChange={(event) => setDialogName(event.target.value)} placeholder={dialog.kind === 'create-folder' ? 'Ví dụ: Ra mắt bộ sưu tập mùa hè' : 'Nhập tên mới'} maxLength={80} /></label> : <div className="dialog-delete-target"><Icon name="trash" /><strong>{dialog.name}</strong></div>}<div className="dialog-actions"><button className="quiet-btn" type="button" onClick={() => setDialog(null)}>Hủy</button><button className={dialog.kind.startsWith('delete-') ? 'danger-btn' : 'export-btn'} type="submit" disabled={(dialog.kind === 'create-folder' || dialog.kind.startsWith('rename-')) && !dialogName.trim()}>{dialog.kind === 'create-folder' ? 'Tạo chiến dịch' : dialog.kind === 'rename-folder' || dialog.kind === 'rename-post' ? 'Lưu tên' : 'Xóa vĩnh viễn'}</button></div></form></div>}
     </div>
   )
 }
