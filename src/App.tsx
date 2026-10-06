@@ -7,6 +7,7 @@ import { WorkspacesView } from './views/WorkspacesView.tsx'
 import { WorkspaceView } from './views/WorkspaceView.tsx'
 import { CampaignView } from './views/CampaignView.tsx'
 import { StudioView } from './views/StudioView.tsx'
+import { PieceView } from './views/PieceView.tsx'
 import { Modal } from './views/ui.tsx'
 import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
 import './App.css'
@@ -57,9 +58,11 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   const workspace = store.workspaces.find((item) => item.id === route.workspace)
   const campaign = workspace?.campaigns.find((item) => item.id === route.campaign)
   const post = campaign?.posts.find((item) => item.id === route.post)
+  const piece = campaign?.pieces.find((item) => item.id === route.piece)
 
   let view
-  if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} onError={reportError} />
+  if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
+  else if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} onError={reportError} />
   else if (workspace && campaign) view = <CampaignView key={campaign.id} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace) view = <WorkspaceView key={workspace.id} store={store} update={update} workspace={workspace} onError={reportError} />
   else view = <WorkspacesView store={store} update={update} />
@@ -68,6 +71,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     { label: 'Workspace', route: {} as Route },
     ...(workspace ? [{ label: workspace.name, route: { workspace: workspace.id } }] : []),
     ...(workspace && campaign ? [{ label: campaign.name, route: { workspace: workspace.id, campaign: campaign.id } }] : []),
+    ...(workspace && campaign && piece ? [{ label: piece.code, route: { workspace: workspace.id, campaign: campaign.id, piece: piece.id } }] : []),
   ]
 
   return <div className="shell">

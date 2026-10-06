@@ -8,6 +8,7 @@ import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
+import { PlanSection } from './PlanSection.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -143,11 +144,13 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     </div>
     <div className="two-col">
       <div className="stack">
-        <Section title="Bài đăng" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
-          {campaign.posts.length === 0
-            ? <div className="empty small"><p>Chưa có bài đăng. Nhập key visual và tạo vài nền bên cạnh trước, rồi tạo bài đăng.</p></div>
+        <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} />
+
+        <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
+          {campaign.posts.filter((post) => !post.pieceId).length === 0
+            ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở mục Kế hoạch nội dung.</p></div>
             : <div className="list">
-              {campaign.posts.map((post) => {
+              {campaign.posts.filter((post) => !post.pieceId).map((post) => {
                 const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
                 return <div className="list-row" key={post.id}>
                   <div className="thumb">{background && <img src={assetUrl(background.assetId)} alt="" />}</div>

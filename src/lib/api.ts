@@ -3,8 +3,8 @@ import type { Store } from './types.ts'
 export type Session = { configured: boolean; authed: boolean; ai?: { ready: boolean } }
 
 export type Provider = 'openai' | 'gemini'
-export type ApiKey = { id: string; provider: Provider; label: string; model: string; last4: string; isDefault: boolean; fromEnv: boolean }
-export type KeyInput = { provider?: Provider; label?: string; model?: string; apiKey?: string; isDefault?: boolean }
+export type ApiKey = { id: string; provider: Provider; label: string; model: string; textModel: string; last4: string; isDefault: boolean; fromEnv: boolean }
+export type KeyInput = { provider?: Provider; label?: string; model?: string; textModel?: string; apiKey?: string; isDefault?: boolean }
 
 export class ApiError extends Error {
   status: number
@@ -42,6 +42,7 @@ export const api = {
   addKey: (input: KeyInput) => post<{ keys: ApiKey[] }>('/api/keys', input).then((result) => result.keys),
   updateKey: (id: string, input: KeyInput) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'PUT', body: JSON.stringify(input) }).then((result) => result.keys),
   removeKey: (id: string) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'DELETE' }).then((result) => result.keys),
+  generateText: (input: { system?: string; prompt: string; json?: boolean; keyId?: string }) => post<{ text: string; provider: Provider; model: string }>('/api/text', input),
   generate: (input: { prompt: string; width: number; height: number; quality: 'high' | 'xhigh'; referenceIds: string[]; keyId?: string }) =>
     post<{ assetId: string }>('/api/generate', input).then((result) => result.assetId),
 }

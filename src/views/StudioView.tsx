@@ -4,6 +4,7 @@ import type { Campaign, FormatKey, Layer, Post, Store, Workspace } from '../lib/
 import { assetUrl } from '../lib/api.ts'
 import { exportPost, renderPost } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
+import { unresolvedIn } from '../lib/text.ts'
 import { Field, Section } from './ui.tsx'
 
 type Props = {
@@ -100,11 +101,12 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
 
   const backgrounds = [...campaign.backgrounds].sort((a, b) => Number(b.format === post.format) - Number(a.format === post.format))
   const maxPreviewHeight = 'min(72vh, 760px)'
+  const unresolved = [...new Set([post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.footer].flatMap((text) => unresolvedIn(text, campaign.variables)))]
 
   return <div className="page">
     <div className="page-head">
       <div>
-        <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>← {campaign.name}</button>
+        <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: post.pieceId })}>← {post.pieceId ? (campaign.pieces.find((item) => item.id === post.pieceId)?.code ?? campaign.name) : campaign.name}</button>
         <h1>{post.name}</h1>
       </div>
       <button className="btn primary" disabled={exporting} onClick={() => { void download() }}>{exporting ? 'Đang xuất…' : `Xuất PNG ${format.width}×${format.height}`}</button>
@@ -164,6 +166,7 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
       </div>
       <div className="preview">
         <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
+        {unresolved.length > 0 && <small className="notice">Chưa điền biến: {unresolved.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch; ảnh xuất sẽ còn nguyên dấu [ ].</small>}
         <small className="muted">Xem trước đúng bố cục khi xuất. Nền khác khổ ảnh sẽ được cắt vừa khung.</small>
       </div>
     </div>

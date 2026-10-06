@@ -40,6 +40,8 @@ export type Background = {
 export type Post = {
   id: string
   name: string
+  /** Content piece (from the plan) this slide belongs to. */
+  pieceId?: string
   format: FormatKey
   eyebrow: string
   headline: string
@@ -52,6 +54,40 @@ export type Post = {
   scrim: boolean
   layers: Layer[]
   updatedAt: string
+}
+
+export type PieceKind = 'static' | 'carousel' | 'reel'
+export type PieceStatus = 'brief' | 'copy' | 'visual' | 'review' | 'ready'
+
+export const STATUS_LABELS: Record<PieceStatus, string> = { brief: 'Brief', copy: 'Copy', visual: 'Visual', review: 'Chờ duyệt', ready: 'Sẵn sàng' }
+
+export type PiecePlan = {
+  funnel: string; pillar: string; format: string; goal: string; hook: string; structure: string; cta: string
+  audience: string; kpi: string; paid: string; conditions: string; story: string; time: string
+}
+
+export type VisualBrief = {
+  format: string; hero: string; layout: string; typography: string; palette: string
+  onImage: string; motion: string; assets: string; avoid: string
+}
+
+export type Check = { id: string; text: string; owner: string; done: boolean }
+
+/** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
+export type Piece = {
+  id: string
+  code: string
+  title: string
+  kind: PieceKind
+  /** Publish date (YYYY-MM-DD), set by the team. */
+  date: string
+  status: PieceStatus
+  plan: PiecePlan
+  visual: VisualBrief
+  caption: string
+  hashtags: string
+  compliance: string
+  checks: Check[]
 }
 
 /** A full-size image (PDF page or upload) that components are cut from. */
@@ -71,6 +107,15 @@ export type Campaign = {
   sources: Source[]
   components: Component[]
   posts: Post[]
+  pieces: Piece[]
+  /** Values for [PLACEHOLDER] tokens, filled once and applied everywhere. */
+  variables: Record<string, string>
+  /** Campaign strategy text given to the AI as context. */
+  strategy: string
+  /** "Do not say" statements from the plan, shown as reference. */
+  guardrailNotes: string[]
+  /** Extra phrases flagged when they appear in copy. */
+  guardrails: string[]
   updatedAt: string
 }
 
@@ -124,5 +169,5 @@ export function newPost(name: string, company: Company): Post {
 }
 
 export function newCampaign(name: string, keyVisual: KeyVisual = emptyKeyVisual(), sources: Source[] = []): Campaign {
-  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], updatedAt: now() }
+  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], pieces: [], variables: {}, strategy: '', guardrailNotes: [], guardrails: [], updatedAt: now() }
 }

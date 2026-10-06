@@ -8,6 +8,11 @@ function normalize(store: Store): Store {
     for (const campaign of workspace.campaigns) {
       campaign.sources ??= []
       campaign.components ??= []
+      campaign.pieces ??= []
+      campaign.variables ??= {}
+      campaign.strategy ??= ''
+      campaign.guardrailNotes ??= []
+      campaign.guardrails ??= []
       campaign.keyVisual.guideline ??= ''
       for (const post of campaign.posts) post.layers ??= []
     }

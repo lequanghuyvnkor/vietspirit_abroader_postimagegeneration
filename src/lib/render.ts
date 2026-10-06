@@ -1,4 +1,5 @@
 import { assetUrl } from './api.ts'
+import { applyVars } from './text.ts'
 import { formatOf, type Campaign, type Post, type Workspace } from './types.ts'
 
 const MARGIN = 64
@@ -83,6 +84,9 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const format = formatOf(post.format)
   const { width, height } = format
   const kv = campaign.keyVisual
+  // [PLACEHOLDER] tokens are replaced with the campaign's values at draw time; stored text is untouched.
+  const fill = (value: string) => applyVars(value, campaign.variables ?? {})
+  post = { ...post, eyebrow: fill(post.eyebrow), headline: fill(post.headline), accent: fill(post.accent), subtitle: fill(post.subtitle), cta: fill(post.cta), footer: fill(post.footer) }
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d') as Ctx | null
@@ -239,11 +243,16 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   }
 }
 
-export async function exportPost(post: Post, campaign: Campaign, workspace: Workspace): Promise<void> {
+export async function renderBlob(post: Post, campaign: Campaign, workspace: Workspace): Promise<Blob> {
   const canvas = document.createElement('canvas')
   await renderPost(canvas, post, campaign, workspace)
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('Không xuất được ảnh.')
+  return blob
+}
+
+export async function exportPost(post: Post, campaign: Campaign, workspace: Workspace): Promise<void> {
+  const blob = await renderBlob(post, campaign, workspace)
   const slug = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   const link = document.createElement('a')
   link.download = `${slug(workspace.name) || 'workspace'}-${slug(campaign.name) || 'chien-dich'}-${slug(post.name) || 'bai-dang'}-${post.format}.png`

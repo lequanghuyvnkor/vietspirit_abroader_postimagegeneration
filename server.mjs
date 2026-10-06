@@ -127,6 +127,7 @@ function originAllowed(req) {
 // ---------- API keys ----------
 // Stored server-side only; the browser never receives a key back, just the last 4 characters.
 const DEFAULT_MODEL = { openai: 'gpt-image-2.5-sunburst', gemini: 'gemini-3.1-flash-image' }
+const DEFAULT_TEXT_MODEL = { openai: 'gpt-4.1-mini', gemini: 'gemini-2.5-flash' }
 
 function readKeys() {
   try { return JSON.parse(readFileSync(KEYS_FILE, 'utf8')).keys ?? [] } catch { return [] }
@@ -140,11 +141,11 @@ function envKey() {
   const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY
   if (!apiKey) return null
   const provider = process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'openai'
-  return { id: 'env', provider, label: '.env.local', model: process.env.AI_MODEL || process.env.OPENAI_IMAGE_MODEL || DEFAULT_MODEL[provider], apiKey, isDefault: false }
+  return { id: 'env', provider, label: '.env.local', model: process.env.AI_MODEL || process.env.OPENAI_IMAGE_MODEL || DEFAULT_MODEL[provider], textModel: process.env.AI_TEXT_MODEL || DEFAULT_TEXT_MODEL[provider], apiKey, isDefault: false }
 }
 
 function publicKey(entry) {
-  return { id: entry.id, provider: entry.provider, label: entry.label, model: entry.model, last4: entry.apiKey.slice(-4), isDefault: entry.isDefault, fromEnv: entry.id === 'env' }
+  return { id: entry.id, provider: entry.provider, label: entry.label, model: entry.model, textModel: entry.textModel || DEFAULT_TEXT_MODEL[entry.provider], last4: entry.apiKey.slice(-4), isDefault: entry.isDefault, fromEnv: entry.id === 'env' }
 }
 
 function allKeys() {
@@ -165,8 +166,10 @@ function cleanKeyInput(input, existing) {
   if (typeof apiKey !== 'string' || !/^\S{8,1000}$/.test(apiKey)) throw fail(400, 'API key không hợp lệ (không chứa khoảng trắng).')
   const model = String(input.model ?? existing?.model ?? DEFAULT_MODEL[provider]).trim()
   if (!/^[\w.:-]{1,120}$/.test(model)) throw fail(400, 'Mã model không hợp lệ.')
+  const textModel = String(input.textModel ?? existing?.textModel ?? DEFAULT_TEXT_MODEL[provider]).trim()
+  if (!/^[\w.:-]{1,120}$/.test(textModel)) throw fail(400, 'Mã model văn bản không hợp lệ.')
   const label = String(input.label ?? existing?.label ?? '').trim().slice(0, 60) || (provider === 'gemini' ? 'Gemini' : 'OpenAI')
-  return { provider, apiKey, model, label }
+  return { provider, apiKey, model, textModel, label }
 }
 
 function aiStatus() {
@@ -297,6 +300,43 @@ async function generate(req, res) {
   return send(res, 200, { assetId: saveAsset(Buffer.from(call.result, 'base64'), 'png') })
 }
 
+// ---------- Text generation ----------
+async function generateText(req, res) {
+  const input = await readJson(req, 200_000)
+  const key = pickKey(input.keyId)
+  if (!key) throw fail(503, 'Chưa có API key. Bấm "API" ở thanh trên để thêm key.')
+  if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 60_000) throw fail(400, 'Nội dung gửi AI không hợp lệ.')
+  const system = typeof input.system === 'string' ? input.system.slice(0, 20_000) : ''
+  const model = key.textModel || DEFAULT_TEXT_MODEL[key.provider]
+  const gemini = key.provider === 'gemini'
+  let response, result
+  try {
+    response = await fetch(gemini
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
+      : 'https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: gemini ? { 'x-goog-api-key': key.apiKey, 'content-type': 'application/json' } : { authorization: `Bearer ${key.apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify(gemini ? {
+        ...(system && { systemInstruction: { parts: [{ text: system }] } }),
+        contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
+        generationConfig: { temperature: 0.7, ...(input.json && { responseMimeType: 'application/json' }) },
+      } : {
+        model,
+        messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: input.prompt }],
+        ...(input.json && { response_format: { type: 'json_object' } }),
+      }),
+      signal: AbortSignal.timeout(120000),
+    })
+    result = await response.json()
+  } catch (error) {
+    throw fail(502, error?.name === 'TimeoutError' ? 'AI trả lời quá thời gian chờ. Hãy thử lại.' : 'Không thể kết nối API văn bản.')
+  }
+  if (!response.ok) throw fail(response.status === 429 ? 429 : 502, `${result?.error?.message || `API trả về HTTP ${response.status}.`} (model: ${model})`)
+  const text = gemini ? (result.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? '').join('') : result.choices?.[0]?.message?.content
+  if (!text) throw fail(502, 'AI không trả về nội dung. Thử lại hoặc đổi model văn bản.')
+  return send(res, 200, { text, provider: key.provider, model })
+}
+
 // ---------- Routing ----------
 async function route(req, res) {
   const { pathname } = new URL(req.url, 'http://127.0.0.1')
@@ -364,6 +404,7 @@ async function route(req, res) {
     }
   }
   if (method === 'POST' && pathname === '/api/generate') return generate(req, res)
+  if (method === 'POST' && pathname === '/api/text') return generateText(req, res)
   throw fail(404, 'Không tìm thấy API này.')
 }
 
