@@ -1082,22 +1082,6 @@ function App() {
               <button className="export-btn" onClick={createPost}><Icon name="plus" /> Tạo bài đăng</button>
             </div>
           </div>
-          <section className="campaign-overview">
-            <div className="campaign-overview-title">
-              <div><span className="eyebrow">KEY VISUAL BRIEF</span><h2>Thông tin chiến dịch</h2><p>Bài đăng mới sẽ kế thừa hệ quy chuẩn này. Bạn có thể tinh chỉnh riêng trong từng bài.</p></div>
-              <span className="campaign-overview-mark"><Icon name="layers" /></span>
-            </div>
-            <div className="campaign-overview-grid">
-              <div><small>Thương hiệu</small><strong>{activeFolder?.brief.brand || 'Chưa thiết lập'}</strong></div>
-              <div><small>Thông điệp chính</small><strong>{activeFolder?.brief.message || 'Chưa thiết lập'}</strong></div>
-              <div><small>Phong cách thiết kế</small><strong>{activeFolder?.brief.brandCoreStyle || 'Clean Tech'}</strong></div>
-              <div><small>Hình tượng chủ đạo</small><strong>{activeFolder?.brief.subjectMetaphor ? activeFolder.brief.subjectMetaphor.slice(0, 35) + '…' : 'Chưa thiết lập'}</strong></div>
-            </div>
-            <div className="campaign-palette">
-              <span>Bảng màu Key Visual</span>
-              {(activeFolder?.brief.palette ?? palettePresets[0].colors).map((item, index) => <i key={index} title={`${item.hex}: ${item.meaning}`} style={{ backgroundColor: safeColor(item.hex, '#e5e8e1') }} />)}
-            </div>
-          </section>
           <div className="post-section-heading"><div><h2>Bài đăng</h2><p>{activeFolder?.posts.length ?? 0} bài trong chiến dịch</p></div></div>
           <div className="post-grid">
             {activeFolder?.posts.map((post, index) => <article className="post-card" key={post.id}>
