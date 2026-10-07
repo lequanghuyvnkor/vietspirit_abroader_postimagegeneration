@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { pieceTexts, scheduleWindow, suggestDates } from '../lib/plan.ts'
+import { defaultProductionNote, kindLabel, pieceTexts, scheduleWindow, suggestDates } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
-import type { Campaign, Piece, PieceStatus, Workspace } from '../lib/types.ts'
+import type { Campaign, Piece, PieceStatus, Production, Workspace } from '../lib/types.ts'
 import { ConfirmDialog } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { slidesOf } from '../lib/pack.ts'
@@ -14,7 +14,6 @@ type Props = {
   edit: (change: (draft: Campaign) => void) => void
 }
 
-const KIND_LABEL = { static: 'Ảnh', carousel: 'Carousel', reel: 'Reel · treo' }
 const DAY = 86400000
 
 const weekday = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'short' })
@@ -51,8 +50,8 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
   }
 
   function exportCsv() {
-    const rows = [['Ngày', 'Giờ', 'Mã', 'Tiêu đề', 'Loại', 'Định dạng', 'Funnel', 'Pillar', 'Trạng thái', 'Cảnh báo'],
-      ...[...sorted, ...undated].map((piece) => [piece.date, piece.plan.time, piece.code, piece.title, KIND_LABEL[piece.kind], piece.plan.format, piece.plan.funnel, piece.plan.pillar, STATUS_LABELS[piece.status], warnings(piece).map((item) => item.text).join('; ')])]
+    const rows = [['Ngày', 'Giờ', 'Mã', 'Tiêu đề', 'Loại', 'Định dạng', 'Funnel', 'Pillar', 'Bên sản xuất', 'Ghi chú sản xuất', 'Trạng thái', 'Cảnh báo'],
+      ...[...sorted, ...undated].map((piece) => [piece.date, piece.plan.time, piece.code, piece.title, kindLabel(piece), piece.plan.format, piece.plan.funnel, piece.plan.pillar, piece.production === 'external' ? 'Bên ngoài' : 'Nội bộ', piece.productionNote, STATUS_LABELS[piece.status], warnings(piece).map((item) => item.text).join('; ')])]
     const link = document.createElement('a')
     link.href = URL.createObjectURL(new Blob([`﻿${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`], { type: 'text/csv;charset=utf-8' }))
     link.download = `lich-dang-${campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'chien-dich'}.csv`
@@ -71,7 +70,7 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
 
   const row = (piece: Piece) => {
     const flags = warnings(piece)
-    return <tr key={piece.id} className={piece.kind === 'reel' ? 'parked' : ''}>
+    return <tr key={piece.id} className={piece.production === 'external' ? 'parked' : ''}>
       <td className="date-cell">
         <input type="date" aria-label={`Ngày đăng ${piece.code}`} value={piece.date} onChange={(event) => patch(piece.id, (item) => { item.date = event.target.value })} />
         {piece.date && <small className="muted">{weekday(piece.date)}</small>}
@@ -81,8 +80,9 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
         <button className="link plain" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}><strong>{piece.code}</strong> · {piece.title}</button>
         <small className="muted">{piece.plan.goal}</small>
       </td>
-      <td className="thumb-cell">{(() => { const slides = slidesOf(campaign, piece); return slides.length ? <><SlideThumb post={slides[0]} campaign={campaign} workspace={workspace} width={52} />{slides.length > 1 && <small className="muted block">{slides.length} ảnh</small>}</> : <span className="muted">{piece.kind === 'reel' ? 'treo' : '—'}</span> })()}</td>
-      <td>{KIND_LABEL[piece.kind]}<small className="muted block">{piece.plan.format}</small></td>
+      <td className="thumb-cell">{(() => { const slides = slidesOf(campaign, piece); return slides.length ? <><SlideThumb post={slides[0]} campaign={campaign} workspace={workspace} width={52} />{slides.length > 1 && <small className="muted block">{slides.length} ảnh</small>}</> : <span className="muted">{piece.kind === 'reel' ? (piece.production === 'external' ? 'bên ngoài' : 'sắp có') : '—'}</span> })()}</td>
+      <td>{kindLabel(piece)}<small className="muted block">{piece.plan.format}</small></td>
+      <td className="production-cell"><select aria-label={`Bên sản xuất ${piece.code}`} value={piece.production} onChange={(event) => patch(piece.id, (item) => { item.production = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production === 'external' ? 'internal' : 'external')) item.productionNote = defaultProductionNote(item.production) })}><option value="internal">Nội bộ</option><option value="external">Bên ngoài</option></select>{piece.productionNote && <small className="muted block">{piece.productionNote.slice(0, 70)}{piece.productionNote.length > 70 ? '…' : ''}</small>}</td>
       <td>{piece.plan.funnel}<small className="muted block">{piece.plan.pillar}</small></td>
       <td>
         <select aria-label={`Trạng thái ${piece.code}`} value={piece.status} onChange={(event) => patch(piece.id, (item) => { item.status = event.target.value as PieceStatus })}>
@@ -102,10 +102,10 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     </div>
     <div className="table-wrap">
       <table>
-        <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Ảnh</th><th>Loại</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>
+        <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Ảnh</th><th>Loại</th><th>Bên sản xuất</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>
         <tbody>
           {sorted.map(row)}
-          {undated.length > 0 && <tr className="group-row"><td colSpan={8}>Chưa xếp lịch ({undated.length})</td></tr>}
+          {undated.length > 0 && <tr className="group-row"><td colSpan={9}>Chưa xếp lịch ({undated.length})</td></tr>}
           {undated.map(row)}
         </tbody>
       </table>

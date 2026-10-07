@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.ts'
+import { defaultProductionNote, guessProduction } from './plan.ts'
 import type { Store } from './types.ts'
 
 /** Fills fields added after data was first saved. */
@@ -14,7 +15,11 @@ function normalize(store: Store): Store {
       campaign.guardrailNotes ??= []
       campaign.guardrails ??= []
       campaign.keyVisual.subjectIds ??= []
-      for (const piece of campaign.pieces) piece.assets ??= []
+      for (const piece of campaign.pieces) {
+        piece.assets ??= []
+        piece.production ??= piece.kind === 'reel' ? guessProduction(piece.visual) : 'internal'
+        piece.productionNote ??= defaultProductionNote(piece.production)
+      }
       for (const post of campaign.posts) post.layers ??= []
     }
   }

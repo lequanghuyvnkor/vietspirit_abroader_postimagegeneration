@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
-import { draftSlides, pieceTexts } from '../lib/plan.ts'
+import { buildHandoff } from '../lib/handoff.ts'
+import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { allSlidesOf, baseSlidesOf, buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { removeFamily, removeVariant, chooseVersion } from '../lib/variants.ts'
 import { navigate } from '../lib/route.ts'
 import { applyVars, lintText, unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS, newId, now } from '../lib/types.ts'
-import type { Campaign, Piece, PieceStatus, Store, Workspace } from '../lib/types.ts'
+import type { Campaign, Piece, PieceStatus, Production, Store, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Field, Section } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { PieceAssets } from './PieceAssets.tsx'
@@ -22,7 +23,6 @@ type Props = {
   onError: (message: string) => void
 }
 
-const KIND_LABEL = { static: 'Ảnh', carousel: 'Carousel', reel: 'Reel' }
 
 export function PieceView({ update, workspace, campaign, piece, keys, onManageKeys, onError }: Props) {
   const [keyId, setKeyId] = useState('')
@@ -101,7 +101,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
       <div>
         <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>← {campaign.name}</button>
         <h1>{piece.code} · {piece.title}</h1>
-        <p>{KIND_LABEL[piece.kind]} · {piece.plan.format} · {piece.plan.funnel} · {piece.plan.pillar}</p>
+        <p>{kindLabel(piece)} · {piece.plan.format} · {piece.plan.funnel} · {piece.plan.pillar}</p>
       </div>
       <div className="row wrap">
         <label className="field"><span className="field-label">Ngày đăng</span><input type="date" value={piece.date} onChange={(event) => edit((_, item) => { item.date = event.target.value })} /></label>
@@ -113,10 +113,23 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
         {!parked && <button className="btn" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('zip', exportPack) }}>{busy === 'zip' ? 'Đang xuất…' : 'Xuất gói (ảnh + caption)'}</button>}
       </div>
     </div>
-    {parked && <p className="notice">Reel đang được treo: chưa làm hình trong app. Caption, checklist và visual brief vẫn theo dõi ở đây.</p>}
+    {parked && <p className="notice">{piece.production === 'external' ? 'Reel có người thật: bên khác sản xuất. App theo dõi caption, checklist, tài nguyên và xuất phiếu bàn giao; không làm hình ở đây.' : 'Reel không có người: sẽ làm trong app (storyboard và chuyển động). Hiện chỉ theo dõi caption, checklist và visual brief.'}</p>}
 
     <div className="two-col">
       <div className="stack">
+        {parked && <Section title="Bên sản xuất & bàn giao">
+          <Field label="Ai thực hiện">
+            <select value={piece.production} onChange={(event) => edit((_, item) => { const next = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production)) item.productionNote = defaultProductionNote(next); item.production = next })}>
+              <option value="internal">Nội bộ: làm trong app (Reel không có người)</option>
+              <option value="external">Bên ngoài: Reel có người, bên khác xử lý</option>
+            </select>
+          </Field>
+          <Field label="Ghi chú sản xuất / bàn giao" hint="Hiện trong bảng theo ngày, xuất CSV và phiếu bàn giao.">
+            <textarea rows={3} value={piece.productionNote} onChange={(event) => edit((_, item) => { item.productionNote = event.target.value })} />
+          </Field>
+          <div className="row"><button className="btn" onClick={() => downloadBlob(new Blob([buildHandoff(campaign, piece)], { type: 'text/markdown;charset=utf-8' }), `${piece.code}-phieu-ban-giao.md`)}>Tải phiếu bàn giao (.md)</button></div>
+        </Section>}
+
         <Section title="Caption">
           <Field label="Nội dung caption"><textarea rows={12} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
           <Field label="Hashtag"><input value={piece.hashtags} onChange={(event) => edit((_, item) => { item.hashtags = event.target.value })} /></Field>

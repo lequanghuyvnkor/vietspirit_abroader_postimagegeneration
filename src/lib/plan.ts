@@ -2,7 +2,7 @@ import { formatForSize } from './guideline.ts'
 import { capitalize, splitSlides, tokensIn } from './text.ts'
 import { splitAssetList } from './assets.ts'
 import { newId, now } from './types.ts'
-import type { Background, Campaign, Check, Company, FormatKey, Piece, PieceKind, Post } from './types.ts'
+import type { Background, Campaign, Check, Company, FormatKey, Piece, PieceKind, Post, Production, VisualBrief } from './types.ts'
 import type { Sheets } from './xlsx.ts'
 
 export type ParsedPlan = {
@@ -53,9 +53,38 @@ export function kindOf(format: string): PieceKind {
   return /carousel|slide/i.test(format) ? 'carousel' : 'static'
 }
 
+const PEOPLE = /(mentor|chân dung|portrait|người thật|a-roll|footage|talking|diễn viên)/i
+const NO_PEOPLE = /(không cần ảnh người|không có người|không người)/i
+
+/** A reel whose brief shows real people goes to another team; motion-graphic reels are made here. */
+export function guessProduction(visual: VisualBrief): Production {
+  const text = [visual.hero, visual.assets, visual.layout].join(' ')
+  return PEOPLE.test(text) && !NO_PEOPLE.test(text) ? 'external' : 'internal'
+}
+
+export const defaultProductionNote = (production: Production): string =>
+  production === 'external' ? 'Reel có người thật: bên khác quay và dựng. Bàn giao: cấu trúc theo mốc giây, caption, phụ đề, tài nguyên (credential, consent).' : ''
+
+/** Reads a cell like "Bên ngoài - agency quay" or "Nội bộ" from an optional production column. */
+export function parseProduction(value: string): Production | null {
+  if (/(bên ngoài|bên khác|external|agency|studio ngoài|thuê ngoài)/i.test(value)) return 'external'
+  return /(nội bộ|internal|in-?house|team mình)/i.test(value) ? 'internal' : null
+}
+
+export function kindLabel(piece: Piece): string {
+  if (piece.kind === 'carousel') return 'Carousel'
+  if (piece.kind === 'static') return 'Ảnh'
+  return piece.production === 'external' ? 'Reel · bên ngoài (có người)' : 'Reel · làm trong app (không người)'
+}
+
 export function formatKeyOf(text: string): FormatKey {
   const size = text.match(/(\d{3,4})\s*[×x*]\s*(\d{3,4})/)
   return (size && formatForSize(Number(size[1]), Number(size[2]))) || 'feed'
+}
+
+function productionOf(kind: PieceKind, cell: string, visual: VisualBrief): { production: Production; productionNote: string } {
+  const production = parseProduction(cell) ?? (kind === 'reel' ? guessProduction(visual) : 'internal')
+  return { production, productionNote: cell || defaultProductionNote(production) }
 }
 
 export function parsePlan(sheets: Sheets): ParsedPlan {
@@ -66,6 +95,8 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
   const checklist = findTable(sheetNamed(sheets, /promo|source/i), (row) => row[0]?.trim() === 'Check')
   const byId = (table: Table | null, id: string) => table?.rows.find((row) => (row[0] ?? '').trim() === id)
 
+  // Optional column in the calendar: who produces each piece ("Bên sản xuất", "Production", "Bàn giao"...).
+  const productionColumn = calendar.header.findIndex((cell) => /(bên sản xuất|đơn vị thực hiện|người thực hiện|production|bàn giao|handoff)/i.test(cell))
   const pieces: Piece[] = calendar.rows.filter((row) => (row[0] ?? '').trim()).map((row) => {
     const code = row[0].trim()
     const cal = (...names: string[]) => column(calendar, row, ...names)
@@ -74,6 +105,7 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
     const visRow = byId(visuals, code)
     const vis = (...names: string[]) => (visuals && visRow ? column(visuals, visRow, ...names) : '')
     const format = cal('Format')
+    const productionCell = productionColumn >= 0 ? (row[productionColumn] ?? '').trim() : ''
 
     const checks: Check[] = []
     if (cal('Điều kiện trước đăng')) checks.push({ id: newId(), text: cal('Điều kiện trước đăng'), owner: 'Marketing', done: false })
@@ -102,6 +134,9 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
       compliance: cap('Compliance / cần duyệt'),
       checks,
       assets: splitAssetList(vis('Asset cần chuẩn bị')).map((label) => ({ id: newId(), label, assetId: null, done: false, note: '' })),
+      ...productionOf(kindOf(format), productionCell, {
+        hero: vis('Hero visual'), layout: vis('Bố cục'), assets: vis('Asset cần chuẩn bị'), format: '', typography: '', palette: '', onImage: '', motion: '', avoid: '',
+      }),
     }
   })
 

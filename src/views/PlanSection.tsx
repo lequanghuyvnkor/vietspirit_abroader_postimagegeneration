@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
-import { draftSlides, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
+import { draftSlides, kindLabel, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
@@ -21,7 +21,6 @@ type Props = {
   onManageKeys: () => void
 }
 
-const KIND_LABEL = { static: 'Ảnh', carousel: 'Carousel', reel: 'Reel · treo' }
 
 function ImportDialog({ workspace, campaign, edit, onClose, onError, keys, onImported }: Props & { onClose: () => void; onImported: (plan: ParsedPlan, runAi: boolean) => void }) {
   const input = useRef<HTMLInputElement>(null)
@@ -63,7 +62,7 @@ function ImportDialog({ workspace, campaign, edit, onClose, onError, keys, onImp
     </div>}
     {error && <p className="notice error" role="alert">{error}</p>}
     {plan && <div className="import-review">
-      <p><strong>{plan.pieces.length} bài</strong>: {count('carousel')} carousel, {count('static')} ảnh, {count('reel')} reel (reel được treo: theo dõi caption và checklist, chưa làm hình).</p>
+      <p><strong>{plan.pieces.length} bài</strong>: {count('carousel')} carousel, {count('static')} ảnh, {count('reel')} reel ({plan.pieces.filter((piece) => piece.kind === 'reel' && piece.production === 'external').length} có người: bên khác xử lý, app theo dõi và xuất phiếu bàn giao; {plan.pieces.filter((piece) => piece.kind === 'reel' && piece.production === 'internal').length} không người: làm trong app).</p>
       <p className="muted">Đã đọc chiến lược ({plan.strategy.length.toLocaleString('vi-VN')} ký tự) và {plan.guardrailNotes.length} điều "không được nói".</p>
       <div className="list">
         {plan.pieces.map((piece) => <div className="list-row" key={piece.id}>
@@ -161,7 +160,7 @@ export function PlanSection(props: Props) {
             return <div className="list-row plan-row" key={piece.id}>
               <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>
                 <strong>{piece.code} · {piece.title}</strong>
-                <small>{KIND_LABEL[piece.kind]}{piece.date ? ` · ${new Date(piece.date).toLocaleDateString('vi-VN')}` : ' · chưa có ngày'} · duyệt {done}/{piece.checks.length}{missing.length ? ` · ${new Set(missing).size} biến chưa điền` : ''}</small>
+                <small>{kindLabel(piece)}{piece.date ? ` · ${new Date(piece.date).toLocaleDateString('vi-VN')}` : ' · chưa có ngày'} · duyệt {done}/{piece.checks.length}{missing.length ? ` · ${new Set(missing).size} biến chưa điền` : ''}</small>
                 {piece.caption && <span className="excerpt">{piece.caption.replace(/\s+/g, ' ').slice(0, 150)}…</span>}
                 {slides.length > 0 && <span className="slide-chips">{slides.map((post, index) => <i key={post.id} title={[post.headline, post.accent, post.subtitle].filter(Boolean).join(' · ')}>{index + 1}. {post.headline || '—'}</i>)}</span>}
               </button>
@@ -174,7 +173,7 @@ export function PlanSection(props: Props) {
     <VariablesPanel workspace={workspace} campaign={campaign} edit={edit} />
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
     {confirm === 'export' && <Modal title="Xuất ảnh hoàn chỉnh" onClose={() => setConfirm(null)}>
-      <p>Xuất ảnh PNG của từng slide cùng caption, mỗi bài một thư mục, gộp trong một file zip. Reel đang treo nên không có ảnh.</p>
+      <p>Xuất ảnh PNG của từng slide cùng caption, mỗi bài một thư mục, gộp trong một file zip. Reel chưa có ảnh trong app.</p>
       <label className="check"><input type="radio" name="scope" checked={scope === 'all'} onChange={() => setScope('all')} /> Tất cả bài đã có slide ({withSlides.length})</label>
       <label className="check"><input type="radio" name="scope" checked={scope === 'ready'} onChange={() => setScope('ready')} /> Chỉ bài đã "Sẵn sàng" ({withSlides.filter((piece) => piece.status === 'ready').length})</label>
       {exportMissing > 0 && <p className="notice">Còn {exportMissing} biến chưa điền trong các bài này; ảnh xuất sẽ còn nguyên dấu [ ].</p>}

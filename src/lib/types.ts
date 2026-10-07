@@ -69,6 +69,8 @@ export type Post = {
 export type Shade = { x: number; y: number; w: number; h: number; strength: number; tone: 'dark' | 'light' }
 
 export type PieceKind = 'static' | 'carousel' | 'reel'
+/** Who makes the piece: made in this app, or handed to another team (reels with real people). */
+export type Production = 'internal' | 'external'
 export type PieceStatus = 'brief' | 'copy' | 'visual' | 'review' | 'ready'
 
 export const STATUS_LABELS: Record<PieceStatus, string> = { brief: 'Brief', copy: 'Copy', visual: 'Visual', review: 'Chờ duyệt', ready: 'Sẵn sàng' }
@@ -104,6 +106,9 @@ export type Piece = {
   compliance: string
   checks: Check[]
   assets: PieceAsset[]
+  production: Production
+  /** Hand-off note for whoever produces it (shown in the plan and in the hand-off brief). */
+  productionNote: string
 }
 
 /** A full-size image (PDF page or upload) that components are cut from. */
