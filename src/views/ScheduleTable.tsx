@@ -7,6 +7,8 @@ import type { Campaign, Piece, PieceStatus, Production, Workspace } from '../lib
 import { ConfirmDialog } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { slidesOf } from '../lib/pack.ts'
+import { copyDocsHtml } from '../lib/docsExport.ts'
+import { loadDocsSync, pushToDocs, saveDocsSync } from '../lib/docsSync.ts'
 
 type Props = {
   workspace: Workspace
@@ -25,6 +27,10 @@ function csvCell(value: string): string {
 
 export function ScheduleTable({ workspace, campaign, edit }: Props) {
   const [confirmSuggest, setConfirmSuggest] = useState(false)
+  const [sync, setSync] = useState(loadDocsSync)
+  const [syncOpen, setSyncOpen] = useState(false)
+  const [syncState, setSyncState] = useState<{ busy: boolean; message: string }>({ busy: false, message: '' })
+  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
   const window = scheduleWindow(campaign.strategy)
   const undated = campaign.pieces.filter((piece) => !piece.date)
   const sorted = [...campaign.pieces].filter((piece) => piece.date).sort((a, b) => a.date.localeCompare(b.date) || a.plan.time.localeCompare(b.plan.time) || a.code.localeCompare(b.code))
@@ -57,6 +63,22 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     link.download = `lich-dang-${campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'chien-dich'}.csv`
     link.click()
     setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+  }
+
+  async function copyForDocs() {
+    try { await copyDocsHtml(campaign); setCopied('ok') } catch { setCopied('fail') }
+    setTimeout(() => setCopied(null), 4000)
+  }
+
+  async function pushDocs() {
+    saveDocsSync(sync)
+    setSyncState({ busy: true, message: 'Đang đẩy lên Google Docs…' })
+    try {
+      const result = await pushToDocs(sync, campaign)
+      setSyncState({ busy: false, message: `Xong: tạo ${result.created ?? 0} tab, cập nhật ${result.updated ?? 0} tab.` })
+    } catch (error) {
+      setSyncState({ busy: false, message: `Lỗi: ${error instanceof Error ? error.message : String(error)}` })
+    }
   }
 
   function applySuggestion() {
@@ -98,8 +120,16 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
       <span className="muted">Đã xếp lịch {sorted.length}/{campaign.pieces.length} bài{window ? ` · kỳ ${dayMonth(window.start)}–${dayMonth(window.end)}` : ''}</span>
       <span className="spacer" />
       {window && undated.length > 0 && <button className="btn small" onClick={() => setConfirmSuggest(true)}>Gợi ý lịch cho {undated.length} bài chưa có ngày</button>}
+      <button className="btn small" onClick={copyForDocs} title="Mỗi bài một thẻ, dán thẳng vào Google Docs (Ctrl+V)">{copied === 'ok' ? 'Đã sao chép, hãy dán vào Docs' : copied === 'fail' ? 'Không sao chép được' : 'Sao chép cho Google Docs'}</button>
+      <button className="btn small" onClick={() => setSyncOpen((open) => !open)} aria-expanded={syncOpen}>Đẩy lên Google Docs</button>
       <button className="btn small" onClick={exportCsv}>Xuất CSV</button>
     </div>
+    {syncOpen && <div className="row wrap schedule-bar">
+      <input aria-label="Link Google Docs" placeholder="Link Google Docs" value={sync.doc} onChange={(event) => setSync({ ...sync, doc: event.target.value })} />
+      <input aria-label="URL web app Apps Script" placeholder="URL web app Apps Script (…/exec)" value={sync.url} onChange={(event) => setSync({ ...sync, url: event.target.value })} />
+      <button className="btn small primary" disabled={syncState.busy || !sync.url.trim() || !sync.doc.trim()} onClick={pushDocs}>Đẩy {campaign.pieces.length} bài</button>
+      {syncState.message && <span className="muted" role="status">{syncState.message}</span>}
+    </div>}
     <div className="table-wrap">
       <table>
         <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Ảnh</th><th>Loại</th><th>Bên sản xuất</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>
