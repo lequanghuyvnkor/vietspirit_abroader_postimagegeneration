@@ -10,6 +10,7 @@ import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { Field, Lightbox, Section } from './ui.tsx'
 import { ReviseTool } from './ReviseTool.tsx'
+import { LogoPanel } from './LogoPanel.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -43,6 +44,17 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
     })
   }
   const set = <K extends keyof Post>(key: K, value: Post[K]) => edit((draft) => { draft[key] = value })
+
+  function applyLogoToAll(logo: NonNullable<Post['logo']>) {
+    update((draft) => {
+      const item = draft.workspaces.find((entry) => entry.id === workspace.id)
+      const found = item?.campaigns.find((entry) => entry.id === campaign.id)
+      if (!item || !found) return
+      for (const target of found.posts) target.logo = { ...logo }
+      found.updatedAt = now()
+      item.updatedAt = found.updatedAt
+    })
+  }
 
   function setFormat(key: FormatKey) {
     edit((draft) => {
@@ -194,6 +206,7 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
           <Field label="Câu dẫn"><textarea rows={3} value={post.subtitle} onChange={(event) => set('subtitle', event.target.value)} /></Field>
           <Field label="Nút kêu gọi (CTA)"><input value={post.cta} onChange={(event) => set('cta', event.target.value)} /></Field>
           <Field label="Chân bài" hint="Nhiều dòng được (Enter để xuống dòng)."><textarea rows={2} value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
+          <LogoPanel workspace={workspace} campaign={campaign} post={post} keys={keys} edit={edit} onError={onError} applyToAll={applyLogoToAll} />
           <label className="check"><input type="checkbox" checked={post.scrim} onChange={(event) => set('scrim', event.target.checked)} /> Làm tối/sáng nhẹ mép trên và dưới để chữ dễ đọc</label>
         </Section>
         <Section title="Thành phần đồ họa">

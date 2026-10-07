@@ -39,6 +39,16 @@ export type Background = {
   label: string
 }
 
+/** How the brand logo sits on one post. All fields optional: the defaults are top-left, workspace size, picked by background tone. */
+export type LogoPlacement = {
+  position?: 'top-left' | 'top-center' | 'top-right'
+  /** Multiplier on the workspace logo height. */
+  scale?: number
+  /** Which logo file: for light backgrounds, or for dark ones. Default follows the campaign's text tone. */
+  variant?: 'light' | 'dark'
+  hidden?: boolean
+}
+
 export type Post = {
   id: string
   name: string
@@ -59,6 +69,7 @@ export type Post = {
   backgroundId: string | null
   scrim: boolean
   layers: Layer[]
+  logo?: LogoPlacement
   /** Reel scenes: seconds on screen (default 3). */
   duration?: number
   /** Multiplier for the headline and lead text size (default 1). */

@@ -103,7 +103,9 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const accent = safeColor(kv.accentColor, '#FF4D5E')
   const display = `"${kv.displayFont || 'Playfair Display'}", serif`
   const body = `"${kv.bodyFont || 'Be Vietnam Pro'}", sans-serif`
-  const logoId = !dark && workspace.company.logoDarkId ? workspace.company.logoDarkId : workspace.company.logoId
+  const placement = post.logo ?? {}
+  const onDarkBackground = placement.variant ? placement.variant === 'dark' : !dark
+  const logoId = placement.hidden ? null : onDarkBackground && workspace.company.logoDarkId ? workspace.company.logoDarkId : workspace.company.logoId
 
   const layerImages = await Promise.all(post.layers.map((layer) => loadImage(campaign.components.find((item) => item.id === layer.componentId)?.assetId ?? null)))
   const [bgImage, logo] = await Promise.all([
@@ -183,8 +185,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const footerY = bottom - Math.max(0, footerLines.length - 1) * footerLineHeight
   const ctaHeight = 72
   const ctaTop = isCover ? 0 : footerY - 44 - 40 - ctaHeight
-  const logoHeight = Math.min(220, Math.max(24, workspace.company.logoHeight ?? 64))
-  const areaTop = top + Math.max(70, logoHeight + 30)
+  const logoHeight = Math.min(260, Math.max(20, (workspace.company.logoHeight ?? 64) * Math.min(2, Math.max(0.5, placement.scale ?? 1))))
+  const areaTop = top + (placement.hidden ? 70 : Math.max(70, logoHeight + 30))
   const areaBottom = post.cta && !isCover ? ctaTop - 30 : post.footer ? footerY - 44 - 30 : bottom
   const maxBlock = Math.max(200, (areaBottom - areaTop) * 0.62)
 
@@ -226,8 +228,11 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   if (parts.has('text')) {
   if (logo) {
     const logoWidth = Math.min(logo.naturalWidth * (logoHeight / logo.naturalHeight), width * 0.3)
-    ctx.drawImage(logo, left, top, logoWidth, logoWidth * (logo.naturalHeight / logo.naturalWidth))
-  } else if (workspace.company.name) {
+    const drawnHeight = logoWidth * (logo.naturalHeight / logo.naturalWidth)
+    const position = placement.position ?? 'top-left'
+    const logoX = position === 'top-right' ? width - MARGIN - logoWidth : position === 'top-center' ? (width - logoWidth) / 2 : left
+    ctx.drawImage(logo, logoX, top, logoWidth, drawnHeight)
+  } else if (workspace.company.name && !placement.hidden) {
     ctx.fillStyle = text
     ctx.font = `700 28px ${display}`
     ctx.fillText(workspace.company.name, left, top + 30)
