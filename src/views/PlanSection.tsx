@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
-import { draftSlides, kindLabel, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
+import { draftSlides, kindLabel, madeInApp, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
@@ -91,7 +91,7 @@ export function PlanSection(props: Props) {
   const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | 'export' | null>(null)
   const [scope, setScope] = useState<'all' | 'ready'>('all')
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
-  const visual = campaign.pieces.filter((piece) => piece.kind !== 'reel')
+  const visual = campaign.pieces.filter(madeInApp)
 
   /** Runs one step per piece in order; a failure on one piece does not stop the rest. */
   async function run(label: string, pieces: Piece[], step: (piece: Piece) => Promise<void>) {
@@ -179,7 +179,7 @@ export function PlanSection(props: Props) {
       {exportMissing > 0 && <p className="notice">Còn {exportMissing} biến chưa điền trong các bài này; ảnh xuất sẽ còn nguyên dấu [ ].</p>}
       <div className="modal-actions"><button className="btn ghost" onClick={() => setConfirm(null)}>Hủy</button><button className="btn primary" disabled={exportable.length === 0} onClick={() => { setConfirm(null); void exportAll() }}>Xuất {exportable.length} bài</button></div>
     </Modal>}
-    {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${visual.length} bài (carousel/ảnh), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void draftAll(visual, campaign) }} onClose={() => setConfirm(null)} />}
+    {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${visual.length} bài (carousel, ảnh, reel làm trong app), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void draftAll(visual, campaign) }} onClose={() => setConfirm(null)} />}
     {confirm === 'backgrounds' && <ConfirmDialog title="Tạo nền cho tất cả bài" message={`Sẽ tạo ${visual.length} ảnh nền bằng AI, mỗi ảnh tính phí theo tài khoản của bạn, và gán vào slide của bài tương ứng. Tiếp tục?`} confirm="Tạo nền" onConfirm={() => { void backgroundsAll(visual) }} onClose={() => setConfirm(null)} />}
   </>
 }

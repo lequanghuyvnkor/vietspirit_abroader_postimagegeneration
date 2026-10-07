@@ -2,12 +2,13 @@ import { api } from './api.ts'
 import { buildDraftRequest, parseDraft, type Draft } from './ai.ts'
 import { draftSlides, formatKeyOf } from './plan.ts'
 import { buildBackgroundPrompt, generationRefs } from './prompt.ts'
+import { inferBeats } from './beats.ts'
 import { splitSlides } from './text.ts'
 import { formatOf, newId, now } from './types.ts'
 import type { Campaign, Company, FormatKey, Piece, Workspace } from './types.ts'
 
 export const slideCountOf = (campaign: Campaign, piece: Piece) =>
-  campaign.posts.filter((post) => post.pieceId === piece.id && !post.variantOf).length || splitSlides(piece.plan.structure).length || 1
+  campaign.posts.filter((post) => post.pieceId === piece.id && !post.variantOf).length || (piece.kind === 'reel' ? inferBeats(piece).length : splitSlides(piece.plan.structure).length) || 1
 
 /** Asks the chosen provider for slide copy (and caption/hashtags when the plan has none). */
 export async function fetchDraft(workspace: Workspace, campaign: Campaign, piece: Piece, keyId?: string): Promise<Draft> {

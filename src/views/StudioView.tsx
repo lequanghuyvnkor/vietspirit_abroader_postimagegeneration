@@ -187,6 +187,7 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
           <Field label="Khổ ảnh">
             <select value={post.format} onChange={(event) => setFormat(event.target.value as FormatKey)}>{FORMATS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
           </Field>
+          {piece?.kind === 'reel' && <Field label="Thời lượng cảnh (giây)" hint="Tổng thời lượng Reel là tổng các cảnh."><input type="number" min={1} max={30} step={0.5} value={post.duration ?? 3} onChange={(event) => set('duration', Math.min(30, Math.max(1, Number(event.target.value) || 3)))} /></Field>}
           <Field label="Nhãn nhỏ phía trên"><input value={post.eyebrow} onChange={(event) => set('eyebrow', event.target.value)} /></Field>
           <Field label="Tiêu đề"><textarea rows={2} value={post.headline} onChange={(event) => set('headline', event.target.value)} /></Field>
           <Field label="Dòng nhấn (màu nhấn)" hint="Hiện ngay dưới tiêu đề, bằng màu nhấn của chiến dịch."><input value={post.accent} onChange={(event) => set('accent', event.target.value)} /></Field>

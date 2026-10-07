@@ -80,8 +80,11 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 
 type Ctx = CanvasRenderingContext2D & { letterSpacing: string }
 
+/** Which layers of a slide to draw: the background with components and shade, the text block, the CTA button. */
+export type RenderPart = 'plate' | 'text' | 'cta'
+
 /** Draws a post at its native size. Single source of truth for preview and export. */
-export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null } = {}): Promise<void> {
+export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null; parts?: RenderPart[] } = {}): Promise<void> {
   const format = formatOf(post.format)
   const { width, height } = format
   const kv = campaign.keyVisual
@@ -92,6 +95,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   canvas.height = height
   const ctx = canvas.getContext('2d') as Ctx | null
   if (!ctx) return
+  const parts = new Set<RenderPart>(options.parts ?? ['plate', 'text', 'cta'])
 
   const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
   const dark = kv.textTone === 'dark'
@@ -114,12 +118,14 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const gradient = ctx.createLinearGradient(0, 0, width * 0.4, height)
   colors.slice(0, 3).forEach((color, index, list) => gradient.addColorStop(list.length === 1 ? 0 : index / (list.length - 1), color))
   if (colors.length === 1) gradient.addColorStop(1, colors[0])
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, width, height)
-  if (bgImage) drawCover(ctx, bgImage, width, height)
+  if (parts.has('plate')) {
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, width, height)
+    if (bgImage) drawCover(ctx, bgImage, width, height)
+  }
 
   // Legibility scrims at top and bottom, where text sits.
-  if (post.scrim) {
+  if (post.scrim && parts.has('plate')) {
     const tint = dark ? '255,255,255' : '0,0,0'
     const top = ctx.createLinearGradient(0, 0, 0, height * 0.6)
     top.addColorStop(0, `rgba(${tint},0.45)`)
@@ -134,7 +140,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   }
 
   // Graphic components cut from the key visual, drawn under the text.
-  post.layers.forEach((layer, index) => {
+  if (parts.has('plate')) post.layers.forEach((layer, index) => {
     const image = layerImages[index]
     if (!image) return
     const w = layer.w * width
@@ -206,14 +212,17 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
 
   // ---- Local legibility shade: darken (or lighten) behind the text only where the background is busy or bright.
   const blockBox = { x: left - 28, y: blockTop - 22, w: textWidth + 56, h: block.height + 44 }
+  if (parts.has('plate')) {
   const lum = regionLuminance(ctx, blockBox)
   const need = dark ? Math.max(0, 0.72 - lum * 0.9) : Math.max(0, (lum - 0.2) * 2.1)
   if (need > 0.04) feather(ctx, blockBox, dark ? '255,255,255' : '0,0,0', Math.min(0.72, need), 70)
   for (const shade of post.shades ?? []) {
     feather(ctx, { x: shade.x * width, y: shade.y * height, w: shade.w * width, h: shade.h * height }, shade.tone === 'light' ? '255,255,255' : '0,0,0', Math.min(0.9, Math.max(0, shade.strength)), Math.min(shade.w * width, shade.h * height) * 0.35)
   }
+  }
 
   // ---- Logo (small) or company name as text.
+  if (parts.has('text')) {
   const logoHeight = 40
   if (logo) {
     const logoWidth = Math.min(logo.naturalWidth * (logoHeight / logo.naturalHeight), width * 0.3)
@@ -271,8 +280,10 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.globalAlpha = 1
   }
 
+  }
+
   // ---- CTA button: right side on covers, anchored above the footer otherwise.
-  if (post.cta) {
+  if (post.cta && parts.has('cta')) {
     ctx.font = `600 28px ${body}`
     const buttonWidth = ctx.measureText(post.cta).width + 72
     const buttonX = isCover ? width - MARGIN - buttonWidth : left

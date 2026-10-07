@@ -57,6 +57,8 @@ export type Post = {
   backgroundId: string | null
   scrim: boolean
   layers: Layer[]
+  /** Reel scenes: seconds on screen (default 3). */
+  duration?: number
   /** Multiplier for the headline and lead text size (default 1). */
   textScale?: number
   /** Where the text block sits between the logo and the CTA/footer (default top). */

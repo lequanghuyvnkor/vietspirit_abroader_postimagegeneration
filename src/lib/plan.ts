@@ -1,6 +1,7 @@
 import { formatForSize } from './guideline.ts'
 import { capitalize, splitSlides, tokensIn } from './text.ts'
 import { splitAssetList } from './assets.ts'
+import { inferBeats, sceneSeconds } from './beats.ts'
 import { newId, now } from './types.ts'
 import type { Background, Campaign, Check, Company, FormatKey, Piece, PieceKind, Post, Production, VisualBrief } from './types.ts'
 import type { Sheets } from './xlsx.ts'
@@ -161,21 +162,26 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
   return { title: strategySheet?.[0]?.[0]?.trim() ?? '', strategy: lines.join('\n').slice(0, 5000), guardrailNotes, pieces }
 }
 
-/** First-draft slides for a piece, built from the plan with no AI. Reels are parked and get none. */
+/** True when the piece is made in this app: everything except reels handed to another team. */
+export const madeInApp = (piece: Piece): boolean => piece.kind !== 'reel' || piece.production === 'internal'
+
+/** First-draft slides (or reel scenes) for a piece, built from the plan with no AI. Reels made elsewhere get none. */
 export function draftSlides(piece: Piece, company: Company, backgrounds: Background[]): Post[] {
-  if (piece.kind === 'reel') return []
-  const format = formatKeyOf(piece.visual.format)
+  if (!madeInApp(piece)) return []
+  const reel = piece.kind === 'reel'
+  const format: FormatKey = reel ? 'story' : formatKeyOf(piece.visual.format)
   const background = backgrounds.find((item) => item.format === format)?.id ?? null
+  const beats = reel ? inferBeats(piece) : []
   const labels = piece.kind === 'carousel' ? splitSlides(piece.plan.structure) : []
-  const entries = labels.length ? labels : [{ n: 1, label: 'hook' }]
+  const entries = reel ? beats.map((beat, index) => ({ n: index + 1, label: beat.label, seconds: sceneSeconds(beat) })) : labels.length ? labels.map((entry) => ({ ...entry, seconds: undefined })) : [{ n: 1, label: 'hook', seconds: undefined }]
   return entries.map((entry, index): Post => {
     const first = index === 0
     const last = index === entries.length - 1 && entries.length > 1
     return {
-      id: newId(), name: `${piece.code} · ${entries.length > 1 ? `Slide ${entry.n}` : 'Ảnh'}`, pieceId: piece.id, format,
+      id: newId(), name: `${piece.code} · ${reel ? `Cảnh ${entry.n}` : entries.length > 1 ? `Slide ${entry.n}` : 'Ảnh'}`, pieceId: piece.id, format,
       eyebrow: piece.plan.pillar.split('·').pop()!.trim().toUpperCase(), headline: first ? piece.visual.onImage || piece.plan.hook : capitalize(entry.label.replace(/\s*\+\s*CTA$/i, '')),
       accent: '', subtitle: '', cta: last || entries.length === 1 ? piece.plan.cta : '', footer: company.footer,
-      backgroundId: background, scrim: true, layers: [], updatedAt: now(),
+      backgroundId: background, scrim: true, layers: [], ...(entry.seconds ? { duration: entry.seconds } : {}), updatedAt: now(),
     }
   })
 }

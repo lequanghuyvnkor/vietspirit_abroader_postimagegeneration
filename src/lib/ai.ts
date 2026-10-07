@@ -1,4 +1,5 @@
 import type { Campaign, Piece, Workspace } from './types.ts'
+import { inferBeats } from './beats.ts'
 import { splitSlides } from './text.ts'
 
 export type DraftSlide = { eyebrow: string; headline: string; accent: string; subtitle: string; cta: string }
@@ -18,7 +19,8 @@ Quy tắc bắt buộc:
 /** Builds the system and user prompts for drafting a piece's slide copy and caption. */
 export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piece: Piece, slideCount: number): { system: string; prompt: string } {
   const { company } = workspace
-  const labels = splitSlides(piece.plan.structure).map((slide) => `S${slide.n}: ${slide.label}`).join('\n')
+  const reel = piece.kind === 'reel'
+  const labels = reel ? inferBeats(piece).map((beat, index) => `Cảnh ${index + 1} (${beat.start}–${beat.end}s): ${beat.label}`).join('\n') : splitSlides(piece.plan.structure).map((slide) => `S${slide.n}: ${slide.label}`).join('\n')
   const guardrails = [...campaign.guardrailNotes, ...campaign.guardrails].map((line) => `- ${line}`).join('\n')
   const prompt = [
     `THƯƠNG HIỆU: ${company.name}${company.industry ? ` (${company.industry})` : ''}. Đối tượng: ${company.audience || 'xem kế hoạch'}. Giọng điệu: ${company.tone || 'xem kế hoạch'}.`,
@@ -28,7 +30,8 @@ export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piec
     `Funnel: ${piece.plan.funnel} · Pillar: ${piece.plan.pillar} · Định dạng: ${piece.plan.format}`,
     `Mục tiêu: ${piece.plan.goal}`,
     `Hook/tiêu đề trong kế hoạch: ${piece.plan.hook}`,
-    labels ? `Cấu trúc các slide:\n${labels}` : piece.plan.structure && `Cấu trúc nội dung: ${piece.plan.structure}`,
+    reel && 'ĐÂY LÀ REEL DỌC 1080×1920 KHÔNG CÓ NGƯỜI: mỗi phần tử trong "slides" là MỘT CẢNH theo thứ tự thời gian, hiện trên màn hình vài giây. Chữ trên màn hình cực ngắn (headline tối đa 6 từ, subtitle tối đa 12 từ), mỗi cảnh một ý, cảnh đầu là hook, cảnh cuối là CTA.',
+    labels ? `Cấu trúc các ${reel ? 'cảnh' : 'slide'}:\n${labels}` : piece.plan.structure && `Cấu trúc nội dung: ${piece.plan.structure}`,
     `CTA: ${piece.plan.cta}`,
     `Đối tượng bài: ${piece.plan.audience}`,
     piece.visual.onImage && `Chữ trên ảnh gợi ý trong visual brief: ${piece.visual.onImage}`,
