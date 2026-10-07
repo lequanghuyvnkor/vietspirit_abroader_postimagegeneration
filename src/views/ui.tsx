@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { assetUrl, api, uploadImage } from '../lib/api.ts'
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -60,5 +60,20 @@ export function ImageSlot({ label, value, onChange, onError, maxEdge = 1200 }: {
       </div>
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={pick} />
     </div>
+  </div>
+}
+
+/** Full-size image viewer. Click outside or press Escape to close. */
+export function Lightbox({ src, title, onClose, actions }: { src: string; title: string; onClose: () => void; actions?: ReactNode }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return <div className="lightbox" role="dialog" aria-modal="true" aria-label={title} onMouseDown={onClose}>
+    <figure onMouseDown={(event) => event.stopPropagation()}>
+      <img src={src} alt={title} />
+      <figcaption><span>{title}</span><span className="row">{actions}<button className="btn small" onClick={onClose}>Đóng</button></span></figcaption>
+    </figure>
   </div>
 }

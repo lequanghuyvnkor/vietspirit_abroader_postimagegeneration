@@ -5,7 +5,7 @@ import { assetUrl } from '../lib/api.ts'
 import { exportPost, renderPost } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
-import { Field, Section } from './ui.tsx'
+import { Field, Lightbox, Section } from './ui.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -18,6 +18,7 @@ type Props = {
 export function StudioView({ update, workspace, campaign, post, onError }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [exporting, setExporting] = useState(false)
+  const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const format = formatOf(post.format)
@@ -157,13 +158,17 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
             ? <p className="notice">Chiến dịch chưa có nền. Quay lại chiến dịch để tạo hoặc tải nền; hiện dùng dải màu từ bảng màu.</p>
             : <div className="bg-pick">
               <button className={post.backgroundId === null ? 'selected' : ''} onClick={() => set('backgroundId', null)}><span className="none">Dải màu</span></button>
-              {backgrounds.map((background) => <button key={background.id} className={post.backgroundId === background.id ? 'selected' : ''} onClick={() => set('backgroundId', background.id)} title={`${background.label} · ${formatOf(background.format).label}`}>
-                <img src={assetUrl(background.assetId)} alt={background.label} />
-                {background.format !== post.format && <small>{formatOf(background.format).label}</small>}
-              </button>)}
+              {backgrounds.map((background) => <div className="bg-pick-item" key={background.id}>
+                <button className={post.backgroundId === background.id ? 'selected' : ''} onClick={() => set('backgroundId', background.id)} title={`${background.label} · ${formatOf(background.format).label}`}>
+                  <img src={assetUrl(background.assetId)} alt={background.label} />
+                  {background.format !== post.format && <small>{formatOf(background.format).label}</small>}
+                </button>
+                <button className="zoom-btn" aria-label={`Xem lớn ${background.label}`} onClick={() => setViewer({ src: assetUrl(background.assetId), title: `${background.label} · ${formatOf(background.format).label}` })}>⤢</button>
+              </div>)}
             </div>}
         </Section>
       </div>
+      {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
       <div className="preview">
         <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
         {unresolved.length > 0 && <small className="notice">Chưa điền biến: {unresolved.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch; ảnh xuất sẽ còn nguyên dấu [ ].</small>}

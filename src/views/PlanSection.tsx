@@ -9,6 +9,7 @@ import type { Campaign, Piece, Workspace } from '../lib/types.ts'
 import { readXlsx } from '../lib/xlsx.ts'
 import { ConfirmDialog, Field, Modal, Section } from './ui.tsx'
 import { ScheduleTable } from './ScheduleTable.tsx'
+import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 
 type Props = {
   workspace: Workspace
@@ -87,7 +88,8 @@ export function PlanSection(props: Props) {
   const [view, setView] = useState<'list' | 'table'>('list')
   const [keyId, setKeyId] = useState('')
   const [job, setJob] = useState<Job | null>(null)
-  const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | null>(null)
+  const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | 'export' | null>(null)
+  const [scope, setScope] = useState<'all' | 'ready'>('all')
   const tokens = collectTokens(campaign)
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const visual = campaign.pieces.filter((piece) => piece.kind !== 'reel')
@@ -112,6 +114,19 @@ export function PlanSection(props: Props) {
     edit((draftCampaign) => attachBackground(draftCampaign, piece.id, result))
   })
 
+  const withSlides = visual.filter((piece) => slidesOf(campaign, piece).length > 0)
+  const exportable = withSlides.filter((piece) => scope === 'all' || piece.status === 'ready')
+  const exportMissing = new Set(exportable.flatMap((piece) => pieceTexts(campaign, piece).flatMap((text) => unresolvedIn(text, campaign.variables)))).size
+
+  async function exportAll() {
+    const total = exportable.reduce((sum, piece) => sum + slidesOf(campaign, piece).length, 0)
+    setJob({ label: 'Xuất ảnh hoàn chỉnh', done: 0, total, failures: [] })
+    try {
+      const blob = await buildPack(workspace, campaign, exportable, true, (done) => setJob({ label: 'Xuất ảnh hoàn chỉnh', done, total, failures: [] }))
+      downloadBlob(blob, `${campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'chien-dich'}-anh-hoan-chinh.zip`)
+    } catch (error) { setJob({ label: 'Xuất ảnh hoàn chỉnh', done: total, total, failures: [error instanceof Error ? error.message : 'Không xuất được.'] }) }
+  }
+
   function afterImport(plan: ParsedPlan, runAi: boolean) {
     if (!runAi) return
     // The campaign state has not caught up with the import yet, so give the draft the plan's own strategy.
@@ -126,6 +141,7 @@ export function PlanSection(props: Props) {
           {keys.length > 0 && <select aria-label="API dùng để soạn" value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>}
           <button className="btn" disabled={job !== null && job.done < job.total || keys.length === 0} onClick={() => setConfirm('copy')}>Soạn chữ tất cả bằng AI ({visual.length} bài)</button>
           <button className="btn" disabled={job !== null && job.done < job.total || keys.length === 0} onClick={() => setConfirm('backgrounds')}>Tạo nền cho tất cả bài ({visual.length} ảnh)</button>
+          <button className="btn primary" disabled={withSlides.length === 0 || job !== null && job.done < job.total} onClick={() => setConfirm('export')}>Xuất ảnh hoàn chỉnh ({withSlides.length} bài)</button>
           {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
         </div>
         {job && <p className={job.failures.length ? 'notice error' : 'notice'} role="status">
@@ -164,6 +180,13 @@ export function PlanSection(props: Props) {
       </div>
     </Section>}
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
+    {confirm === 'export' && <Modal title="Xuất ảnh hoàn chỉnh" onClose={() => setConfirm(null)}>
+      <p>Xuất ảnh PNG của từng slide cùng caption, mỗi bài một thư mục, gộp trong một file zip. Reel đang treo nên không có ảnh.</p>
+      <label className="check"><input type="radio" name="scope" checked={scope === 'all'} onChange={() => setScope('all')} /> Tất cả bài đã có slide ({withSlides.length})</label>
+      <label className="check"><input type="radio" name="scope" checked={scope === 'ready'} onChange={() => setScope('ready')} /> Chỉ bài đã "Sẵn sàng" ({withSlides.filter((piece) => piece.status === 'ready').length})</label>
+      {exportMissing > 0 && <p className="notice">Còn {exportMissing} biến chưa điền trong các bài này; ảnh xuất sẽ còn nguyên dấu [ ].</p>}
+      <div className="modal-actions"><button className="btn ghost" onClick={() => setConfirm(null)}>Hủy</button><button className="btn primary" disabled={exportable.length === 0} onClick={() => { setConfirm(null); void exportAll() }}>Xuất {exportable.length} bài</button></div>
+    </Modal>}
     {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${visual.length} bài (carousel/ảnh), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void draftAll(visual, campaign) }} onClose={() => setConfirm(null)} />}
     {confirm === 'backgrounds' && <ConfirmDialog title="Tạo nền cho tất cả bài" message={`Sẽ tạo ${visual.length} ảnh nền bằng AI, mỗi ảnh tính phí theo tài khoản của bạn, và gán vào slide của bài tương ứng. Tiếp tục?`} confirm="Tạo nền" onConfirm={() => { void backgroundsAll(visual) }} onClose={() => setConfirm(null)} />}
   </>

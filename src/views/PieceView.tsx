@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { zipSync, strToU8 } from 'fflate'
-import { assetUrl, type ApiKey } from '../lib/api.ts'
+import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
 import { draftSlides, pieceTexts } from '../lib/plan.ts'
-import { renderBlob } from '../lib/render.ts'
+import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { navigate } from '../lib/route.ts'
 import { applyVars, lintText, unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS, newId, now } from '../lib/types.ts'
 import type { Campaign, Piece, PieceStatus, Store, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Field, Section } from './ui.tsx'
+import { SlideThumb } from './SlideThumb.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -26,7 +26,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   const [keyId, setKeyId] = useState('')
   const [busy, setBusy] = useState<'' | 'ai' | 'bg' | 'zip'>('')
   const [confirmReplace, setConfirmReplace] = useState(false)
-  const slides = campaign.posts.filter((post) => post.pieceId === piece.id)
+  const slides = slidesOf(campaign, piece)
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const parked = piece.kind === 'reel'
 
@@ -78,14 +78,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
 
   async function exportPack() {
     if ((missing.length || openChecks) && !window.confirm(`Bài này còn ${blockers.join(' và ')}. Vẫn xuất gói?`)) return
-    const files: Record<string, Uint8Array> = {}
-    for (const [index, post] of slides.entries()) files[`${piece.code}-${String(index + 1).padStart(2, '0')}.png`] = new Uint8Array(await (await renderBlob(post, campaign, workspace)).arrayBuffer())
-    files[`${piece.code}-caption.txt`] = strToU8(applyVars([piece.caption, piece.hashtags].filter(Boolean).join('\n\n'), campaign.variables))
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([zipSync(files, { level: 0 }) as BlobPart], { type: 'application/zip' }))
-    link.download = `${piece.code}.zip`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+    downloadBlob(await buildPack(workspace, campaign, [piece], false), `${piece.code}.zip`)
   }
 
   const setStatus = (status: PieceStatus) => edit((_, item) => { item.status = status })
@@ -145,21 +138,22 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
       </div>
 
       <div className="stack">
-        {!parked && <Section title={`Slide (${slides.length})`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ Slide</button><button className="btn small" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo từ kế hoạch</button></div>}>
+        {!parked && <Section title={`Ảnh hoàn chỉnh (${slides.length})`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ Slide</button><button className="btn small" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo từ kế hoạch</button></div>}>
           {aiButton}
           {slides.length === 0 && <p className="muted">Chưa có slide. Bấm "Tạo từ kế hoạch" hoặc nhờ AI soạn nháp.</p>}
-          <div className="list">
-            {slides.map((post) => {
-              const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
-              return <div className="list-row" key={post.id}>
-                <div className="thumb">{background && <img src={assetUrl(background.assetId)} alt="" />}</div>
-                <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>
-                  <strong>{post.name}</strong>
-                  <small>{post.headline || 'Chưa có tiêu đề'}{post.accent ? ` · ${post.accent}` : ''}</small>
-                </button>
-                <button className="btn small ghost" onClick={() => removeSlide(post.id)}>Xóa</button>
-              </div>
-            })}
+          <p className="muted">Đây là ảnh đúng như khi xuất (nền, thành phần, chữ). Bấm vào ảnh để xem lớn và tải PNG; bấm "Chỉnh" để sửa chữ, nền, thành phần.</p>
+          <div className="slide-cards">
+            {slides.map((post) => <figure className="slide-card" key={post.id}>
+              <SlideThumb post={post} campaign={campaign} workspace={workspace} width={170} />
+              <figcaption>
+                <strong>{post.name}</strong>
+                <small>{post.headline || 'Chưa có tiêu đề'}{post.accent ? ` · ${post.accent}` : ''}</small>
+                <span className="row">
+                  <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>Chỉnh</button>
+                  <button className="btn small ghost" onClick={() => removeSlide(post.id)}>Xóa</button>
+                </span>
+              </figcaption>
+            </figure>)}
           </div>
         </Section>}
 

@@ -213,3 +213,23 @@ textarea { resize: vertical; }
 .flag { font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
 .flag.warn { background: color-mix(in srgb, #d98a00 22%, transparent); color: #b36b00; }
 .flag.info { background: var(--line); color: var(--muted); }
+
+.lightbox { position: fixed; inset: 0; z-index: 40; background: rgba(8,10,16,.82); display: grid; place-items: center; padding: 20px; }
+.lightbox figure { margin: 0; display: grid; gap: 10px; max-width: min(96vw, 1100px); max-height: 94vh; }
+.lightbox img { max-width: 100%; max-height: calc(94vh - 56px); object-fit: contain; border-radius: 6px; background: #111; justify-self: center; }
+.lightbox figcaption { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #e8eaf0; font-size: .85rem; flex-wrap: wrap; }
+.lightbox .btn { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.25); }
+
+.slide-thumb { padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--line); display: block; line-height: 0; cursor: zoom-in; }
+.slide-thumb:hover:not(:disabled) { border-color: var(--primary); }
+.slide-thumb canvas { display: block; }
+.slide-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.slide-card { margin: 0; display: grid; gap: 8px; align-content: start; }
+.slide-card figcaption { display: grid; gap: 4px; font-size: .82rem; }
+.slide-card figcaption small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thumb-cell { width: 70px; }
+
+.bg-grid .zoom { padding: 0; border: 0; background: none; display: block; width: 100%; cursor: zoom-in; line-height: 0; }
+.bg-pick-item { position: relative; }
+.bg-pick .zoom-btn { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; aspect-ratio: auto; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.65); color: #fff; font-size: .9rem; line-height: 26px; text-align: center; cursor: zoom-in; }
+.bg-pick .zoom-btn:hover { background: var(--primary); }

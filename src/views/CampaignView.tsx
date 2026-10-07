@@ -5,7 +5,7 @@ import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../l
 import { navigate } from '../lib/route.ts'
 import { buildBackgroundPrompt } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
-import { ConfirmDialog, Field, NameDialog, Section } from './ui.tsx'
+import { ConfirmDialog, Field, Lightbox, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanSection } from './PlanSection.tsx'
@@ -25,6 +25,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   const [genFormat, setGenFormat] = useState<FormatKey>('feed')
   const [variation, setVariation] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
   const [keyId, setKeyId] = useState('')
   const aiReady = keys.length > 0
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
@@ -200,7 +201,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
           {aiReady && !kv.concept.trim() && <p className="notice">Điền "Ý tưởng chủ đạo" bên cạnh để tạo nền.</p>}
           {campaign.backgrounds.length > 0 && <div className="bg-grid">
             {campaign.backgrounds.map((background) => <figure key={background.id}>
-              <img src={assetUrl(background.assetId)} alt={background.label} />
+              <button className="zoom" onClick={() => setViewer({ src: assetUrl(background.assetId), title: `${background.label} · ${formatOf(background.format).label}` })} aria-label={`Xem lớn ${background.label}`}><img src={assetUrl(background.assetId)} alt={background.label} /></button>
               <figcaption><span>{background.label}<small>{formatOf(background.format).label}</small></span><button className="btn small ghost" onClick={() => removeBackground(background.id)}>Xóa</button></figcaption>
             </figure>)}
           </div>}
@@ -259,6 +260,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       </Section>
     </div>
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
+    {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}
     {dialog === 'import' && <ImportPdf base={kv} confirmLabel="Cập nhật chiến dịch" onApply={applyImport} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa bài đăng" message={`Xóa "${target.name}"?`} confirm="Xóa" onConfirm={() => edit((draft) => { draft.posts = draft.posts.filter((item) => item.id !== target.id) })} onClose={() => setDialog(null)} />}

@@ -5,6 +5,8 @@ import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
 import type { Campaign, Piece, PieceStatus, Workspace } from '../lib/types.ts'
 import { ConfirmDialog } from './ui.tsx'
+import { SlideThumb } from './SlideThumb.tsx'
+import { slidesOf } from '../lib/pack.ts'
 
 type Props = {
   workspace: Workspace
@@ -79,6 +81,7 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
         <button className="link plain" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}><strong>{piece.code}</strong> · {piece.title}</button>
         <small className="muted">{piece.plan.goal}</small>
       </td>
+      <td className="thumb-cell">{(() => { const slides = slidesOf(campaign, piece); return slides.length ? <><SlideThumb post={slides[0]} campaign={campaign} workspace={workspace} width={52} />{slides.length > 1 && <small className="muted block">{slides.length} ảnh</small>}</> : <span className="muted">{piece.kind === 'reel' ? 'treo' : '—'}</span> })()}</td>
       <td>{KIND_LABEL[piece.kind]}<small className="muted block">{piece.plan.format}</small></td>
       <td>{piece.plan.funnel}<small className="muted block">{piece.plan.pillar}</small></td>
       <td>
@@ -99,10 +102,10 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     </div>
     <div className="table-wrap">
       <table>
-        <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Loại</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>
+        <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Ảnh</th><th>Loại</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>
         <tbody>
           {sorted.map(row)}
-          {undated.length > 0 && <tr className="group-row"><td colSpan={7}>Chưa xếp lịch ({undated.length})</td></tr>}
+          {undated.length > 0 && <tr className="group-row"><td colSpan={8}>Chưa xếp lịch ({undated.length})</td></tr>}
           {undated.map(row)}
         </tbody>
       </table>

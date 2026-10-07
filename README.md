@@ -27,6 +27,7 @@ In a campaign, **Nhập kế hoạch (Excel)** reads a content-plan workbook (sh
 - **Variables**: every `[PLACEHOLDER]` found in the copy is listed once under *Biến chiến dịch*. Fill it once and it is substituted in the preview, the exported PNGs and the caption.
 - **Checks**: risky claims (guaranteed results, "cứu hồ sơ", scholarship wording…) are flagged in the caption and slides, plus the campaign's own banned phrases. A piece can only be marked *Sẵn sàng* when no variable is empty and its checklist is done.
 - **AI draft** (OpenAI or Gemini, per key): writes the on-image copy for each slide from the plan, strategy and "do not say" list. Set the text model per key in the API dialog.
+- **Finished images**: each piece has an *Ảnh hoàn chỉnh* gallery showing every slide exactly as it will be exported (background, components, text); click one to enlarge and download it. Backgrounds can be enlarged the same way. *Xuất ảnh hoàn chỉnh* on the campaign page zips every piece's PNGs and caption into one folder per piece.
 - **Pack**: exports the slide PNGs plus `caption.txt` as one zip.
 - **Schedule table**: switch the plan list to *Bảng theo ngày* to set each piece's date and time, change its status, and see warnings (missing variables, open checks, due soon, outside the campaign window, same-day clashes). *Gợi ý lịch* spreads undated pieces evenly across the window found in the strategy, and the table exports to CSV.
 
