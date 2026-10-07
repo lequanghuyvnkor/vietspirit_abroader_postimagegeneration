@@ -3,12 +3,13 @@ import { FORMATS, formatOf, newId, newPost, now } from '../lib/types.ts'
 import type { Campaign, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate } from '../lib/route.ts'
-import { buildBackgroundPrompt } from '../lib/prompt.ts'
+import { buildBackgroundPrompt, generationRefs } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, Lightbox, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanSection } from './PlanSection.tsx'
+import { SubjectImages } from './SubjectImages.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -84,7 +85,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       const [width, height] = formatOf(genFormat).generate
       const assetId = await api.generate({
         prompt: buildBackgroundPrompt(workspace, campaign, genFormat, variation.trim()),
-        width, height, quality: 'high', referenceIds: kv.referenceIds, keyId: activeKey?.id,
+        width, height, quality: 'high', referenceIds: generationRefs(kv), keyId: activeKey?.id,
       })
       addBackground(assetId, genFormat, variation.trim() || `Nền ${campaign.backgrounds.length + 1}`)
       setVariation('')
@@ -136,6 +137,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       const item = draft.workspaces.find((entry) => entry.id === workspace.id)?.campaigns.find((entry) => entry.id === campaign.id)
       if (!item) return
       item.components = item.components.filter((entry) => entry.id !== id)
+      if (found) item.keyVisual.subjectIds = (item.keyVisual.subjectIds ?? []).filter((assetId) => assetId !== found.assetId)
       item.posts.forEach((post) => { post.layers = post.layers.filter((layer) => layer.componentId !== id) })
     })
   }
@@ -210,7 +212,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
 
       <Section title="Key Visual (đầu vào)">
         <Field label="Ý tưởng chủ đạo" hint="Mô tả cảnh/phong cách nền bạn muốn. Đây là phần quan trọng nhất của prompt."><textarea rows={4} value={kv.concept} onChange={(event) => setKv('concept', event.target.value)} /></Field>
-        <Field label="Hình ảnh/biểu tượng chính (nếu có)"><input value={kv.subject} onChange={(event) => setKv('subject', event.target.value)} /></Field>
+        <SubjectImages keyVisual={kv} components={campaign.components} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onError={onError} />
         <Field label="Điều cần tránh"><textarea rows={2} value={kv.avoid} onChange={(event) => setKv('avoid', event.target.value)} /></Field>
 
         <div className="field">

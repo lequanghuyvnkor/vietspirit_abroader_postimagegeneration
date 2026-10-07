@@ -3,7 +3,14 @@ import { renderBlob } from './render.ts'
 import { applyVars } from './text.ts'
 import type { Campaign, Piece, Workspace } from './types.ts'
 
-export const slidesOf = (campaign: Campaign, piece: Piece) => campaign.posts.filter((post) => post.pieceId === piece.id)
+/** The slides that are exported (revisions not chosen and superseded originals are left out). */
+export const slidesOf = (campaign: Campaign, piece: Piece) => campaign.posts.filter((post) => post.pieceId === piece.id && !post.excluded)
+
+/** Every slide of the piece, revisions included, in display order. */
+export const allSlidesOf = (campaign: Campaign, piece: Piece) => campaign.posts.filter((post) => post.pieceId === piece.id)
+
+/** The original slides only: what the plan and the AI draft work on. */
+export const baseSlidesOf = (campaign: Campaign, piece: Piece) => campaign.posts.filter((post) => post.pieceId === piece.id && !post.variantOf)
 
 export function downloadBlob(blob: Blob, name: string): void {
   const link = document.createElement('a')

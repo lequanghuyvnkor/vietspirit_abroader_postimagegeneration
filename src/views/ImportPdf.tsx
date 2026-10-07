@@ -28,6 +28,7 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
   const [paletteText, setPaletteText] = useState('')
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [found, setFound] = useState<FoundComponent[]>([])
+  const [heroes, setHeroes] = useState<Set<string>>(new Set())
   const [roles, setRoles] = useState<Record<string, 'light' | 'dark' | ''>>({})
 
   async function open(event: ChangeEvent<HTMLInputElement>) {
@@ -48,6 +49,7 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
       setPicked(new Set(samples.slice(0, MAX_REFERENCES).map((page) => page.index)))
       const all = result.pages.flatMap((page) => page.components)
       setFound(all)
+      setHeroes(new Set(all.filter((entry) => entry.hero).map((entry) => entry.id)))
       // Logo lockups found in the LOGO section: a light card is the light-background logo, a dark card the dark one.
       const guess: Record<string, 'light' | 'dark' | ''> = {}
       for (const item of all.filter((entry) => entry.logo)) guess[item.id] = ''
@@ -88,13 +90,14 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
       const ids = await Promise.all(chosen.map(async (page) => api.uploadAsset(`page-${page.index}.webp`, await downscaleDataUrl(page.dataUrl, 1800))))
       // Every page is kept at full resolution so components can be cut from it later.
       const chosenComponents = found.filter((item) => item.checked && !roles[item.id])
+      const heroIds = await Promise.all(found.filter((item) => item.checked && heroes.has(item.id) && !roles[item.id]).map((item) => api.uploadAsset(`${item.name}-hero.png`, item.preview)))
       const logoUploads = await Promise.all(found.filter((item) => item.checked && roles[item.id]).map(async (item) => ({ role: roles[item.id], assetId: await api.uploadAsset(`${item.name}.png`, item.preview) })))
       const logos = { light: logoUploads.find((entry) => entry.role === 'light')?.assetId ?? null, dark: logoUploads.find((entry) => entry.role === 'dark')?.assetId ?? null }
       const components = await Promise.all(chosenComponents.map(async (item): Promise<Component> => ({ id: crypto.randomUUID(), name: item.name.trim() || 'Thành phần', assetId: await api.uploadAsset(`${item.name}.png`, item.preview), width: item.width, height: item.height })))
       const sources = await Promise.all(analysis.pages.map(async (page): Promise<Source> => ({ id: crypto.randomUUID(), assetId: await api.uploadAsset(`source-${page.index}.webp`, page.dataUrl), label: `Trang ${page.index}` })))
       const palette = paletteText.split(/[,\s]+/).map((value) => value.trim().toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value))
       base?.referenceIds.forEach((id) => { void api.deleteAsset(id) })
-      onApply({ name: name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...kv, palette: palette.length ? palette : kv.palette, referenceIds: ids }, sources, components, logos })
+      onApply({ name: name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...kv, palette: palette.length ? palette : kv.palette, referenceIds: ids, subjectIds: [...(kv.subjectIds ?? []), ...heroIds] }, sources, components, logos })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không lưu được ảnh từ PDF.')
@@ -136,10 +139,11 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
             <label className="check"><input type="checkbox" checked={item.checked} onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, checked: event.target.checked } : entry))} /> {item.width}×{item.height}</label>
             <div className="checker candidate-preview"><img src={item.preview} alt={item.name} /></div>
             <input value={item.name} aria-label="Tên thành phần" onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, name: event.target.value } : entry))} />
+            {!item.logo && <label className="check small"><input type="checkbox" checked={heroes.has(item.id)} onChange={(event) => setHeroes((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} /> Hình chính</label>}
             {item.logo && <select aria-label="Dùng làm logo" value={roles[item.id] ?? ''} onChange={(event) => setRoles((current) => ({ ...current, [item.id]: event.target.value as 'light' | 'dark' | '' }))}><option value="">Chỉ là thành phần</option><option value="light">Logo nền sáng</option><option value="dark">Logo nền tối</option></select>}
           </div>)}
         </div>
-        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
+        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Mục "Hình chính" là hình chủ đạo của key visual: AI dùng nó làm tham chiếu khi tạo nền. Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
       </div>}
 
       <div className="field">

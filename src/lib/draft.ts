@@ -1,13 +1,13 @@
 import { api } from './api.ts'
 import { buildDraftRequest, parseDraft, type Draft } from './ai.ts'
 import { draftSlides, formatKeyOf } from './plan.ts'
-import { buildBackgroundPrompt } from './prompt.ts'
+import { buildBackgroundPrompt, generationRefs } from './prompt.ts'
 import { splitSlides } from './text.ts'
 import { formatOf, newId, now } from './types.ts'
 import type { Campaign, Company, FormatKey, Piece, Workspace } from './types.ts'
 
 export const slideCountOf = (campaign: Campaign, piece: Piece) =>
-  campaign.posts.filter((post) => post.pieceId === piece.id).length || splitSlides(piece.plan.structure).length || 1
+  campaign.posts.filter((post) => post.pieceId === piece.id && !post.variantOf).length || splitSlides(piece.plan.structure).length || 1
 
 /** Asks the chosen provider for slide copy (and caption/hashtags when the plan has none). */
 export async function fetchDraft(workspace: Workspace, campaign: Campaign, piece: Piece, keyId?: string): Promise<Draft> {
@@ -20,10 +20,10 @@ export async function fetchDraft(workspace: Workspace, campaign: Campaign, piece
 export function applyDraft(campaign: Campaign, pieceId: string, draft: Draft, company: Company): void {
   const piece = campaign.pieces.find((item) => item.id === pieceId)
   if (!piece) return
-  let targets = campaign.posts.filter((post) => post.pieceId === pieceId)
+  let targets = campaign.posts.filter((post) => post.pieceId === pieceId && !post.variantOf)
   if (targets.length === 0) {
     campaign.posts.push(...draftSlides(piece, company, campaign.backgrounds))
-    targets = campaign.posts.filter((post) => post.pieceId === pieceId)
+    targets = campaign.posts.filter((post) => post.pieceId === pieceId && !post.variantOf)
   }
   targets.forEach((post, index) => {
     const slide = draft.slides[index]
@@ -39,7 +39,7 @@ export async function generatePieceBackground(workspace: Workspace, campaign: Ca
   const format = formatKeyOf(piece.visual.format)
   const [width, height] = formatOf(format).generate
   const variation = [piece.visual.hero, piece.visual.palette && `Palette: ${piece.visual.palette}`, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
-  const assetId = await api.generate({ prompt: buildBackgroundPrompt(workspace, campaign, format, variation), width, height, quality: 'high', referenceIds: campaign.keyVisual.referenceIds, keyId })
+  const assetId = await api.generate({ prompt: buildBackgroundPrompt(workspace, campaign, format, variation), width, height, quality: 'high', referenceIds: generationRefs(campaign.keyVisual), keyId })
   return { assetId, format, label: `${piece.code} · ${piece.visual.hero.slice(0, 28) || 'nền'}` }
 }
 

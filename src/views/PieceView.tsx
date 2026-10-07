@@ -2,13 +2,15 @@ import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
 import { draftSlides, pieceTexts } from '../lib/plan.ts'
-import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
+import { allSlidesOf, baseSlidesOf, buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
+import { removeFamily, removeVariant, chooseVersion } from '../lib/variants.ts'
 import { navigate } from '../lib/route.ts'
 import { applyVars, lintText, unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS, newId, now } from '../lib/types.ts'
 import type { Campaign, Piece, PieceStatus, Store, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Field, Section } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
+import { PieceAssets } from './PieceAssets.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -27,6 +29,8 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   const [busy, setBusy] = useState<'' | 'ai' | 'bg' | 'zip'>('')
   const [confirmReplace, setConfirmReplace] = useState(false)
   const slides = slidesOf(campaign, piece)
+  const everySlide = allSlidesOf(campaign, piece)
+  const baseSlides = baseSlidesOf(campaign, piece)
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const parked = piece.kind === 'reel'
 
@@ -57,13 +61,17 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
 
   function addSlide() {
     edit((draft, item) => {
-      const last = draft.posts.filter((post) => post.pieceId === item.id).at(-1)
-      draft.posts.push({ ...(last ?? draftSlides({ ...item, kind: 'static' }, workspace.company, draft.backgrounds)[0]), id: newId(), name: `${item.code} · Slide ${draft.posts.filter((post) => post.pieceId === item.id).length + 1}`, headline: '', accent: '', subtitle: '', cta: '', layers: [], updatedAt: now() })
+      const last = draft.posts.filter((post) => post.pieceId === item.id && !post.variantOf).at(-1)
+      draft.posts.push({ ...(last ?? draftSlides({ ...item, kind: 'static' }, workspace.company, draft.backgrounds)[0]), id: newId(), name: `${item.code} · Slide ${draft.posts.filter((post) => post.pieceId === item.id && !post.variantOf).length + 1}`, headline: '', accent: '', subtitle: '', cta: '', layers: [], updatedAt: now() })
     })
   }
 
   function removeSlide(id: string) {
-    edit((draft) => { draft.posts = draft.posts.filter((post) => post.id !== id) })
+    edit((draft) => {
+      const target = draft.posts.find((post) => post.id === id)
+      if (target?.variantOf) removeVariant(draft, id)
+      else removeFamily(draft, id)
+    })
   }
 
   async function aiDraft() {
@@ -138,24 +146,28 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
       </div>
 
       <div className="stack">
-        {!parked && <Section title={`Ảnh hoàn chỉnh (${slides.length})`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ Slide</button><button className="btn small" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo từ kế hoạch</button></div>}>
+        {!parked && <Section title={`Ảnh hoàn chỉnh (${slides.length}${everySlide.length > slides.length ? ` đang xuất / ${everySlide.length} bản` : ''})`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ Slide</button><button className="btn small" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo từ kế hoạch</button></div>}>
           {aiButton}
-          {slides.length === 0 && <p className="muted">Chưa có slide. Bấm "Tạo từ kế hoạch" hoặc nhờ AI soạn nháp.</p>}
+          {baseSlides.length === 0 && <p className="muted">Chưa có slide. Bấm "Tạo từ kế hoạch" hoặc nhờ AI soạn nháp.</p>}
           <p className="muted">Đây là ảnh đúng như khi xuất (nền, thành phần, chữ). Bấm vào ảnh để xem lớn và tải PNG; bấm "Chỉnh" để sửa chữ, nền, thành phần.</p>
           <div className="slide-cards">
-            {slides.map((post) => <figure className="slide-card" key={post.id}>
+            {everySlide.map((post) => <figure className={post.excluded ? 'slide-card muted-card' : 'slide-card'} key={post.id}>
               <SlideThumb post={post} campaign={campaign} workspace={workspace} width={170} />
               <figcaption>
                 <strong>{post.name}</strong>
                 <small>{post.headline || 'Chưa có tiêu đề'}{post.accent ? ` · ${post.accent}` : ''}</small>
-                <span className="row">
+                {(post.variantOf || post.excluded) && <small className="flag info">{post.variantOf ? 'Bản chỉnh' : 'Bản gốc'} · {post.excluded ? 'không xuất' : 'đang xuất'}</small>}
+                <span className="row wrap">
                   <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>Chỉnh</button>
+                  {post.excluded && <button className="btn small" onClick={() => edit((draft) => chooseVersion(draft, post.id))}>Dùng bản này</button>}
                   <button className="btn small ghost" onClick={() => removeSlide(post.id)}>Xóa</button>
                 </span>
               </figcaption>
             </figure>)}
           </div>
         </Section>}
+
+        <PieceAssets workspace={workspace} campaign={campaign} piece={piece} slides={slides} edit={edit} onError={onError} />
 
         <Section title="Visual brief">
           <dl className="facts">

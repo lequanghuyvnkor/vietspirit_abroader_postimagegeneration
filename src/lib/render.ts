@@ -170,7 +170,11 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const maxHeadLines = isCover ? 2 : 3
   const subSize = Math.round((isCover ? 28 : 32) * Math.min(1.15, scale))
   const subLine = Math.round(subSize * 1.45)
-  const footerY = bottom
+  ctx.font = `400 22px ${body}`
+  const footerLines = post.footer ? wrap(ctx, post.footer, width - MARGIN * 2).slice(0, 6) : []
+  const footerLineHeight = 30
+  // A multi-line footer grows upward, so the separator, the CTA and the text area all move with it.
+  const footerY = bottom - Math.max(0, footerLines.length - 1) * footerLineHeight
   const ctaHeight = 72
   const ctaTop = isCover ? 0 : footerY - 44 - 40 - ctaHeight
   const areaTop = top + 70
@@ -259,7 +263,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.fillStyle = text
     ctx.globalAlpha = 0.75
     ctx.font = `400 22px ${body}`
-    ctx.fillText(post.footer, left, footerY)
+    footerLines.forEach((line, index) => ctx.fillText(line, left, footerY + index * footerLineHeight))
     ctx.globalAlpha = 1
     ctx.fillStyle = text
     ctx.globalAlpha = 0.25

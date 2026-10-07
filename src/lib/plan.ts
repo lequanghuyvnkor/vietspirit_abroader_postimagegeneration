@@ -1,5 +1,6 @@
 import { formatForSize } from './guideline.ts'
 import { capitalize, splitSlides, tokensIn } from './text.ts'
+import { splitAssetList } from './assets.ts'
 import { newId, now } from './types.ts'
 import type { Background, Campaign, Check, Company, FormatKey, Piece, PieceKind, Post } from './types.ts'
 import type { Sheets } from './xlsx.ts'
@@ -100,6 +101,7 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
       hashtags: cap('Hashtags'),
       compliance: cap('Compliance / cần duyệt'),
       checks,
+      assets: splitAssetList(vis('Asset cần chuẩn bị')).map((label) => ({ id: newId(), label, assetId: null, done: false, note: '' })),
     }
   })
 

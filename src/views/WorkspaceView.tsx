@@ -65,8 +65,8 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
         <Field label="Lĩnh vực"><input value={company.industry} onChange={(event) => setCompany('industry', event.target.value)} /></Field>
         <Field label="Khách hàng mục tiêu"><textarea rows={2} value={company.audience} onChange={(event) => setCompany('audience', event.target.value)} /></Field>
         <Field label="Giọng điệu thương hiệu"><input value={company.tone} onChange={(event) => setCompany('tone', event.target.value)} /></Field>
-        <Field label="Dòng chân bài mặc định" hint="Ví dụ: fb.com/tenpage · Hotline 09xx. Mỗi bài đăng có thể sửa lại.">
-          <input value={company.footer} onChange={(event) => setCompany('footer', event.target.value)} />
+        <Field label="Chân bài mặc định" hint="Nhiều dòng được (Enter để xuống dòng). Ví dụ: fb.com/tenpage · Hotline 09xx. Mỗi bài đăng có thể sửa lại.">
+          <textarea rows={3} value={company.footer} onChange={(event) => setCompany('footer', event.target.value)} />
         </Field>
         <div className="row wrap">
           <ImageSlot label="Logo (nền sáng)" value={company.logoId} onChange={(id) => setCompany('logoId', id)} onError={onError} />

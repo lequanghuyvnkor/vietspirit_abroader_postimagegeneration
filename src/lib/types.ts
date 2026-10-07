@@ -25,6 +25,8 @@ export type KeyVisual = {
   displayFontAssetId: string | null
   bodyFont: string
   avoid: string
+  /** Main visual element images (extracted from the key visual or added by hand); sent first as generation references. */
+  subjectIds: string[]
   referenceIds: string[]
 }
 
@@ -40,6 +42,10 @@ export type Post = {
   name: string
   /** Content piece (from the plan) this slide belongs to. */
   pieceId?: string
+  /** Set when this slide is a revision made from another slide (the id of the original). */
+  variantOf?: string
+  /** Kept but not exported: a superseded original or a revision not chosen yet. */
+  excluded?: boolean
   format: FormatKey
   eyebrow: string
   headline: string
@@ -77,6 +83,9 @@ export type VisualBrief = {
   onImage: string; motion: string; assets: string; avoid: string
 }
 
+/** A piece of real material the piece needs (mentor portrait, logo, credential, consent...). */
+export type PieceAsset = { id: string; label: string; assetId: string | null; done: boolean; note: string }
+
 export type Check = { id: string; text: string; owner: string; done: boolean }
 
 /** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
@@ -94,6 +103,7 @@ export type Piece = {
   hashtags: string
   compliance: string
   checks: Check[]
+  assets: PieceAsset[]
 }
 
 /** A full-size image (PDF page or upload) that components are cut from. */
@@ -163,7 +173,7 @@ export function emptyCompany(name = ''): Company {
 export function emptyKeyVisual(): KeyVisual {
   return {
     concept: '', subject: '', palette: ['#0A1A44', '#12307A', '#1B4AA8'], accentColor: '#FF4D5E', textTone: 'light',
-    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', referenceIds: [],
+    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', subjectIds: [], referenceIds: [],
   }
 }
 

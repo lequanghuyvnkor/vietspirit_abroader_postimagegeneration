@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { FORMATS, formatOf, newId, now } from '../lib/types.ts'
-import type { Campaign, FormatKey, Layer, Post, Store, Workspace } from '../lib/types.ts'
+import type { Campaign, FormatKey, Layer, PieceAsset, Post, Store, Workspace } from '../lib/types.ts'
 import { assetUrl, type ApiKey } from '../lib/api.ts'
-import type { Region } from '../lib/revise.ts'
+import type { Annotation, Region } from '../lib/revise.ts'
+import { componentFor, imageSize } from '../lib/assets.ts'
+import { chooseVersion } from '../lib/variants.ts'
 import { exportPost, renderPost } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
@@ -26,8 +28,10 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const [annotate, setAnnotate] = useState(false)
-  const [region, setRegion] = useState<Region | null>(null)
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [draftRegion, setDraftRegion] = useState<Region | null>(null)
   const drawing = useRef<{ x: number; y: number } | null>(null)
+  const draftRef = useRef<Region | null>(null)
   const format = formatOf(post.format)
 
   function edit(change: (draft: Post) => void) {
@@ -73,17 +77,43 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
   function startRegion(event: PointerEvent<HTMLDivElement>) {
     try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* pointer already released */ }
     drawing.current = overlayPoint(event)
-    setRegion(null)
+    draftRef.current = null
+    setDraftRegion(null)
   }
   function moveRegion(event: PointerEvent<HTMLDivElement>) {
     const start = drawing.current
     if (!start) return
     const p = overlayPoint(event)
-    setRegion({ x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) })
+    const next = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }
+    draftRef.current = next
+    setDraftRegion(next)
   }
   function endRegion() {
     drawing.current = null
-    setRegion((current) => (current && (current.w < 0.03 || current.h < 0.03) ? null : current))
+    const region = draftRef.current
+    draftRef.current = null
+    setDraftRegion(null)
+    if (region && region.w >= 0.03 && region.h >= 0.03) setAnnotations((list) => [...list, { id: newId(), region, comment: '' }])
+  }
+
+  /** Campaign-wide change in one saved step (the comment tool can touch several slides and add backgrounds). */
+  function mutate(change: (draftCampaign: Campaign) => void) {
+    update((draft) => {
+      const item = draft.workspaces.find((entry) => entry.id === workspace.id)
+      const found = item?.campaigns.find((entry) => entry.id === campaign.id)
+      if (item && found) { change(found); found.updatedAt = now(); item.updatedAt = found.updatedAt }
+    })
+  }
+
+  const piece = campaign.pieces.find((item) => item.id === post.pieceId)
+  const pieceAssets = (piece?.assets ?? []).filter((asset) => asset.assetId)
+  async function addAssetLayer(asset: PieceAsset) {
+    try {
+      const size = await imageSize(asset.assetId!)
+      const layerId = newId()
+      commit((c, target) => { const component = componentFor(c, asset.assetId!, asset.label, size); target.layers.push({ id: layerId, componentId: component.id, x: 0.5, y: 0.58, w: 0.45, opacity: 1, rotation: 0 }) })
+      setSelectedId(layerId)
+    } catch (error) { onError(error instanceof Error ? error.message : 'Không thêm được ảnh.') }
   }
 
   const patchLayer = (id: string, change: Partial<Layer>) => edit((draft) => { const layer = draft.layers.find((item) => item.id === id); if (layer) Object.assign(layer, change) })
@@ -138,7 +168,7 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
   }
 
   const backgrounds = [...campaign.backgrounds].sort((a, b) => Number(b.format === post.format) - Number(a.format === post.format))
-  const maxPreviewHeight = 'min(72vh, 760px)'
+  const maxPreviewHeight = 'max(320px, min(72vh, 760px))'
   const unresolved = [...new Set([post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.footer].flatMap((text) => unresolvedIn(text, campaign.variables)))]
 
   return <div className="page">
@@ -146,6 +176,7 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
       <div>
         <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: post.pieceId })}>← {post.pieceId ? (campaign.pieces.find((item) => item.id === post.pieceId)?.code ?? campaign.name) : campaign.name}</button>
         <h1>{post.name}</h1>
+        {post.variantOf && <p className="row wrap"><span className="flag info">Bản chỉnh · {post.excluded ? 'chưa được dùng khi xuất' : 'đang được dùng khi xuất'}</span>{post.excluded && <button className="btn small" onClick={() => mutate((c) => chooseVersion(c, post.id))}>Dùng bản này</button>}</p>}
       </div>
       <button className="btn primary" disabled={exporting} onClick={() => { void download() }}>{exporting ? 'Đang xuất…' : `Xuất PNG ${format.width}×${format.height}`}</button>
     </div>
@@ -161,10 +192,14 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
           <Field label="Dòng nhấn (màu nhấn)" hint="Hiện ngay dưới tiêu đề, bằng màu nhấn của chiến dịch."><input value={post.accent} onChange={(event) => set('accent', event.target.value)} /></Field>
           <Field label="Câu dẫn"><textarea rows={3} value={post.subtitle} onChange={(event) => set('subtitle', event.target.value)} /></Field>
           <Field label="Nút kêu gọi (CTA)"><input value={post.cta} onChange={(event) => set('cta', event.target.value)} /></Field>
-          <Field label="Dòng chân bài"><input value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
+          <Field label="Chân bài" hint="Nhiều dòng được (Enter để xuống dòng)."><textarea rows={2} value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
           <label className="check"><input type="checkbox" checked={post.scrim} onChange={(event) => set('scrim', event.target.checked)} /> Làm tối/sáng nhẹ mép trên và dưới để chữ dễ đọc</label>
         </Section>
         <Section title="Thành phần đồ họa">
+          {pieceAssets.length > 0 && <div className="field">
+            <span className="field-label">Ảnh thật của bài (từ mục Tài nguyên)</span>
+            <div className="components small">{pieceAssets.map((asset) => <button key={asset.id} className="comp-add" title={`Thêm ${asset.label}`} onClick={() => { void addAssetLayer(asset) }}><div className="checker"><img src={assetUrl(asset.assetId!)} alt={asset.label} /></div></button>)}</div>
+          </div>}
           {campaign.components.length === 0
             ? <p className="notice">Chiến dịch chưa có thành phần. Vào chiến dịch, bấm "Cắt từ ảnh/PDF" để tạo.</p>
             : <>
@@ -207,14 +242,16 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
       </div>
       {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
       <div className="preview">
-        <div className="canvas-wrap">
-          <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
+        {/* The wrapper gets an explicit width (fit the height cap, never wider than the column) so it cannot collapse. */}
+        <div className="canvas-wrap" style={{ width: `min(100%, calc(${maxPreviewHeight} * ${format.width / format.height}))` }}>
+          <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, width: '100%', height: 'auto' }} aria-label="Xem trước bài đăng" />
           {annotate && <div className="region-overlay" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion} onPointerCancel={endRegion} aria-label="Kéo để khoanh vùng cần chỉnh">
-            {region && <div className="region-box" style={{ left: `${region.x * 100}%`, top: `${region.y * 100}%`, width: `${region.w * 100}%`, height: `${region.h * 100}%` }} />}
+            {annotations.map((item, index) => <div className="region-box" key={item.id} style={{ left: `${item.region.x * 100}%`, top: `${item.region.y * 100}%`, width: `${item.region.w * 100}%`, height: `${item.region.h * 100}%` }}><span>{index + 1}</span></div>)}
+            {draftRegion && <div className="region-box draft" style={{ left: `${draftRegion.x * 100}%`, top: `${draftRegion.y * 100}%`, width: `${draftRegion.w * 100}%`, height: `${draftRegion.h * 100}%` }} />}
           </div>}
         </div>
-        <button className={annotate ? 'btn primary' : 'btn'} aria-pressed={annotate} onClick={() => { setAnnotate((on) => !on); setRegion(null) }}>{annotate ? 'Tắt ghi chú vùng' : 'Khoanh vùng + ghi chú để chỉnh'}</button>
-        {annotate && <ReviseTool workspace={workspace} campaign={campaign} post={post} region={region} keys={keys} onManageKeys={onManageKeys} commit={commit} onClear={() => setRegion(null)} />}
+        <button className={annotate ? 'btn primary' : 'btn'} aria-pressed={annotate} onClick={() => { setAnnotate((on) => !on); setAnnotations([]); setDraftRegion(null) }}>{annotate ? 'Tắt ghi chú vùng' : 'Khoanh vùng + ghi chú để chỉnh'}</button>
+        {annotate && <ReviseTool workspace={workspace} campaign={campaign} post={post} annotations={annotations} setAnnotations={setAnnotations} keys={keys} onManageKeys={onManageKeys} mutate={mutate} />}
         {unresolved.length > 0 && <small className="notice">Chưa điền biến: {unresolved.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch; ảnh xuất sẽ còn nguyên dấu [ ].</small>}
         <small className="muted">Xem trước đúng bố cục khi xuất. Nền khác khổ ảnh sẽ được cắt vừa khung.</small>
       </div>

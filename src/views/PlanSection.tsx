@@ -1,14 +1,15 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
-import { collectTokens, draftSlides, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
+import { draftSlides, parsePlan, pieceTexts, type ParsedPlan } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
 import type { Campaign, Piece, Workspace } from '../lib/types.ts'
 import { readXlsx } from '../lib/xlsx.ts'
-import { ConfirmDialog, Field, Modal, Section } from './ui.tsx'
+import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { ScheduleTable } from './ScheduleTable.tsx'
+import { VariablesPanel } from './VariablesPanel.tsx'
 import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 
 type Props = {
@@ -90,7 +91,6 @@ export function PlanSection(props: Props) {
   const [job, setJob] = useState<Job | null>(null)
   const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | 'export' | null>(null)
   const [scope, setScope] = useState<'all' | 'ready'>('all')
-  const tokens = collectTokens(campaign)
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const visual = campaign.pieces.filter((piece) => piece.kind !== 'reel')
 
@@ -171,14 +171,7 @@ export function PlanSection(props: Props) {
         </div>}
     </Section>
 
-    {tokens.size > 0 && <Section title="Biến chiến dịch" aside={<span className="muted">{[...tokens.keys()].filter((key) => !campaign.variables[key]?.trim()).length}/{tokens.size} chưa điền</span>}>
-      <p className="muted">Điền một lần, tự thay vào mọi caption và slide khi xem trước và xuất ảnh.</p>
-      <div className="vars">
-        {[...tokens.entries()].map(([key, count]) => <Field key={key} label={`[${key}]`} hint={`Xuất hiện ${count} lần`}>
-          <input value={campaign.variables[key] ?? ''} onChange={(event) => edit((draft) => { draft.variables[key] = event.target.value })} />
-        </Field>)}
-      </div>
-    </Section>}
+    <VariablesPanel workspace={workspace} campaign={campaign} edit={edit} />
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
     {confirm === 'export' && <Modal title="Xuất ảnh hoàn chỉnh" onClose={() => setConfirm(null)}>
       <p>Xuất ảnh PNG của từng slide cùng caption, mỗi bài một thư mục, gộp trong một file zip. Reel đang treo nên không có ảnh.</p>

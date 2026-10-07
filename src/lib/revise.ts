@@ -3,9 +3,12 @@ import type { Layer, Post, Shade } from './types.ts'
 /** A rectangle the user drew on the slide, as fractions of the canvas (0..1). */
 export type Region = { x: number; y: number; w: number; h: number }
 
+/** One boxed area with the user's comment about it. Numbered 1.. in the order drawn. */
+export type Annotation = { id: string; region: Region; comment: string }
+
 export type TextField = 'eyebrow' | 'headline' | 'accent' | 'subtitle' | 'cta'
 
-/** What the AI decided to change for a comment on a region. Everything is optional. */
+/** What the AI decided to change for the comments on a slide. Everything is optional. */
 export type RevisePlan = {
   summary: string
   text?: Partial<Record<TextField, string>>
@@ -16,15 +19,15 @@ export type RevisePlan = {
   background?: { instruction: string } | null
 }
 
-const SYSTEM = `Bạn là art director chỉnh một ảnh social đã dựng xong (nền AI + thành phần đồ họa + chữ). Người dùng khoanh một vùng trên ảnh và ghi chú muốn chỉnh gì. Bạn thấy ảnh với khung ĐỎ đánh dấu vùng đó.
+const SYSTEM = `Bạn là art director chỉnh một ảnh social đã dựng xong (nền AI + thành phần đồ họa + chữ). Người dùng khoanh một hoặc nhiều vùng trên ảnh, mỗi vùng có ghi chú muốn chỉnh gì. Bạn thấy ảnh với các khung ĐỎ có số 1, 2, 3… đánh dấu từng vùng.
 
-Chỉ trả về một đối tượng JSON hợp lệ, không giải thích. Chỉ đưa vào những thay đổi TỐI THIỂU cần để đáp ứng ghi chú; bỏ trống mọi thứ không cần đổi.
+Chỉ trả về một đối tượng JSON hợp lệ, không giải thích. Chỉ đưa vào những thay đổi TỐI THIỂU cần để đáp ứng TẤT CẢ ghi chú; bỏ trống mọi thứ không cần đổi.
 
 Chọn cách sửa theo nguyên nhân:
 - Vấn đề đọc chữ (chữ khó đọc, nền sáng/rối sau chữ): dùng "shades" (làm tối nhẹ vùng đó) và/hoặc "layout" (đổi cỡ chữ, vị trí khối chữ). Đây là cách ưu tiên, nhanh và miễn phí.
 - Vấn đề lời văn (đổi từ, rút gọn, sai ý): dùng "text".
 - Vấn đề thành phần đồ họa (to/nhỏ, dịch chuyển, mờ hơn, bỏ): dùng "layers".
-- Vấn đề nằm trong bức ảnh nền (có vật thể/thẻ/đường/quầng sáng cần bỏ, đổi, thêm, làm sạch; đổi bố cục ảnh): dùng "background" với "instruction" là chỉ dẫn tiếng Anh ngắn, cụ thể cho công cụ chỉnh ảnh, chỉ mô tả thay đổi bên trong vùng đã khoanh. Chỉ dùng khi không thể xử lý bằng cách trên.
+- Vấn đề nằm trong bức ảnh nền (có vật thể/thẻ/đường/quầng sáng cần bỏ, đổi, thêm, làm sạch; đổi bố cục ảnh): dùng "background" với "instruction" là chỉ dẫn tiếng Anh ngắn, cụ thể cho công cụ chỉnh ảnh, chỉ mô tả thay đổi bên trong các vùng đã khoanh (nêu rõ "in box 1", "in box 2"). Chỉ dùng khi không thể xử lý bằng cách trên.
 
 Định dạng:
 {
@@ -39,13 +42,14 @@ Chọn cách sửa theo nguyên nhân:
 Quy tắc: giữ nguyên placeholder dạng [TÊN BIẾN]; không bịa số liệu; không hứa chắc kết quả đậu/visa/học bổng; chữ ngắn gọn.`
 
 const pct = (value: number) => `${Math.round(value * 100)}%`
+const describe = (region: Region) => `góc trái-trên (${pct(region.x)}, ${pct(region.y)}), rộng ${pct(region.w)}, cao ${pct(region.h)}`
 
-/** Prompts for turning a region + comment into a RevisePlan. The marked slide image is sent alongside. */
-export function buildReviseRequest(post: Post, region: Region, comment: string, allowBackground: boolean): { system: string; prompt: string } {
+/** Prompts for turning the boxed regions and comments into a RevisePlan. The marked slide image is sent alongside. */
+export function buildReviseRequest(post: Post, annotations: Annotation[], allowBackground: boolean): { system: string; prompt: string } {
   const layers = post.layers.map((layer, index) => `${index}: tâm (${pct(layer.x)}, ${pct(layer.y)}), rộng ${pct(layer.w)} chiều rộng ảnh, độ đậm ${pct(layer.opacity)}`).join('\n')
   const prompt = [
-    `Vùng khoanh: góc trái-trên (${pct(region.x)}, ${pct(region.y)}), rộng ${pct(region.w)}, cao ${pct(region.h)} (tính theo khung ảnh, gốc ở góc trái-trên).`,
-    `GHI CHÚ CỦA NGƯỜI DÙNG: ${comment}`,
+    'CÁC VÙNG KHOANH (tọa độ theo khung ảnh, gốc ở góc trái-trên; khung đỏ trên ảnh có cùng số):',
+    annotations.map((item, index) => `Vùng ${index + 1}: ${describe(item.region)}.\nGhi chú ${index + 1}: ${item.comment}`).join('\n\n'),
     'NỘI DUNG HIỆN TẠI:',
     `eyebrow: ${post.eyebrow}\nheadline: ${post.headline}\naccent: ${post.accent}\nsubtitle: ${post.subtitle}\ncta: ${post.cta}`,
     `Cỡ chữ: x${post.textScale ?? 1}; vị trí khối chữ: ${post.textAnchor ?? 'top'}; làm tối mép: ${post.scrim ? 'bật' : 'tắt'}.`,
@@ -94,7 +98,7 @@ export function parseRevise(raw: string): RevisePlan {
   return plan
 }
 
-/** Applies a plan to a post (everything except the background picture, which needs an image call). */
+/** Applies a plan to a copy of the post (everything except the background picture, which needs an image call). */
 export function applyRevise(post: Post, plan: RevisePlan): Post {
   const next: Post = { ...post, layers: post.layers.map((layer) => ({ ...layer })), shades: [...(post.shades ?? [])] }
   if (plan.text) Object.assign(next, plan.text)
@@ -120,13 +124,14 @@ export function applyRevise(post: Post, plan: RevisePlan): Post {
   return next
 }
 
-/** Prompt for the image model: edit only inside the outlined area of the clean background plate. */
-export function buildBackgroundEditPrompt(instruction: string, region: Region, palette: string[]): string {
+/** Prompt for the image model: edit only inside the outlined areas of the clean background plate. */
+export function buildBackgroundEditPrompt(instruction: string, regions: Region[], palette: string[]): string {
   return [
     'Edit the first image, which is a background plate for a social media post.',
-    `The second image is the same picture with a RED RECTANGLE outlining the only area that may change (from ${pct(region.x)} across and ${pct(region.y)} down, ${pct(region.w)} wide and ${pct(region.h)} tall).`,
-    `Change, inside that rectangle only: ${instruction}`,
-    'Return the first image with just that change applied. Everything outside the rectangle must stay exactly as it is: same composition, colors, lighting and style, blended seamlessly at the edges. Do not draw the red rectangle in the result.',
+    `The second image is the same picture with ${regions.length === 1 ? 'a RED RECTANGLE' : `${regions.length} numbered RED RECTANGLES`} outlining the only area${regions.length === 1 ? '' : 's'} that may change:`,
+    regions.map((region, index) => `Box ${index + 1}: ${pct(region.x)} across and ${pct(region.y)} down, ${pct(region.w)} wide, ${pct(region.h)} tall.`).join('\n'),
+    `Change, inside the box${regions.length === 1 ? '' : 'es'} only: ${instruction}`,
+    'Return the first image with just that change applied. Everything outside the boxes must stay exactly as it is: same composition, colors, lighting and style, blended seamlessly at the edges. Do not draw the red rectangles or their numbers in the result.',
     palette.length ? `Keep the color palette: ${palette.join(', ')}.` : '',
     'The upper half of the frame must stay calm and uncluttered because text sits there. Strictly no text, letters, numbers, logos or watermarks.',
   ].filter(Boolean).join('\n\n')
