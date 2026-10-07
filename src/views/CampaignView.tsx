@@ -151,10 +151,9 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
       <div className="row"><button className="btn" onClick={() => setDialog('import')}>Nhập lại từ PDF Key Visual</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
+    <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} keys={keys} onManageKeys={onManageKeys} />
     <div className="two-col">
       <div className="stack">
-        <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} keys={keys} onManageKeys={onManageKeys} />
-
         {showLoose && <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
           {campaign.posts.filter((post) => !post.pieceId).length === 0
             ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở mục Kế hoạch nội dung.</p></div>

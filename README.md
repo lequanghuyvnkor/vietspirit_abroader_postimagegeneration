@@ -28,6 +28,7 @@ In a campaign, **Nhập kế hoạch (Excel)** reads a content-plan workbook (sh
 - **Checks**: risky claims (guaranteed results, "cứu hồ sơ", scholarship wording…) are flagged in the caption and slides, plus the campaign's own banned phrases. A piece can only be marked *Sẵn sàng* when no variable is empty and its checklist is done.
 - **AI draft** (OpenAI or Gemini, per key): writes the on-image copy for each slide from the plan, strategy and "do not say" list. Set the text model per key in the API dialog.
 - **Pack**: exports the slide PNGs plus `caption.txt` as one zip.
+- **Schedule table**: switch the plan list to *Bảng theo ngày* to set each piece's date and time, change its status, and see warnings (missing variables, open checks, due soon, outside the campaign window, same-day clashes). *Gợi ý lịch* spreads undated pieces evenly across the window found in the strategy, and the table exports to CSV.
 
 The AI only produces the background; it is told never to render text. Text, logo and CTA are drawn by one renderer (`src/lib/render.ts`) shared by the preview and the export.
 

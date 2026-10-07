@@ -157,3 +157,19 @@ export function collectTokens(campaign: Campaign): Map<string, number> {
 export function pieceTexts(campaign: Campaign, piece: Piece): string[] {
   return [piece.caption, ...campaign.posts.filter((post) => post.pieceId === piece.id).flatMap((post) => [post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.footer])]
 }
+
+/** Campaign window written in the strategy ("Thời gian: 07–21/10/2026"), as ISO dates. */
+export function scheduleWindow(strategy: string): { start: string; end: string } | null {
+  const match = strategy.match(/(\d{1,2})\s*[–-]\s*(\d{1,2})\s*[/.]\s*(\d{1,2})\s*[/.]\s*(\d{4})/)
+  if (!match) return null
+  const [, from, to, month, year] = match
+  const iso = (day: string) => `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  return Number(from) <= Number(to) ? { start: iso(from), end: iso(to) } : null
+}
+
+/** Spreads `count` dates evenly across the window, first piece on the first day and last on the last. */
+export function suggestDates(count: number, window: { start: string; end: string }): string[] {
+  const start = new Date(`${window.start}T00:00:00Z`).getTime()
+  const end = new Date(`${window.end}T00:00:00Z`).getTime()
+  return Array.from({ length: count }, (_, index) => new Date(count === 1 ? start : start + Math.round((index * (end - start)) / (count - 1) / 86400000) * 86400000).toISOString().slice(0, 10))
+}

@@ -8,6 +8,7 @@ import { STATUS_LABELS } from '../lib/types.ts'
 import type { Campaign, Piece, Workspace } from '../lib/types.ts'
 import { readXlsx } from '../lib/xlsx.ts'
 import { ConfirmDialog, Field, Modal, Section } from './ui.tsx'
+import { ScheduleTable } from './ScheduleTable.tsx'
 
 type Props = {
   workspace: Workspace
@@ -83,6 +84,7 @@ type Job = { label: string; done: number; total: number; failures: string[] }
 export function PlanSection(props: Props) {
   const { workspace, campaign, edit, keys, onManageKeys } = props
   const [importing, setImporting] = useState(false)
+  const [view, setView] = useState<'list' | 'table'>('list')
   const [keyId, setKeyId] = useState('')
   const [job, setJob] = useState<Job | null>(null)
   const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | null>(null)
@@ -118,7 +120,7 @@ export function PlanSection(props: Props) {
   }
 
   return <>
-    <Section title={`Bài đăng theo kế hoạch${campaign.pieces.length ? ` (${campaign.pieces.length})` : ''}`} aside={<button className="btn small primary" onClick={() => setImporting(true)}>Nhập kế hoạch (Excel)</button>}>
+    <Section title={`Bài đăng theo kế hoạch${campaign.pieces.length ? ` (${campaign.pieces.length})` : ''}`} aside={<div className="row">{campaign.pieces.length > 0 && <div className="seg" role="group" aria-label="Kiểu hiển thị"><button className={view === 'list' ? 'on' : ''} aria-pressed={view === 'list'} onClick={() => setView('list')}>Danh sách</button><button className={view === 'table' ? 'on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>Bảng theo ngày</button></div>}<button className="btn small primary" onClick={() => setImporting(true)}>Nhập kế hoạch (Excel)</button></div>}>
       {visual.length > 0 && <div className="batch">
         <div className="row wrap">
           {keys.length > 0 && <select aria-label="API dùng để soạn" value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>}
@@ -133,7 +135,9 @@ export function PlanSection(props: Props) {
       </div>}
       {campaign.pieces.length === 0
         ? <p className="muted">Chưa có kế hoạch. Nhập file Excel kế hoạch nội dung để tạo sẵn các bài, caption, checklist và slide nháp.</p>
-        : <div className="list">
+        : view === 'table'
+          ? <ScheduleTable workspace={workspace} campaign={campaign} edit={edit} />
+          : <div className="list">
           {campaign.pieces.map((piece) => {
             const missing = pieceTexts(campaign, piece).flatMap((text) => unresolvedIn(text, campaign.variables))
             const done = piece.checks.filter((check) => check.done).length
