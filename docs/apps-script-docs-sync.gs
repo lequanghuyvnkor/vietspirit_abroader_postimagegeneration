@@ -1,9 +1,9 @@
 /**
- * Social Creative Studio -> Google Docs (one tab per piece).
+ * Social Creative Studio -> Google Docs (one tab per piece, each with a two-column table).
  *
  * Setup: in the doc, Extensions > Apps Script, paste this file, then in the left rail
- * Services (+) > "Google Docs API" > Add. Deploy > Manage deployments > edit (pencil) > Version: New version > Deploy
- * (first deploy: Execute as "Me", access "Anyone"). The web app URL ends in /exec.
+ * Services (+) > "Google Docs API" (identifier Docs) > Add. Deploy > Manage deployments > edit (pencil)
+ * > Version: New version > Deploy. The web app URL ends in /exec.
  *
  * Each card becomes a tab named by the piece code. Re-syncing replaces the content of the tab with that name
  * and leaves every other tab alone.
@@ -23,9 +23,16 @@ function doPost(e) {
       })
     }
 
-    var requests = []
-    data.cards.forEach(function (card) { requests = requests.concat(renderRequests(existing[card.tab], card)) })
-    Docs.Documents.batchUpdate({ requests: requests }, data.doc)
+    // Pass 1: clear each tab, write the title and an empty table.
+    var layout = []
+    data.cards.forEach(function (card) { layout = layout.concat(layoutRequests(existing[card.tab], card)) })
+    Docs.Documents.batchUpdate({ requests: layout }, data.doc)
+
+    // Pass 2: the table's real cell positions are only known now, so read them back and fill the cells.
+    var fill = []
+    var tables = tablesByTitle(data.doc)
+    data.cards.forEach(function (card) { fill = fill.concat(fillRequests(existing[card.tab].id, tables[card.tab], card)) })
+    Docs.Documents.batchUpdate({ requests: fill }, data.doc)
     return json({ ok: true, created: missing.length, updated: data.cards.length - missing.length })
   } catch (error) {
     return json({ error: String(error) })
@@ -46,22 +53,45 @@ function tabsByTitle(docId) {
   return out
 }
 
-function renderRequests(tab, card) {
+function layoutRequests(tab, card) {
   var requests = []
   // The last newline of a tab body can't be deleted, so clear 1 .. end-1.
   if (tab.end > 2) requests.push({ deleteContentRange: { range: { tabId: tab.id, startIndex: 1, endIndex: tab.end - 1 } } })
+  requests.push({ insertText: { location: { tabId: tab.id, index: 1 }, text: card.title + '\n' } })
+  requests.push({ updateParagraphStyle: { range: { tabId: tab.id, startIndex: 1, endIndex: 2 + card.title.length }, paragraphStyle: { namedStyleType: 'HEADING_1' }, fields: 'namedStyleType' } })
+  requests.push({ insertTable: { location: { tabId: tab.id, index: 2 + card.title.length }, rows: card.rows.length, columns: 2 } })
+  return requests
+}
 
-  var text = card.title + '\n\n'
-  var bold = []
-  card.rows.forEach(function (row) {
-    bold.push([text.length, text.length + row[0].length])
-    text += row[0] + '\n' + row[1] + '\n\n'
-  })
-  requests.push({ insertText: { location: { tabId: tab.id, index: 1 }, text: text } })
-  requests.push({ updateParagraphStyle: { range: { tabId: tab.id, startIndex: 1, endIndex: 1 + card.title.length + 1 }, paragraphStyle: { namedStyleType: 'HEADING_1' }, fields: 'namedStyleType' } })
-  bold.forEach(function (span) {
-    requests.push({ updateTextStyle: { range: { tabId: tab.id, startIndex: 1 + span[0], endIndex: 1 + span[1] }, textStyle: { bold: true }, fields: 'bold' } })
-  })
+/** { title: table element } for the first table of every tab. */
+function tablesByTitle(docId) {
+  var doc = Docs.Documents.get(docId, { includeTabsContent: true })
+  var out = {}
+  ;(function walk(tabs) {
+    tabs.forEach(function (tab) {
+      var table = tab.documentTab.body.content.filter(function (element) { return element.table })[0]
+      if (table) out[tab.tabProperties.title] = table
+      if (tab.childTabs) walk(tab.childTabs)
+    })
+  })(doc.tabs)
+  return out
+}
+
+function fillRequests(tabId, table, card) {
+  var start = { tabId: tabId, index: table.startIndex }
+  var requests = [
+    { updateTableColumnProperties: { tableStartLocation: start, columnIndices: [0], tableColumnProperties: { widthType: 'FIXED_WIDTH', width: { magnitude: 120, unit: 'PT' } }, fields: 'widthType,width' } },
+    { updateTableCellStyle: { tableRange: { tableCellLocation: { tableStartLocation: start, rowIndex: 0, columnIndex: 0 }, rowSpan: card.rows.length, columnSpan: 1 }, tableCellStyle: { backgroundColor: { color: { rgbColor: { red: 0.945, green: 0.953, blue: 0.957 } } } }, fields: 'backgroundColor' } }
+  ]
+  // Fill from the last cell backwards so earlier positions don't shift.
+  for (var r = card.rows.length - 1; r >= 0; r--) {
+    for (var c = 1; c >= 0; c--) {
+      var text = card.rows[r][c]
+      var at = table.table.tableRows[r].tableCells[c].content[0].startIndex
+      requests.push({ insertText: { location: { tabId: tabId, index: at }, text: text } })
+      if (c === 0) requests.push({ updateTextStyle: { range: { tabId: tabId, startIndex: at, endIndex: at + text.length }, textStyle: { bold: true }, fields: 'bold' } })
+    }
+  }
   return requests
 }
 

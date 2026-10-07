@@ -2,10 +2,10 @@ import { buildCards } from './docsExport.ts'
 import type { Campaign } from './types.ts'
 
 const KEY = 'docs-sync'
-export type DocsSyncSettings = { url: string; doc: string }
+export type DocsSyncSettings = { url: string; doc: string; auto: boolean }
 
 export function loadDocsSync(): DocsSyncSettings {
-  try { return { url: '', doc: '', ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return { url: '', doc: '' } }
+  try { return { url: '', doc: '', auto: false, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return { url: '', doc: '', auto: false } }
 }
 
 export function saveDocsSync(settings: DocsSyncSettings): void {

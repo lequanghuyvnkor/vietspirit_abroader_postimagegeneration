@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { defaultProductionNote, kindLabel, pieceTexts, scheduleWindow, suggestDates } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
@@ -7,7 +7,7 @@ import type { Campaign, Piece, PieceStatus, Production, Workspace } from '../lib
 import { ConfirmDialog } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { slidesOf } from '../lib/pack.ts'
-import { copyDocsHtml } from '../lib/docsExport.ts'
+import { buildCards, copyDocsHtml } from '../lib/docsExport.ts'
 import { loadDocsSync, pushToDocs, saveDocsSync } from '../lib/docsSync.ts'
 
 type Props = {
@@ -30,6 +30,8 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
   const [sync, setSync] = useState(loadDocsSync)
   const [syncOpen, setSyncOpen] = useState(false)
   const [syncState, setSyncState] = useState<{ busy: boolean; message: string }>({ busy: false, message: '' })
+  const signature = useMemo(() => JSON.stringify(buildCards(campaign)), [campaign])
+  const lastPushed = useRef<string | null>(null)
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
   const window = scheduleWindow(campaign.strategy)
   const undated = campaign.pieces.filter((piece) => !piece.date)
@@ -70,15 +72,37 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     setTimeout(() => setCopied(null), 4000)
   }
 
-  async function pushDocs() {
-    saveDocsSync(sync)
+  async function pushDocs(settings = sync, auto = false) {
+    saveDocsSync(settings)
+    lastPushed.current = signature
     setSyncState({ busy: true, message: 'Đang đẩy lên Google Docs…' })
     try {
-      const result = await pushToDocs(sync, campaign)
-      setSyncState({ busy: false, message: `Xong: tạo ${result.created ?? 0} tab, cập nhật ${result.updated ?? 0} tab.` })
+      const result = await pushToDocs(settings, campaign)
+      const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      setSyncState({ busy: false, message: auto ? `Tự động đẩy lúc ${time}.` : `Xong: tạo ${result.created ?? 0} tab, cập nhật ${result.updated ?? 0} tab.` })
     } catch (error) {
+      lastPushed.current = null
       setSyncState({ busy: false, message: `Lỗi: ${error instanceof Error ? error.message : String(error)}` })
     }
+  }
+
+  const ready = sync.url.trim() !== '' && sync.doc.trim() !== ''
+  // With auto-push on, send the cards a few seconds after the plan stops changing.
+  useEffect(() => {
+    if (!sync.auto || !ready) return
+    if (lastPushed.current === null) { lastPushed.current = signature; return }
+    if (lastPushed.current === signature) return
+    const timer = setTimeout(() => { void pushDocs(sync, true) }, 4000)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature, sync, ready])
+
+  function toggleAuto(on: boolean) {
+    const next = { ...sync, auto: on }
+    setSync(next)
+    saveDocsSync(next)
+    if (on && ready) void pushDocs(next, true)
+    else lastPushed.current = null
   }
 
   function applySuggestion() {
@@ -127,7 +151,8 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     {syncOpen && <div className="row wrap schedule-bar">
       <input aria-label="Link Google Docs" placeholder="Link Google Docs" value={sync.doc} onChange={(event) => setSync({ ...sync, doc: event.target.value })} />
       <input aria-label="URL web app Apps Script" placeholder="URL web app Apps Script (…/exec)" value={sync.url} onChange={(event) => setSync({ ...sync, url: event.target.value })} />
-      <button className="btn small primary" disabled={syncState.busy || !sync.url.trim() || !sync.doc.trim()} onClick={pushDocs}>Đẩy {campaign.pieces.length} bài</button>
+      <button className="btn small primary" disabled={syncState.busy || !ready} onClick={() => void pushDocs()}>Đẩy {campaign.pieces.length} bài</button>
+      <label className="row" title="Mỗi khi kế hoạch thay đổi, tự đẩy lại sau vài giây. Chỉ chạy khi trang Bảng theo ngày đang mở."><input type="checkbox" checked={sync.auto} disabled={!ready} onChange={(event) => toggleAuto(event.target.checked)} /> Tự động đẩy khi có thay đổi</label>
       {syncState.message && <span className="muted" role="status">{syncState.message}</span>}
     </div>}
     <div className="table-wrap">
