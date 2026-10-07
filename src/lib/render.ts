@@ -183,7 +183,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const footerY = bottom - Math.max(0, footerLines.length - 1) * footerLineHeight
   const ctaHeight = 72
   const ctaTop = isCover ? 0 : footerY - 44 - 40 - ctaHeight
-  const areaTop = top + 70
+  const logoHeight = Math.min(220, Math.max(24, workspace.company.logoHeight ?? 64))
+  const areaTop = top + Math.max(70, logoHeight + 30)
   const areaBottom = post.cta && !isCover ? ctaTop - 30 : post.footer ? footerY - 44 - 30 : bottom
   const maxBlock = Math.max(200, (areaBottom - areaTop) * 0.62)
 
@@ -221,9 +222,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   }
   }
 
-  // ---- Logo (small) or company name as text.
+  // ---- Logo (size set in the workspace) or company name as text.
   if (parts.has('text')) {
-  const logoHeight = 40
   if (logo) {
     const logoWidth = Math.min(logo.naturalWidth * (logoHeight / logo.naturalHeight), width * 0.3)
     ctx.drawImage(logo, left, top, logoWidth, logoWidth * (logo.naturalHeight / logo.naturalWidth))

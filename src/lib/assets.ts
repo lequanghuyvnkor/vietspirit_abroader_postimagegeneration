@@ -23,7 +23,7 @@ export function componentFor(campaign: Campaign, assetId: string, name: string, 
  * Cuts a subject out of a photo taken against a plain backdrop (studio portrait, product on a table).
  * It models the border color, so it does not work for busy backgrounds; use the manual cutter for those.
  */
-export async function removePlainBackground(assetId: string): Promise<string> {
+export async function removePlainBackground(assetId: string, minEdge = 40): Promise<string> {
   const image = await loadImage(assetId)
   if (!image) throw new Error('Không mở được ảnh.')
   const ratio = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight))
@@ -34,7 +34,7 @@ export async function removePlainBackground(assetId: string): Promise<string> {
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
   const cut = removeBackground(ctx.getImageData(0, 0, canvas.width, canvas.height), { threshold: 40, softness: 45 })
   const box = contentBox(cut)
-  if (!box || box.w < 40 || box.h < 40) throw new Error('Không tách được: nền ảnh không đồng nhất. Hãy dùng "Cắt từ ảnh/PDF" để cắt thủ công.')
+  if (!box || box.w < minEdge || box.h < minEdge) throw new Error('Không tách được: nền ảnh không đồng nhất. Hãy dùng "Cắt từ ảnh/PDF" để cắt thủ công.')
   const out = document.createElement('canvas')
   out.width = box.w
   out.height = box.h

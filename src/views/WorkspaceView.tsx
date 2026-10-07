@@ -69,9 +69,10 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
           <textarea rows={3} value={company.footer} onChange={(event) => setCompany('footer', event.target.value)} />
         </Field>
         <div className="row wrap">
-          <ImageSlot label="Logo (nền sáng)" value={company.logoId} onChange={(id) => setCompany('logoId', id)} onError={onError} />
-          <ImageSlot label="Logo (nền tối, không bắt buộc)" value={company.logoDarkId} onChange={(id) => setCompany('logoDarkId', id)} onError={onError} />
+          <ImageSlot cutout label="Logo (nền sáng)" value={company.logoId} onChange={(id) => setCompany('logoId', id)} onError={onError} />
+          <ImageSlot cutout label="Logo (nền tối, không bắt buộc)" value={company.logoDarkId} onChange={(id) => setCompany('logoDarkId', id)} onError={onError} />
         </div>
+        <Field label={`Kích thước logo: ${company.logoHeight ?? 64}px`} hint="Chiều cao logo trên bài 1080px. Áp dụng cho mọi bài đăng."><input type="range" min={24} max={200} step={4} value={company.logoHeight ?? 64} onChange={(event) => setCompany('logoHeight', Number(event.target.value))} /></Field>
       </Section>
     </div>
     {dialog === 'create' && <NameDialog title="Tạo chiến dịch" confirm="Tạo" onSubmit={createCampaign} onClose={() => setDialog(null)} />}

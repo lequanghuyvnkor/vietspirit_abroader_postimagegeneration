@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { assetUrl, api, uploadImage } from '../lib/api.ts'
+import { removePlainBackground } from '../lib/assets.ts'
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return <label className="field"><span className="field-label">{label}</span>{children}{hint && <small>{hint}</small>}</label>
@@ -35,9 +36,29 @@ export function ConfirmDialog({ title, message, confirm, onConfirm, onClose }: {
 }
 
 /** Single-image picker (logo etc.). Stores the uploaded asset id. */
-export function ImageSlot({ label, value, onChange, onError, maxEdge = 1200 }: { label: string; value: string | null; onChange: (id: string | null) => void; onError: (message: string) => void; maxEdge?: number }) {
+export function ImageSlot({ label, value, onChange, onError, maxEdge = 1200, cutout }: { label: string; value: string | null; onChange: (id: string | null) => void; onError: (message: string) => void; maxEdge?: number; /** Offer "Tách nền" (for logos on a solid backdrop). */ cutout?: boolean }) {
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  /** The image before background removal, kept so the cut can be undone. */
+  const [original, setOriginal] = useState<string | null>(null)
+  const dropOriginal = () => { if (original) void api.deleteAsset(original); setOriginal(null) }
+  async function cut() {
+    if (!value) return
+    setBusy(true)
+    try {
+      const id = await removePlainBackground(value, 8)
+      dropOriginal()
+      setOriginal(value)
+      onChange(id)
+    } catch (error) { onError(error instanceof Error ? error.message : 'Không tách được nền.') }
+    finally { setBusy(false) }
+  }
+  function undo() {
+    if (!original || !value) return
+    void api.deleteAsset(value)
+    onChange(original)
+    setOriginal(null)
+  }
   async function pick(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -46,6 +67,7 @@ export function ImageSlot({ label, value, onChange, onError, maxEdge = 1200 }: {
     try {
       const id = await uploadImage(file, maxEdge)
       if (value) void api.deleteAsset(value)
+      dropOriginal()
       onChange(id)
     } catch (error) { onError(error instanceof Error ? error.message : 'Không tải được ảnh.') }
     finally { setBusy(false) }
@@ -56,7 +78,11 @@ export function ImageSlot({ label, value, onChange, onError, maxEdge = 1200 }: {
       <strong>{label}</strong>
       <div className="row">
         <button className="btn small" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Đang tải…' : value ? 'Thay' : 'Tải lên'}</button>
-        {value && <button className="btn small ghost" onClick={() => { void api.deleteAsset(value); onChange(null) }}>Xóa</button>}
+        {value && <button className="btn small ghost" onClick={() => { void api.deleteAsset(value); dropOriginal(); onChange(null) }}>Xóa</button>}
+      </div>
+      <div className="row">
+        {cutout && value && !original && <button className="btn small" disabled={busy} onClick={() => void cut()} title="Xóa nền đồng màu quanh logo, giữ lại phần logo trong suốt">Tách nền</button>}
+        {cutout && original && <button className="btn small ghost" disabled={busy} onClick={undo}>Dùng lại ảnh gốc</button>}
       </div>
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={pick} />
     </div>

@@ -11,6 +11,8 @@ export type Company = {
   logoId: string | null
   /** Optional logo variant for dark backgrounds. */
   logoDarkId: string | null
+  /** Logo height on the canvas, in px at 1080 wide (default 64). */
+  logoHeight?: number
 }
 
 export type KeyVisual = {
