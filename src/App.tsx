@@ -62,7 +62,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
 
   let view
   if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
-  else if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} onError={reportError} />
+  else if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace && campaign) view = <CampaignView key={campaign.id} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace) view = <WorkspaceView key={workspace.id} store={store} update={update} workspace={workspace} onError={reportError} />
   else view = <WorkspacesView store={store} update={update} />

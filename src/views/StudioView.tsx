@@ -1,26 +1,33 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { FORMATS, formatOf, newId, now } from '../lib/types.ts'
 import type { Campaign, FormatKey, Layer, Post, Store, Workspace } from '../lib/types.ts'
-import { assetUrl } from '../lib/api.ts'
+import { assetUrl, type ApiKey } from '../lib/api.ts'
+import type { Region } from '../lib/revise.ts'
 import { exportPost, renderPost } from '../lib/render.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { Field, Lightbox, Section } from './ui.tsx'
+import { ReviseTool } from './ReviseTool.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
   workspace: Workspace
   campaign: Campaign
   post: Post
+  keys: ApiKey[]
+  onManageKeys: () => void
   onError: (message: string) => void
 }
 
-export function StudioView({ update, workspace, campaign, post, onError }: Props) {
+export function StudioView({ update, workspace, campaign, post, keys, onManageKeys, onError }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [exporting, setExporting] = useState(false)
   const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null)
+  const [annotate, setAnnotate] = useState(false)
+  const [region, setRegion] = useState<Region | null>(null)
+  const drawing = useRef<{ x: number; y: number } | null>(null)
   const format = formatOf(post.format)
 
   function edit(change: (draft: Post) => void) {
@@ -48,6 +55,36 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
     }, 120)
     return () => { cancelled = true; window.clearTimeout(timer) }
   }, [post, campaign, workspace, selectedId, onError])
+
+  /** Applies a change to the campaign and this post together (used by the comment tool, which can add a background). */
+  function commit(change: (draftCampaign: Campaign, target: Post) => void) {
+    update((draft) => {
+      const item = draft.workspaces.find((entry) => entry.id === workspace.id)
+      const found = item?.campaigns.find((entry) => entry.id === campaign.id)
+      const target = found?.posts.find((entry) => entry.id === post.id)
+      if (item && found && target) { change(found, target); target.updatedAt = now(); found.updatedAt = target.updatedAt; item.updatedAt = target.updatedAt }
+    })
+  }
+
+  const overlayPoint = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    return { x: Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)), y: Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)) }
+  }
+  function startRegion(event: PointerEvent<HTMLDivElement>) {
+    try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* pointer already released */ }
+    drawing.current = overlayPoint(event)
+    setRegion(null)
+  }
+  function moveRegion(event: PointerEvent<HTMLDivElement>) {
+    const start = drawing.current
+    if (!start) return
+    const p = overlayPoint(event)
+    setRegion({ x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) })
+  }
+  function endRegion() {
+    drawing.current = null
+    setRegion((current) => (current && (current.w < 0.03 || current.h < 0.03) ? null : current))
+  }
 
   const patchLayer = (id: string, change: Partial<Layer>) => edit((draft) => { const layer = draft.layers.find((item) => item.id === id); if (layer) Object.assign(layer, change) })
 
@@ -170,7 +207,14 @@ export function StudioView({ update, workspace, campaign, post, onError }: Props
       </div>
       {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
       <div className="preview">
-        <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
+        <div className="canvas-wrap">
+          <canvas ref={canvas} onPointerDown={pickLayer} onPointerMove={dragLayer} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} style={{ aspectRatio: `${format.width} / ${format.height}`, maxHeight: maxPreviewHeight, maxWidth: '100%' }} aria-label="Xem trước bài đăng" />
+          {annotate && <div className="region-overlay" onPointerDown={startRegion} onPointerMove={moveRegion} onPointerUp={endRegion} onPointerCancel={endRegion} aria-label="Kéo để khoanh vùng cần chỉnh">
+            {region && <div className="region-box" style={{ left: `${region.x * 100}%`, top: `${region.y * 100}%`, width: `${region.w * 100}%`, height: `${region.h * 100}%` }} />}
+          </div>}
+        </div>
+        <button className={annotate ? 'btn primary' : 'btn'} aria-pressed={annotate} onClick={() => { setAnnotate((on) => !on); setRegion(null) }}>{annotate ? 'Tắt ghi chú vùng' : 'Khoanh vùng + ghi chú để chỉnh'}</button>
+        {annotate && <ReviseTool workspace={workspace} campaign={campaign} post={post} region={region} keys={keys} onManageKeys={onManageKeys} commit={commit} onClear={() => setRegion(null)} />}
         {unresolved.length > 0 && <small className="notice">Chưa điền biến: {unresolved.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch; ảnh xuất sẽ còn nguyên dấu [ ].</small>}
         <small className="muted">Xem trước đúng bố cục khi xuất. Nền khác khổ ảnh sẽ được cắt vừa khung.</small>
       </div>

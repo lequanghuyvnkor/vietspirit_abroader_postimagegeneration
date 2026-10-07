@@ -42,7 +42,7 @@ export const api = {
   addKey: (input: KeyInput) => post<{ keys: ApiKey[] }>('/api/keys', input).then((result) => result.keys),
   updateKey: (id: string, input: KeyInput) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'PUT', body: JSON.stringify(input) }).then((result) => result.keys),
   removeKey: (id: string) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'DELETE' }).then((result) => result.keys),
-  generateText: (input: { system?: string; prompt: string; json?: boolean; keyId?: string }) => post<{ text: string; provider: Provider; model: string }>('/api/text', input),
+  generateText: (input: { system?: string; prompt: string; json?: boolean; keyId?: string; images?: string[] }) => post<{ text: string; provider: Provider; model: string }>('/api/text', input),
   generate: (input: { prompt: string; width: number; height: number; quality: 'high' | 'xhigh'; referenceIds: string[]; keyId?: string }) =>
     post<{ assetId: string }>('/api/generate', input).then((result) => result.assetId),
 }

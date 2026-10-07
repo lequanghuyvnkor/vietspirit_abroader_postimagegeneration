@@ -11,7 +11,8 @@ Quy tắc bắt buộc:
 - Giữ nguyên mọi placeholder dạng [TÊN BIẾN] đúng từng ký tự; không tự bịa số liệu, mức giá, tên người, đường dẫn.
 - Giọng điệu theo thương hiệu: điềm tĩnh, cụ thể, trưởng thành; không phóng đại, không giật gân.
 - Tuyệt đối không viết những điều trong danh sách "Không được nói", và không hứa chắc kết quả đậu/visa/học bổng.
-- Chữ trên ảnh phải ngắn: eyebrow tối đa 40 ký tự; headline tối đa 8 từ; accent (dòng nhấn, tùy chọn, có thể rỗng) tối đa 5 từ; subtitle tối đa 22 từ; cta tối đa 5 từ và chỉ ở slide cuối hoặc khi bài chỉ có một ảnh.
+- Chữ trên ảnh phải ngắn: eyebrow tối đa 40 ký tự; headline tối đa 8 từ và là một ý trọn vẹn; accent (dòng nhấn, tùy chọn, có thể rỗng) tối đa 5 từ, là một cụm nhấn riêng, KHÔNG phải phần đuôi của câu trong headline (không tách một câu thành headline + accent); subtitle tối đa 22 từ; cta tối đa 5 từ và chỉ ở slide cuối hoặc khi bài chỉ có một ảnh.
+- Số liệu, điều kiện, mốc thời gian chỉ lấy từ kế hoạch hoặc nguồn đã cho; không tự suy ra.
 - Slide đầu là hook. Slide cuối chốt bằng CTA. Mỗi slide chỉ một ý.`
 
 /** Builds the system and user prompts for drafting a piece's slide copy and caption. */

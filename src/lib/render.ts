@@ -31,7 +31,8 @@ export async function ensureFont(family: string, assetId: string | null): Promis
         const link = document.createElement('link')
         link.rel = 'stylesheet'
         link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, '+')}:wght@300;400;500;600;700;800&display=swap`
-        document.head.appendChild(link)
+        // Wait for the stylesheet itself: until it is in, document.fonts knows nothing about the family and the first draw falls back.
+        await new Promise<void>((resolve) => { link.onload = () => resolve(); link.onerror = () => resolve(); setTimeout(resolve, 3500); document.head.appendChild(link) })
       }
     } catch { /* Fall back to the generic family. */ }
   }
@@ -56,7 +57,7 @@ export function loadImage(assetId: string | null): Promise<HTMLImageElement | nu
   return cached
 }
 
-function drawCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number) {
+export function drawCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number) {
   const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
   const w = image.naturalWidth * scale
   const h = image.naturalHeight * scale
@@ -163,7 +164,52 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   ctx.textAlign = 'left'
   ctx.letterSpacing = '0px'
 
-  // Logo (small) or company name as text.
+  // ---- Measure the text block first, so it can be fitted, anchored and shaded before anything is drawn.
+  const scale = Math.min(1.4, Math.max(0.6, post.textScale ?? 1))
+  const baseHead = (isCover ? 60 : post.format === 'story' ? 104 : post.format === 'square' ? 84 : 96) * scale
+  const maxHeadLines = isCover ? 2 : 3
+  const subSize = Math.round((isCover ? 28 : 32) * Math.min(1.15, scale))
+  const subLine = Math.round(subSize * 1.45)
+  const footerY = bottom
+  const ctaHeight = 72
+  const ctaTop = isCover ? 0 : footerY - 44 - 40 - ctaHeight
+  const areaTop = top + 70
+  const areaBottom = post.cta && !isCover ? ctaTop - 30 : post.footer ? footerY - 44 - 30 : bottom
+  const maxBlock = Math.max(200, (areaBottom - areaTop) * 0.62)
+
+  const layout = (size: number) => {
+    ctx.font = `700 ${size}px ${display}`
+    const lines = [
+      ...wrapBalanced(ctx, post.headline, textWidth).map((line) => ({ line, color: text })),
+      ...wrapBalanced(ctx, post.accent, textWidth).map((line) => ({ line, color: accent })),
+    ]
+    ctx.font = `300 ${subSize}px ${body}`
+    const subLines = post.subtitle ? wrap(ctx, post.subtitle, textWidth * (isCover ? 1 : 0.8)) : []
+    // Vietnamese stacks diacritics above and below the line, so lines need more air than Latin text.
+    const lineHeight = size * 1.2
+    const eyebrowHeight = post.eyebrow ? 52 : 0
+    const height = eyebrowHeight + lines.length * lineHeight + (subLines.length ? 18 + subLines.length * subLine : 0)
+    return { lines, subLines, lineHeight, eyebrowHeight, height }
+  }
+  let headSize = baseHead
+  let block = layout(headSize)
+  while ((block.lines.length > maxHeadLines || block.height > maxBlock) && headSize > baseHead * 0.55) { headSize *= 0.94; block = layout(headSize) }
+
+  const anchor = post.textAnchor ?? 'top'
+  const blockTop = anchor === 'middle' ? areaTop + Math.max(0, (areaBottom - areaTop - block.height) / 2)
+    : anchor === 'bottom' ? Math.max(areaTop, areaBottom - block.height)
+    : areaTop + (isCover ? 10 : 50)
+
+  // ---- Local legibility shade: darken (or lighten) behind the text only where the background is busy or bright.
+  const blockBox = { x: left - 28, y: blockTop - 22, w: textWidth + 56, h: block.height + 44 }
+  const lum = regionLuminance(ctx, blockBox)
+  const need = dark ? Math.max(0, 0.72 - lum * 0.9) : Math.max(0, (lum - 0.2) * 2.1)
+  if (need > 0.04) feather(ctx, blockBox, dark ? '255,255,255' : '0,0,0', Math.min(0.72, need), 70)
+  for (const shade of post.shades ?? []) {
+    feather(ctx, { x: shade.x * width, y: shade.y * height, w: shade.w * width, h: shade.h * height }, shade.tone === 'light' ? '255,255,255' : '0,0,0', Math.min(0.9, Math.max(0, shade.strength)), Math.min(shade.w * width, shade.h * height) * 0.35)
+  }
+
+  // ---- Logo (small) or company name as text.
   const logoHeight = 40
   if (logo) {
     const logoWidth = Math.min(logo.naturalWidth * (logoHeight / logo.naturalHeight), width * 0.3)
@@ -174,47 +220,41 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.fillText(workspace.company.name, left, top + 30)
   }
 
-  const headSize = isCover ? 64 : post.format === 'story' ? 112 : post.format === 'square' ? 92 : 104
-  let y = top + (isCover ? 84 : 170)
-
+  // ---- Text block.
+  let y = blockTop
+  ctx.save()
+  ctx.shadowColor = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
+  ctx.shadowBlur = 14
   if (post.eyebrow) {
     ctx.fillStyle = text
     ctx.globalAlpha = 0.85
     ctx.font = `600 22px ${body}`
     ctx.letterSpacing = '5.5px'
-    ctx.fillText(post.eyebrow.toUpperCase(), left, y)
+    ctx.fillText(post.eyebrow.toUpperCase(), left, y + 22)
     ctx.letterSpacing = '0px'
     ctx.globalAlpha = 1
-    y += 28
+    y += block.eyebrowHeight
   }
-  y += headSize * 0.85
-
-  // Headline: normal part, then accent part in accent color.
   ctx.font = `700 ${headSize}px ${display}`
-  const headLines = [
-    ...wrap(ctx, post.headline, textWidth).map((line) => ({ line, color: text })),
-    ...wrap(ctx, post.accent, textWidth).map((line) => ({ line, color: accent })),
-  ]
-  for (const { line, color } of headLines) {
+  for (const { line, color } of block.lines) {
     ctx.fillStyle = color
-    ctx.fillText(line, left, y)
-    y += headSize * 1.1
+    ctx.fillText(line, left, y + headSize * 0.92)
+    y += block.lineHeight
   }
-
-  if (post.subtitle) {
-    y += 14
+  if (block.subLines.length) {
+    y += 18
     ctx.fillStyle = text
-    ctx.globalAlpha = 0.92
-    ctx.font = `300 ${isCover ? 28 : 32}px ${body}`
-    for (const line of wrap(ctx, post.subtitle, textWidth * (isCover ? 1 : 0.8))) {
-      ctx.fillText(line, left, y + 20)
-      y += isCover ? 40 : 46
+    ctx.globalAlpha = 0.94
+    ctx.font = `300 ${subSize}px ${body}`
+    for (const line of block.subLines) {
+      ctx.fillText(line, left, y + subSize)
+      y += subLine
     }
     ctx.globalAlpha = 1
   }
+  ctx.restore()
 
-  // Footer line.
-  const footerY = bottom
+  // ---- Footer line.
   if (post.footer) {
     ctx.fillStyle = text
     ctx.globalAlpha = 0.75
@@ -227,20 +267,79 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.globalAlpha = 1
   }
 
-  // CTA button: right side on covers, anchored above the footer otherwise.
+  // ---- CTA button: right side on covers, anchored above the footer otherwise.
   if (post.cta) {
     ctx.font = `600 28px ${body}`
     const buttonWidth = ctx.measureText(post.cta).width + 72
-    const buttonHeight = 72
     const buttonX = isCover ? width - MARGIN - buttonWidth : left
-    const buttonY = isCover ? (footerY - 44 - buttonHeight) / 2 + 20 : footerY - 44 - 40 - buttonHeight
+    const buttonY = isCover ? (footerY - 44 - ctaHeight) / 2 + 20 : ctaTop
     ctx.fillStyle = accent
     ctx.beginPath()
-    ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight, buttonHeight / 2)
+    ctx.roundRect(buttonX, buttonY, buttonWidth, ctaHeight, ctaHeight / 2)
     ctx.fill()
     ctx.fillStyle = contrastColor(accent)
     ctx.fillText(post.cta, buttonX + 36, buttonY + 46)
   }
+}
+
+/** Wraps text, then narrows the measure as far as possible without adding a line, so lines come out even. */
+function wrapBalanced(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines = wrap(ctx, text, maxWidth)
+  if (lines.length < 2) return lines
+  let low = maxWidth * 0.5
+  let high = maxWidth
+  for (let i = 0; i < 8; i++) {
+    const mid = (low + high) / 2
+    if (wrap(ctx, text, mid).length <= lines.length) high = mid
+    else low = mid
+  }
+  return wrap(ctx, text, high)
+}
+
+/** Mix of average and bright-end luminance (0..1) of a canvas region, so glows count more than the mean. */
+function regionLuminance(ctx: CanvasRenderingContext2D, box: { x: number; y: number; w: number; h: number }): number {
+  const x = Math.max(0, Math.round(box.x)), y = Math.max(0, Math.round(box.y))
+  const w = Math.min(ctx.canvas.width - x, Math.round(box.w)), h = Math.min(ctx.canvas.height - y, Math.round(box.h))
+  if (w < 4 || h < 4) return 0
+  const sample = document.createElement('canvas')
+  sample.width = 40
+  sample.height = 40
+  const sctx = sample.getContext('2d', { willReadFrequently: true })!
+  sctx.drawImage(ctx.canvas, x, y, w, h, 0, 0, 40, 40)
+  const { data } = sctx.getImageData(0, 0, 40, 40)
+  const values: number[] = []
+  for (let i = 0; i < data.length; i += 4) values.push((0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255)
+  values.sort((a, b) => a - b)
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+  return mean * 0.5 + values[Math.floor(values.length * 0.9)] * 0.5
+}
+
+/** Soft-edged tinted rectangle: a local scrim without a visible box. */
+function feather(ctx: CanvasRenderingContext2D, box: { x: number; y: number; w: number; h: number }, rgb: string, alpha: number, edge: number): void {
+  const w = Math.max(2, Math.round(box.w)), h = Math.max(2, Math.round(box.h))
+  const layer = document.createElement('canvas')
+  layer.width = w
+  layer.height = h
+  const lctx = layer.getContext('2d')!
+  lctx.fillStyle = `rgba(${rgb},${alpha})`
+  lctx.fillRect(0, 0, w, h)
+  const fade = Math.min(edge, w / 2, h / 2)
+  lctx.globalCompositeOperation = 'destination-in'
+  const horizontal = lctx.createLinearGradient(0, 0, w, 0)
+  horizontal.addColorStop(0, 'rgba(0,0,0,0)')
+  horizontal.addColorStop(fade / w, 'rgba(0,0,0,1)')
+  horizontal.addColorStop(1 - fade / w, 'rgba(0,0,0,1)')
+  horizontal.addColorStop(1, 'rgba(0,0,0,0)')
+  lctx.fillStyle = horizontal
+  lctx.fillRect(0, 0, w, h)
+  const vertical = lctx.createLinearGradient(0, 0, 0, h)
+  vertical.addColorStop(0, 'rgba(0,0,0,0)')
+  vertical.addColorStop(fade / h, 'rgba(0,0,0,1)')
+  vertical.addColorStop(1 - fade / h, 'rgba(0,0,0,1)')
+  vertical.addColorStop(1, 'rgba(0,0,0,0)')
+  lctx.fillStyle = vertical
+  lctx.fillRect(0, 0, w, h)
+  ctx.drawImage(layer, box.x, box.y)
 }
 
 export async function renderBlob(post: Post, campaign: Campaign, workspace: Workspace): Promise<Blob> {

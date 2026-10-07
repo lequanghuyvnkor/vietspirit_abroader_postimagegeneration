@@ -302,10 +302,11 @@ async function generate(req, res) {
 
 // ---------- Text generation ----------
 async function generateText(req, res) {
-  const input = await readJson(req, 200_000)
+  const input = await readJson(req, 12 * 1024 * 1024)
   const key = pickKey(input.keyId)
   if (!key) throw fail(503, 'Chưa có API key. Bấm "API" ở thanh trên để thêm key.')
   if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 60_000) throw fail(400, 'Nội dung gửi AI không hợp lệ.')
+  const images = (Array.isArray(input.images) ? input.images : []).slice(0, 3).map((value) => String(value).match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/)).filter(Boolean).map((match) => ({ mime: match[1], data: match[2] }))
   const system = typeof input.system === 'string' ? input.system.slice(0, 20_000) : ''
   const model = key.textModel || DEFAULT_TEXT_MODEL[key.provider]
   const gemini = key.provider === 'gemini'
@@ -318,11 +319,11 @@ async function generateText(req, res) {
       headers: gemini ? { 'x-goog-api-key': key.apiKey, 'content-type': 'application/json' } : { authorization: `Bearer ${key.apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify(gemini ? {
         ...(system && { systemInstruction: { parts: [{ text: system }] } }),
-        contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: input.prompt }, ...images.map((image) => ({ inlineData: { mimeType: image.mime, data: image.data } }))] }],
         generationConfig: { temperature: 0.7, ...(input.json && { responseMimeType: 'application/json' }) },
       } : {
         model,
-        messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: input.prompt }],
+        messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: images.length ? [{ type: 'text', text: input.prompt }, ...images.map((image) => ({ type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.data}` } }))] : input.prompt }],
         ...(input.json && { response_format: { type: 'json_object' } }),
       }),
       signal: AbortSignal.timeout(120000),

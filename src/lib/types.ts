@@ -51,8 +51,16 @@ export type Post = {
   backgroundId: string | null
   scrim: boolean
   layers: Layer[]
+  /** Multiplier for the headline and lead text size (default 1). */
+  textScale?: number
+  /** Where the text block sits between the logo and the CTA/footer (default top). */
+  textAnchor?: 'top' | 'middle' | 'bottom'
+  /** Extra soft darkening/lightening patches, in canvas fractions, for legibility. */
+  shades?: Shade[]
   updatedAt: string
 }
+
+export type Shade = { x: number; y: number; w: number; h: number; strength: number; tone: 'dark' | 'light' }
 
 export type PieceKind = 'static' | 'carousel' | 'reel'
 export type PieceStatus = 'brief' | 'copy' | 'visual' | 'review' | 'ready'
