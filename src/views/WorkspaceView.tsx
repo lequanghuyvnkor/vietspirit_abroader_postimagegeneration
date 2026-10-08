@@ -33,6 +33,12 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
     navigate({ workspace: workspace.id, campaign: campaign.id })
   }
 
+  function applyFooterToAll() {
+    const total = workspace.campaigns.reduce((sum, campaign) => sum + campaign.posts.length, 0)
+    if (total === 0 || !window.confirm(`Đặt chân bài này cho tất cả ${total} bài đăng của workspace, thay chân bài hiện có của từng bài?`)) return
+    edit((draft) => { for (const campaign of draft.campaigns) for (const post of campaign.posts) post.footer = draft.company.footer })
+  }
+
   function removeCampaign(id: string) {
     const campaign = workspace.campaigns.find((item) => item.id === id)
     if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
@@ -65,9 +71,10 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
         <Field label="Lĩnh vực"><input value={company.industry} onChange={(event) => setCompany('industry', event.target.value)} /></Field>
         <Field label="Khách hàng mục tiêu"><textarea rows={2} value={company.audience} onChange={(event) => setCompany('audience', event.target.value)} /></Field>
         <Field label="Giọng điệu thương hiệu"><input value={company.tone} onChange={(event) => setCompany('tone', event.target.value)} /></Field>
-        <Field label="Chân bài mặc định" hint="Nhiều dòng được (Enter để xuống dòng). Ví dụ: fb.com/tenpage · Hotline 09xx. Mỗi bài đăng có thể sửa lại.">
+        <Field label="Chân bài mặc định" hint="Nhiều dòng được (Enter để xuống dòng). Ví dụ: fb.com/tenpage · Hotline 09xx. Mỗi bài đăng có thể sửa lại. Bài đã tạo trước đó không tự đổi theo, bấm nút bên dưới để áp lại.">
           <textarea rows={3} value={company.footer} onChange={(event) => setCompany('footer', event.target.value)} />
         </Field>
+        <div className="row"><button className="btn small" onClick={applyFooterToAll}>Áp chân bài này cho mọi bài đã tạo</button></div>
         <div className="row wrap">
           <ImageSlot cutout label="Logo (nền sáng)" value={company.logoId} onChange={(id) => setCompany('logoId', id)} onError={onError} />
           <ImageSlot cutout label="Logo (nền tối, không bắt buộc)" value={company.logoDarkId} onChange={(id) => setCompany('logoDarkId', id)} onError={onError} />
