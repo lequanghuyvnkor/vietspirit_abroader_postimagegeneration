@@ -336,3 +336,9 @@ textarea { resize: vertical; }
 .piece-body { display: grid; gap: 3px; min-width: 0; }
 .piece-body strong { font-size: .82rem; line-height: 1.3; }
 .piece-body .flag { margin-left: 6px; }
+
+/* Piece page: brief on the side, steps in order */
+.piece-flow { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.piece-brief { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; }
+.piece-brief details summary { cursor: pointer; }
+@media (max-width: 900px) { .piece-flow { grid-template-columns: minmax(0, 1fr); } .piece-brief { position: static; max-height: none; } }

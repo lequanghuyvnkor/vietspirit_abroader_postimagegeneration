@@ -125,7 +125,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   return <div className="page">
     <div className="page-head">
       <div>
-        <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>← {campaign.name}</button>
+        <button className="link" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, tab: 'production' })}>← {campaign.name} · Sản xuất</button>
         <h1>{piece.code} · {piece.title}</h1>
         <p>{kindLabel(piece)} · {piece.plan.format} · {piece.plan.funnel} · {piece.plan.pillar}</p>
       </div>
@@ -136,20 +136,27 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
             {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && blockers.length > 0}>{STATUS_LABELS[status]}{status === 'ready' && blockers.length ? ` (còn ${blockers.join(', ')})` : ''}</option>)}
           </select>
         </label>
-        {isReel && !parked && <>
-          <button className="btn" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('sb', exportStoryboard) }}>{busy === 'sb' ? 'Đang xuất…' : 'Xuất storyboard (zip)'}</button>
-          <button className="btn primary" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('mp4', exportMp4) }}>{busy === 'mp4' ? 'Đang dựng MP4…' : 'Xuất MP4'}</button>
-        </>}
-        {!parked && !isReel && <button className="btn" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('zip', exportPack) }}>{busy === 'zip' ? 'Đang xuất…' : 'Xuất gói (ảnh + caption)'}</button>}
       </div>
     </div>
-    {reelProgress && <div className="reel-progress" role="status"><div className="bar"><i style={{ width: `${Math.round(reelProgress.fraction * 100)}%` }} /></div><span>{reelProgress.label}</span></div>}
     {isReel && !parked && <p className="notice">Reel không có người, làm trong app: mỗi cảnh là một khung hình dọc 1080×1920 có thời lượng riêng. Tổng hiện tại <strong>{Math.round(totalSeconds * 10) / 10}s</strong>{planSeconds > 0 && Math.abs(totalSeconds - planSeconds) > 0.5 ? ` (plan ghi ${planSeconds}s: chỉnh thời lượng các cảnh cho khớp)` : planSeconds > 0 ? ` (khớp plan ${planSeconds}s)` : ''}. Xuất storyboard (zip) để duyệt, xuất MP4 để đăng; nhạc và giọng đọc thêm ở app dựng video.</p>}
     {parked && <p className="notice">{piece.production === 'external' ? 'Reel có người thật: bên khác sản xuất. App theo dõi caption, checklist, tài nguyên và xuất phiếu bàn giao; không làm hình ở đây.' : 'Reel không có người: sẽ làm trong app (storyboard và chuyển động). Hiện chỉ theo dõi caption, checklist và visual brief.'}</p>}
 
-    <div className="two-col">
+    <div className="piece-flow">
+      <aside className="card piece-brief">
+        <h2>Brief</h2>
+        <dl className="facts">
+          {([['Mục tiêu', piece.plan.goal], ['Hook', piece.plan.hook], ['Cấu trúc', piece.plan.structure], ['CTA', piece.plan.cta], ['Đối tượng', piece.plan.audience], ['Hình chủ đạo', piece.visual.hero], ['Bố cục', piece.visual.layout], ['Chữ trên ảnh', piece.visual.onImage], ['Tránh', piece.visual.avoid]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+        </dl>
+        {[piece.plan.kpi, piece.plan.paid, piece.plan.story, piece.visual.typography, piece.visual.palette, piece.visual.motion, piece.visual.assets].some(Boolean) && <details>
+          <summary className="muted">Thêm (KPI, quảng cáo, typography…)</summary>
+          <dl className="facts">
+            {([['KPI', piece.plan.kpi], ['Paid', piece.plan.paid], ['Story hỗ trợ', piece.plan.story], ['Typography', piece.visual.typography], ['Palette', piece.visual.palette], ['Motion', piece.visual.motion], ['Asset cần chuẩn bị', piece.visual.assets]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+          </dl>
+        </details>}
+      </aside>
+
       <div className="stack">
-        {parked && <Section title="Bên sản xuất & bàn giao">
+        {parked && <Section title="Bàn giao cho bên sản xuất">
           <Field label="Ai thực hiện">
             <select value={piece.production} onChange={(event) => edit((_, item) => { const next = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production)) item.productionNote = defaultProductionNote(next); item.production = next })}>
               <option value="internal">Nội bộ: làm trong app (Reel không có người)</option>
@@ -162,48 +169,35 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
           <div className="row"><button className="btn" onClick={() => downloadBlob(new Blob([buildHandoff(campaign, piece)], { type: 'text/markdown;charset=utf-8' }), `${piece.code}-phieu-ban-giao.md`)}>Tải phiếu bàn giao (.md)</button></div>
         </Section>}
 
-        <Section title="Caption">
+        <Section title={parked ? 'Caption' : '1 · Chữ'} aside={!parked && <span className="muted">Chữ trên {isReel ? 'các cảnh' : 'ảnh'} và caption</span>}>
+          {!parked && <>
+            {aiButton}
+            <p className="muted">AI soạn chữ cho từng {isReel ? 'cảnh' : 'slide'} theo brief (và viết caption nếu đang trống). Sửa chữ từng {isReel ? 'cảnh' : 'slide'} bằng nút "Chỉnh" ở bước 2.</p>
+          </>}
           <div className="row wrap">
-            <button className="btn small primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('cap', aiCaption) }}>{busy === 'cap' ? 'AI đang viết…' : 'AI viết lại caption'}</button>
+            <button className="btn small" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('cap', aiCaption) }}>{busy === 'cap' ? 'AI đang viết…' : 'AI viết lại caption'}</button>
             {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
           </div>
-          <Field label="Nội dung caption" hint="Chỗ soạn: giữ nguyên dạng [TÊN BIẾN]. Biến được thay bằng giá trị đã điền khi xuất ảnh, zip và Google Docs; xem bản đã thay ngay bên dưới."><textarea rows={12} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
-          {filledCaption !== piece.caption && <div className="field">
-            <span className="field-label">Bản đã điền biến (đây là bản được xuất)</span>
+          <Field label="Caption" hint="Chỗ soạn: giữ nguyên dạng [TÊN BIẾN]. Biến được thay bằng giá trị đã điền khi xuất ảnh, zip và Google Docs; xem bản đã thay ngay bên dưới."><textarea rows={10} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
+          {filledCaption !== piece.caption && <details className="field">
+            <summary className="field-label">Xem bản đã điền biến (bản được xuất)</summary>
             <div className="notice" style={{ whiteSpace: 'pre-wrap' }}>{filledCaption}</div>
             <div className="row"><button className="btn small ghost" onClick={() => edit((_, item) => { item.caption = filledCaption })} title="Thay luôn [BIẾN] bằng giá trị trong ô soạn. Sau đó đổi giá trị biến sẽ không tự cập nhật caption này.">Điền biến thẳng vào ô soạn</button></div>
-          </div>}
+          </details>}
           <Field label="Hashtag"><input value={piece.hashtags} onChange={(event) => edit((_, item) => { item.hashtags = event.target.value })} /></Field>
-          {missing.length > 0 && <p className="notice">Biến chưa điền: {missing.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch.</p>}
+          {missing.length > 0 && <p className="notice">Biến chưa điền: {missing.map((key) => `[${key}]`).join(', ')}. Điền ở tab Kế hoạch của chiến dịch.</p>}
           {lint.length > 0 && <div className="lint" role="status">
             <strong>Cần xem lại ({lint.length})</strong>
             {lint.map((hit, index) => <p key={index}><b>{hit.rule}</b><br /><span className="muted">…{hit.excerpt}…</span></p>)}
           </div>}
-          {piece.compliance && <p className="muted">Ghi chú duyệt: {piece.compliance}</p>}
         </Section>
 
-        <Section title="Điều kiện trước khi đăng" aside={<span className="muted">{piece.checks.filter((check) => check.done).length}/{piece.checks.length}</span>}>
-          {piece.checks.length === 0 && <p className="muted">Không có mục nào.</p>}
-          <div className="list">
-            {piece.checks.map((check) => <label className="check-row" key={check.id}>
-              <input type="checkbox" checked={check.done} onChange={(event) => edit((_, item) => { const target = item.checks.find((entry) => entry.id === check.id); if (target) target.done = event.target.checked })} />
-              <span><span className={check.done ? 'done' : ''}>{check.text}</span><small className="muted"> · {check.owner}</small></span>
-            </label>)}
+        {!parked && <Section title={`2 · Hình (${slides.length} ${isReel ? 'cảnh' : 'ảnh'}${everySlide.length > slides.length ? ` đang xuất / ${everySlide.length} bản` : ''})${isReel ? ` · ${Math.round(totalSeconds * 10) / 10}s` : ''}`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ {isReel ? 'Cảnh' : 'Slide'}</button><button className="btn small ghost" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo lại từ kế hoạch</button></div>}>
+          <div className="row wrap">
+            <button className="btn primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('bg', makeBackground) }}>{busy === 'bg' ? 'Đang tạo nền (1–2 phút)…' : 'Tạo nền theo brief'}</button>
+            <small className="muted">Nền dùng moodboard của chiến dịch cộng hình chủ đạo trong brief, rồi gắn vào mọi {isReel ? 'cảnh' : 'slide'} cùng khổ.</small>
           </div>
-        </Section>
-
-        <Section title="Kế hoạch">
-          <dl className="facts">
-            {([['Mục tiêu', piece.plan.goal], ['Hook', piece.plan.hook], ['Cấu trúc', piece.plan.structure], ['CTA', piece.plan.cta], ['Đối tượng', piece.plan.audience], ['KPI', piece.plan.kpi], ['Paid', piece.plan.paid], ['Story hỗ trợ', piece.plan.story]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-          </dl>
-        </Section>
-      </div>
-
-      <div className="stack">
-        {!parked && <Section title={`${isReel ? 'Cảnh' : 'Ảnh hoàn chỉnh'} (${slides.length}${everySlide.length > slides.length ? ` đang xuất / ${everySlide.length} bản` : ''})${isReel ? ` · ${Math.round(totalSeconds * 10) / 10}s` : ''}`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ {isReel ? 'Cảnh' : 'Slide'}</button><button className="btn small" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo từ kế hoạch</button></div>}>
-          {aiButton}
-          {baseSlides.length === 0 && <p className="muted">Chưa có slide. Bấm "Tạo từ kế hoạch" hoặc nhờ AI soạn nháp.</p>}
-          <p className="muted">Đây là ảnh đúng như khi xuất (nền, thành phần, chữ). Bấm vào ảnh để xem lớn và tải PNG; bấm "Chỉnh" để sửa chữ, nền, thành phần.</p>
+          {baseSlides.length === 0 && <p className="muted">Chưa có {isReel ? 'cảnh' : 'slide'}. Bấm "Tạo lại từ kế hoạch" hoặc "Soạn nháp bằng AI" ở bước 1.</p>}
           <div className="slide-cards">
             {everySlide.map((post) => <figure className={post.excluded ? 'slide-card muted-card' : 'slide-card'} key={post.id}>
               <SlideThumb post={post} campaign={campaign} workspace={workspace} width={170} />
@@ -221,15 +215,33 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
             </figure>)}
           </div>
         </Section>}
-
         <PieceAssets workspace={workspace} campaign={campaign} piece={piece} slides={slides} edit={edit} onError={onError} />
 
-        <Section title="Visual brief">
-          <dl className="facts">
-            {([['Hero visual', piece.visual.hero], ['Bố cục', piece.visual.layout], ['Typography', piece.visual.typography], ['Palette', piece.visual.palette], ['Chữ trên ảnh', piece.visual.onImage], ['Motion', piece.visual.motion], ['Asset cần chuẩn bị', piece.visual.assets], ['Tránh', piece.visual.avoid]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-          </dl>
-          {!parked && <button className="btn" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('bg', makeBackground) }}>{busy === 'bg' ? 'Đang tạo nền (1–2 phút)…' : 'Tạo nền theo brief này'}</button>}
+        <Section title={`${parked ? '' : '3 · '}Duyệt`} aside={<span className="muted">{piece.checks.filter((check) => check.done).length}/{piece.checks.length} mục</span>}>
+          {piece.checks.length === 0 && <p className="muted">Không có mục duyệt nào.</p>}
+          <div className="list">
+            {piece.checks.map((check) => <label className="check-row" key={check.id}>
+              <input type="checkbox" checked={check.done} onChange={(event) => edit((_, item) => { const target = item.checks.find((entry) => entry.id === check.id); if (target) target.done = event.target.checked })} />
+              <span><span className={check.done ? 'done' : ''}>{check.text}</span><small className="muted"> · {check.owner}</small></span>
+            </label>)}
+          </div>
+          {piece.compliance && <p className="muted">Ghi chú duyệt: {piece.compliance}</p>}
+          <div className="row wrap">
+            {piece.status !== 'review' && piece.status !== 'ready' && <button className="btn" onClick={() => setStatus('review')}>Gửi duyệt</button>}
+            <button className="btn primary" disabled={blockers.length > 0 || piece.status === 'ready'} onClick={() => setStatus('ready')}>{piece.status === 'ready' ? 'Đã sẵn sàng' : 'Đánh dấu sẵn sàng'}</button>
+            {blockers.length > 0 && <small className="muted">Còn {blockers.join(' và ')}.</small>}
+          </div>
         </Section>
+
+        {!parked && <Section title="4 · Xuất">
+          <div className="row wrap">
+            {isReel ? <>
+              <button className="btn" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('sb', exportStoryboard) }}>{busy === 'sb' ? 'Đang xuất…' : 'Xuất storyboard (zip)'}</button>
+              <button className="btn primary" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('mp4', exportMp4) }}>{busy === 'mp4' ? 'Đang dựng MP4…' : 'Xuất MP4'}</button>
+            </> : <button className="btn primary" disabled={busy !== '' || slides.length === 0} onClick={() => { void guard('zip', exportPack) }}>{busy === 'zip' ? 'Đang xuất…' : 'Xuất gói (ảnh + caption)'}</button>}
+          </div>
+          {reelProgress && <div className="reel-progress" role="status"><div className="bar"><i style={{ width: `${Math.round(reelProgress.fraction * 100)}%` }} /></div><span>{reelProgress.label}</span></div>}
+        </Section>}
       </div>
     </div>
     {confirmReplace && <ConfirmDialog title="Tạo lại slide" message="Các slide hiện có của bài này sẽ bị thay bằng bản nháp từ kế hoạch. Tiếp tục?" confirm="Thay thế" onConfirm={createSlides} onClose={() => setConfirmReplace(false)} />}
