@@ -42,6 +42,19 @@ export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piec
   return { system: SYSTEM, prompt }
 }
 
+/** A request that rewrites the caption from scratch; the plan's caption is only a reference. Placeholders stay as [TOKENS]. */
+export function buildCaptionRequest(workspace: Workspace, campaign: Campaign, piece: Piece): { system: string; prompt: string } {
+  const base = buildDraftRequest(workspace, campaign, { ...piece, caption: '' }, 1)
+  const values = Object.entries(campaign.variables).filter(([, value]) => value.trim()).map(([key, value]) => `- [${key}] = ${value.trim().slice(0, 120)}`).join('\n')
+  const prompt = [
+    base.prompt,
+    piece.caption.trim() && `CAPTION HIỆN CÓ (chỉ để tham khảo ý và dữ kiện, hãy viết lại cho tự nhiên, không chép nguyên văn):\n${piece.caption}`,
+    values && `GIÁ TRỊ CÁC BIẾN (để chọn cách diễn đạt cho khớp, nhưng trong caption vẫn viết placeholder dạng [TÊN BIẾN], ứng dụng sẽ tự thay):\n${values}`,
+    'YÊU CẦU RIÊNG: chỉ cần caption và hashtag; trong JSON, "slides" có thể để mảng rỗng. Caption 80-150 từ, chia đoạn rõ ràng, kết bằng CTA có placeholder đường dẫn/hotline nếu kế hoạch có.',
+  ].filter(Boolean).join('\n\n')
+  return { system: base.system, prompt }
+}
+
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 
 export function parseDraft(raw: string): Draft {
@@ -49,7 +62,10 @@ export function parseDraft(raw: string): Draft {
   let data: unknown
   try { data = JSON.parse(cleaned) } catch { throw new Error('AI trả về dữ liệu không đọc được. Thử lại hoặc đổi model văn bản.') }
   const record = data as { slides?: unknown[]; caption?: unknown; hashtags?: unknown }
-  if (!Array.isArray(record.slides) || record.slides.length === 0) throw new Error('AI không trả về slide nào. Thử lại.')
+  if (!Array.isArray(record.slides) || record.slides.length === 0) {
+    if (typeof record.caption === 'string' && record.caption.trim()) return { slides: [], caption: text(record.caption, 4000), hashtags: text(record.hashtags, 400) }
+    throw new Error('AI không trả về slide nào. Thử lại.')
+  }
   return {
     slides: record.slides.map((slide) => {
       const item = (slide ?? {}) as Record<string, unknown>

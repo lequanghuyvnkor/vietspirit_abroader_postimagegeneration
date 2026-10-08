@@ -1,5 +1,5 @@
 import { api } from './api.ts'
-import { buildDraftRequest, parseDraft, type Draft } from './ai.ts'
+import { buildCaptionRequest, buildDraftRequest, parseDraft, type Draft } from './ai.ts'
 import { draftSlides, formatKeyOf } from './plan.ts'
 import { buildBackgroundPrompt, generationRefs } from './prompt.ts'
 import { inferBeats } from './beats.ts'
@@ -15,6 +15,15 @@ export async function fetchDraft(workspace: Workspace, campaign: Campaign, piece
   const { system, prompt } = buildDraftRequest(workspace, campaign, piece, slideCountOf(campaign, piece))
   const { text } = await api.generateText({ system, prompt, json: true, keyId })
   return parseDraft(text)
+}
+
+/** Rewrites the caption (and hashtags) of a piece, even when the plan already has one. */
+export async function fetchCaption(workspace: Workspace, campaign: Campaign, piece: Piece, keyId?: string): Promise<{ caption: string; hashtags: string }> {
+  const { system, prompt } = buildCaptionRequest(workspace, campaign, piece)
+  const { text } = await api.generateText({ system, prompt, json: true, keyId })
+  const { caption, hashtags } = parseDraft(text)
+  if (!caption) throw new Error('AI không trả về caption. Thử lại.')
+  return { caption, hashtags }
 }
 
 /** Writes a draft into the campaign's slides for the piece, creating the slides if there are none. */

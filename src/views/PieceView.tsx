@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
-import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
+import { applyDraft, attachBackground, fetchCaption, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
 import { buildHandoff } from '../lib/handoff.ts'
 import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { buildStoryboard } from '../lib/storyboard.ts'
@@ -28,9 +28,10 @@ type Props = {
 
 export function PieceView({ update, workspace, campaign, piece, keys, onManageKeys, onError }: Props) {
   const [keyId, setKeyId] = useState('')
-  const [busy, setBusy] = useState<'' | 'ai' | 'bg' | 'zip' | 'sb' | 'mp4'>('')
+  const [busy, setBusy] = useState<'' | 'ai' | 'cap' | 'bg' | 'zip' | 'sb' | 'mp4'>('')
   const [confirmReplace, setConfirmReplace] = useState(false)
   const slides = slidesOf(campaign, piece)
+  const filledCaption = applyVars(piece.caption, campaign.variables)
   const everySlide = allSlidesOf(campaign, piece)
   const baseSlides = baseSlidesOf(campaign, piece)
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
@@ -54,7 +55,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
       if (owner && found && target) { change(found, target); found.updatedAt = now(); owner.updatedAt = found.updatedAt }
     })
   }
-  const guard = async (kind: 'ai' | 'bg' | 'zip' | 'sb' | 'mp4', action: () => Promise<void>) => {
+  const guard = async (kind: 'ai' | 'cap' | 'bg' | 'zip' | 'sb' | 'mp4', action: () => Promise<void>) => {
     setBusy(kind)
     try { await action() } catch (error) { onError(error instanceof Error ? error.message : 'Có lỗi xảy ra.') } finally { setBusy('') }
   }
@@ -84,6 +85,12 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   async function aiDraft() {
     const draft = await fetchDraft(workspace, campaign, piece, activeKey?.id)
     edit((c, item) => applyDraft(c, item.id, draft, workspace.company))
+  }
+
+  async function aiCaption() {
+    if (piece.caption.trim() && !window.confirm('AI sẽ viết lại caption và thay nội dung hiện tại. Tiếp tục?')) return
+    const result = await fetchCaption(workspace, campaign, piece, activeKey?.id)
+    edit((_, item) => { item.caption = result.caption; if (result.hashtags) item.hashtags = result.hashtags })
   }
 
   async function makeBackground() {
@@ -156,7 +163,16 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
         </Section>}
 
         <Section title="Caption">
-          <Field label="Nội dung caption"><textarea rows={12} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
+          <div className="row wrap">
+            <button className="btn small primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('cap', aiCaption) }}>{busy === 'cap' ? 'AI đang viết…' : 'AI viết lại caption'}</button>
+            {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
+          </div>
+          <Field label="Nội dung caption" hint="Chỗ soạn: giữ nguyên dạng [TÊN BIẾN]. Biến được thay bằng giá trị đã điền khi xuất ảnh, zip và Google Docs; xem bản đã thay ngay bên dưới."><textarea rows={12} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
+          {filledCaption !== piece.caption && <div className="field">
+            <span className="field-label">Bản đã điền biến (đây là bản được xuất)</span>
+            <div className="notice" style={{ whiteSpace: 'pre-wrap' }}>{filledCaption}</div>
+            <div className="row"><button className="btn small ghost" onClick={() => edit((_, item) => { item.caption = filledCaption })} title="Thay luôn [BIẾN] bằng giá trị trong ô soạn. Sau đó đổi giá trị biến sẽ không tự cập nhật caption này.">Điền biến thẳng vào ô soạn</button></div>
+          </div>}
           <Field label="Hashtag"><input value={piece.hashtags} onChange={(event) => edit((_, item) => { item.hashtags = event.target.value })} /></Field>
           {missing.length > 0 && <p className="notice">Biến chưa điền: {missing.map((key) => `[${key}]`).join(', ')}. Điền ở mục "Biến chiến dịch" của chiến dịch.</p>}
           {lint.length > 0 && <div className="lint" role="status">
