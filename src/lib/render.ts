@@ -1,5 +1,6 @@
 import { assetUrl } from './api.ts'
 import { applyVars } from './text.ts'
+import { contentBox, removeBackground } from './cutout.ts'
 import { formatOf, type Campaign, type Post, type Workspace } from './types.ts'
 
 const MARGIN = 64
@@ -40,6 +41,53 @@ export async function ensureFont(family: string, assetId: string | null): Promis
     Promise.all([300, 400, 600, 700].map((weight) => document.fonts.load(`${weight} 24px "${name}"`).catch(() => []))),
     new Promise((resolve) => setTimeout(resolve, 4000)),
   ])
+}
+
+const logoCache = new Map<string, Promise<HTMLImageElement | null>>()
+
+/** True when the whole image border is one opaque color: a logo exported on a flat tile instead of transparent. */
+function hasFlatBorder({ data, width, height }: { data: Uint8ClampedArray; width: number; height: number }): boolean {
+  const border: number[] = []
+  const step = Math.max(1, Math.floor(Math.max(width, height) / 60))
+  for (let x = 0; x < width; x += step) border.push((x) * 4, ((height - 1) * width + x) * 4)
+  for (let y = 0; y < height; y += step) border.push((y * width) * 4, (y * width + width - 1) * 4)
+  const mean = [0, 0, 0]
+  for (const i of border) { if (data[i + 3] < 250) return false; for (let c = 0; c < 3; c++) mean[c] += data[i + c] / border.length }
+  return border.every((i) => [0, 1, 2].every((c) => Math.abs(data[i + c] - mean[c]) < 26))
+}
+
+/** The logo with its flat background removed and cropped to the mark, so it sits on any post without a box. Logos that already have transparency are untouched. */
+export function loadLogo(assetId: string | null): Promise<HTMLImageElement | null> {
+  if (!assetId) return Promise.resolve(null)
+  let cached = logoCache.get(assetId)
+  if (!cached) {
+    cached = (async () => {
+      const image = await loadImage(assetId)
+      if (!image) return null
+      const ratio = Math.min(1, 800 / Math.max(image.naturalWidth, image.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio))
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio))
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      if (!hasFlatBorder(pixels)) return image
+      const cut = removeBackground(pixels, { threshold: 40, softness: 45 })
+      const box = contentBox(cut, 8, 4)
+      if (!box || box.w < 8 || box.h < 8) return image
+      const full = document.createElement('canvas')
+      full.width = cut.width
+      full.height = cut.height
+      full.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(cut.data), cut.width, cut.height), 0, 0)
+      const out = document.createElement('canvas')
+      out.width = box.w
+      out.height = box.h
+      out.getContext('2d')!.drawImage(full, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h)
+      return await new Promise<HTMLImageElement>((resolve) => { const result = new Image(); result.onload = () => resolve(result); result.onerror = () => resolve(image); result.src = out.toDataURL('image/png') })
+    })()
+    logoCache.set(assetId, cached)
+  }
+  return cached
 }
 
 export function loadImage(assetId: string | null): Promise<HTMLImageElement | null> {
@@ -110,7 +158,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const layerImages = await Promise.all(post.layers.map((layer) => loadImage(campaign.components.find((item) => item.id === layer.componentId)?.assetId ?? null)))
   const [bgImage, logo] = await Promise.all([
     loadImage(background?.assetId ?? null),
-    loadImage(logoId),
+    loadLogo(logoId),
     ensureFont(kv.displayFont, kv.displayFontAssetId),
     ensureFont(kv.bodyFont, null),
   ])
@@ -176,8 +224,9 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const scale = Math.min(1.4, Math.max(0.6, post.textScale ?? 1))
   const baseHead = (isCover ? 60 : post.format === 'story' ? 104 : post.format === 'square' ? 84 : 96) * scale
   const maxHeadLines = isCover ? 2 : 3
-  const subSize = Math.round((isCover ? 28 : 32) * Math.min(1.15, scale))
-  const subLine = Math.round(subSize * 1.45)
+  let subSize = Math.round((isCover ? 28 : 32) * Math.min(1.15, scale))
+  let subLine = Math.round(subSize * 1.45)
+  const maxSubLines = isCover ? 3 : 5
   ctx.font = `400 22px ${body}`
   const footerLines = post.footer ? wrap(ctx, post.footer, width - MARGIN * 2).slice(0, 6) : []
   const footerLineHeight = 30
@@ -198,6 +247,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ]
     ctx.font = `300 ${subSize}px ${body}`
     const subLines = post.subtitle ? wrap(ctx, post.subtitle, textWidth * (isCover ? 1 : 0.8)) : []
+    // A lead text that is still too long is cut with an ellipsis rather than spilling over the artwork.
+    if (subLines.length > maxSubLines) { subLines.length = maxSubLines; subLines[maxSubLines - 1] = `${subLines[maxSubLines - 1].replace(/[\s,.;:]+$/, '')}…` }
     // Vietnamese stacks diacritics above and below the line, so lines need more air than Latin text.
     const lineHeight = size * 1.2
     const eyebrowHeight = post.eyebrow ? 52 : 0
@@ -207,6 +258,9 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   let headSize = baseHead
   let block = layout(headSize)
   while ((block.lines.length > maxHeadLines || block.height > maxBlock) && headSize > baseHead * 0.55) { headSize *= 0.94; block = layout(headSize) }
+  // Heading already at its smallest and the block is still too tall (a long lead text): shrink the lead text, down to 75%.
+  const subFloor = Math.round(subSize * 0.75)
+  while (block.height > maxBlock && subSize > subFloor) { subSize -= 1; subLine = Math.round(subSize * 1.45); block = layout(headSize) }
 
   const anchor = post.textAnchor ?? 'top'
   const blockTop = anchor === 'middle' ? areaTop + Math.max(0, (areaBottom - areaTop - block.height) / 2)
