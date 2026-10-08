@@ -29,7 +29,10 @@ export type KeyVisual = {
   avoid: string
   /** Main visual element images (extracted from the key visual or added by hand); sent first as generation references. */
   subjectIds: string[]
+  /** Moodboard images for atmosphere, color and light only. */
   referenceIds: string[]
+  /** Finished sample posts on the moodboard: shown for reference, never sent to the image model. */
+  sampleIds: string[]
 }
 
 export type Background = {
@@ -193,7 +196,7 @@ export function emptyCompany(name = ''): Company {
 export function emptyKeyVisual(): KeyVisual {
   return {
     concept: '', subject: '', palette: ['#0A1A44', '#12307A', '#1B4AA8'], accentColor: '#FF4D5E', textTone: 'light',
-    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', subjectIds: [], referenceIds: [],
+    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', subjectIds: [], referenceIds: [], sampleIds: [],
   }
 }
 

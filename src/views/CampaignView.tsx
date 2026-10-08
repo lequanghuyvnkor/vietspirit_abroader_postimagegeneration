@@ -2,14 +2,15 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { FORMATS, formatOf, newId, newPost, now } from '../lib/types.ts'
 import type { Campaign, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
-import { navigate } from '../lib/route.ts'
+import { navigate, type CampaignTab } from '../lib/route.ts'
 import { buildBackgroundPrompt, generationRefs } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, Lightbox, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
-import { PlanSection } from './PlanSection.tsx'
-import { SubjectImages } from './SubjectImages.tsx'
+import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
+import { useBatch } from '../lib/batch.ts'
+import { Moodboard } from './Moodboard.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -18,9 +19,10 @@ type Props = {
   keys: ApiKey[]
   onManageKeys: () => void
   onError: (message: string) => void
+  tab?: CampaignTab
 }
 
-export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError }: Props) {
+export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
   const kv = campaign.keyVisual
   const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | { delete: string } | null>(null)
   const [genFormat, setGenFormat] = useState<FormatKey>('feed')
@@ -30,7 +32,6 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   const [keyId, setKeyId] = useState('')
   const aiReady = keys.length > 0
   const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
-  const referenceInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
   const loose = campaign.posts.filter((post) => !post.pieceId)
@@ -45,24 +46,11 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       if (item && found) { change(found); found.updatedAt = now(); item.updatedAt = found.updatedAt }
     })
   }
+  const batch = useBatch(workspace, campaign, edit, keys)
   const setKv = <K extends keyof KeyVisual>(key: K, value: KeyVisual[K]) => edit((draft) => { draft.keyVisual[key] = value })
   const guard = async (action: () => Promise<void>) => { try { await action() } catch (error) { onError(error instanceof Error ? error.message : 'Có lỗi xảy ra.') } }
 
   const setColor = (index: number, value: string) => setKv('palette', kv.palette.map((color, i) => i === index ? value : color))
-
-  function addReferences(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []).slice(0, Math.max(0, 4 - kv.referenceIds.length))
-    event.target.value = ''
-    void guard(async () => {
-      const ids = await Promise.all(files.map((file) => uploadImage(file)))
-      edit((draft) => { draft.keyVisual.referenceIds.push(...ids) })
-    })
-  }
-
-  function removeReference(id: string) {
-    void api.deleteAsset(id)
-    setKv('referenceIds', kv.referenceIds.filter((item) => item !== id))
-  }
 
   function uploadFont(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -149,118 +137,127 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     })
   }
 
+  const tabs: { key: CampaignTab; label: string; hint: string }[] = [
+    { key: 'moodboard', label: '① Moodboard', hint: 'Ảnh, không khí, màu, font, nền' },
+    { key: 'plan', label: '② Kế hoạch', hint: 'Nhập Excel, điền biến, kiểm tra' },
+    { key: 'production', label: '③ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
+    { key: 'schedule', label: '④ Lịch & xuất', hint: 'Lịch đăng, Google Docs, zip' },
+  ]
+  const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : 'moodboard')
+  const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch }
+
+  const loosePosts = showLoose && <Section title="Bài đăng lẻ (ngoài kế hoạch)" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
+    {loose.length === 0
+      ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở trên.</p></div>
+      : <div className="list">
+        {loose.map((post) => {
+          const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
+          return <div className="list-row" key={post.id}>
+            <div className="thumb">{background && <img src={assetUrl(background.assetId)} alt="" />}</div>
+            <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>
+              <strong>{post.name}</strong>
+              <small>{post.headline || 'Chưa có tiêu đề'} · {formatOf(post.format).label}</small>
+            </button>
+            <button className="btn small ghost" onClick={() => setDialog({ delete: post.id })}>Xóa</button>
+          </div>
+        })}
+      </div>}
+  </Section>
+
+  const identity = <Section title="Nhận diện">
+    <div className="field">
+      <span className="field-label">Bảng màu</span>
+      <div className="palette">
+        {kv.palette.map((color, index) => <div className="swatch" key={index}>
+          <input type="color" aria-label={`Màu ${index + 1}`} value={safeColor(color, '#888888')} onChange={(event) => setColor(index, event.target.value)} />
+          <input value={color} maxLength={7} aria-label={`Mã HEX ${index + 1}`} onChange={(event) => setColor(index, event.target.value)} />
+          {kv.palette.length > 1 && <button className="btn small ghost" aria-label="Xóa màu" onClick={() => setKv('palette', kv.palette.filter((_, i) => i !== index))}>×</button>}
+        </div>)}
+        {kv.palette.length < 6 && <button className="btn small" onClick={() => setKv('palette', [...kv.palette, '#FFFFFF'])}>+ Thêm màu</button>}
+      </div>
+    </div>
+    <div className="row wrap">
+      <Field label="Màu nhấn (nút, dòng nhấn)">
+        <div className="swatch"><input type="color" value={safeColor(kv.accentColor, '#FF4D5E')} onChange={(event) => setKv('accentColor', event.target.value)} /><input value={kv.accentColor} maxLength={7} onChange={(event) => setKv('accentColor', event.target.value)} /></div>
+      </Field>
+      <Field label="Màu chữ trên nền">
+        <select value={kv.textTone} onChange={(event) => setKv('textTone', event.target.value as KeyVisual['textTone'])}>
+          <option value="light">Chữ sáng (nền tối)</option>
+          <option value="dark">Chữ tối (nền sáng)</option>
+        </select>
+      </Field>
+    </div>
+    <div className="row wrap">
+      <Field label="Font tiêu đề" hint="Tên font Google Fonts, hoặc tải file font riêng.">
+        <input value={kv.displayFont} onChange={(event) => edit((draft) => { draft.keyVisual.displayFont = event.target.value; draft.keyVisual.displayFontAssetId = null })} />
+      </Field>
+      <Field label="Font nội dung" hint="Tên font Google Fonts."><input value={kv.bodyFont} onChange={(event) => setKv('bodyFont', event.target.value)} /></Field>
+    </div>
+    <div className="row">
+      <button className="btn small" onClick={() => fontInput.current?.click()}>Tải font tiêu đề (.woff2/.ttf/.otf)</button>
+      {kv.displayFontAssetId && <span className="muted">Đang dùng font đã tải lên</span>}
+      <input ref={fontInput} type="file" accept=".woff2,.woff,.ttf,.otf" hidden onChange={uploadFont} />
+    </div>
+    <p className="muted">Logo, chân bài và kích thước logo nằm ở trang workspace.</p>
+  </Section>
+
+  const backgrounds = <Section title="Thư viện nền" aside={<span className="muted">{campaign.backgrounds.length} nền</span>}>
+    <p className="muted">Nền chung cho chiến dịch. Mỗi bài cũng có nút "Tạo nền theo brief" riêng ở trang bài.</p>
+    <div className="row wrap end">
+      <Field label="Khổ ảnh">
+        <select value={genFormat} onChange={(event) => setGenFormat(event.target.value as FormatKey)}>{FORMATS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+      </Field>
+      <Field label="Biến thể (không bắt buộc)"><input value={variation} placeholder="Ví dụ: ánh sáng bình minh ấm hơn" onChange={(event) => setVariation(event.target.value)} /></Field>
+    </div>
+    {aiReady && keys.length > 1 && <Field label="Dùng API"><select value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.model}</option>)}</select></Field>}
+    <div className="row wrap">
+      <button className="btn primary" disabled={generating || !aiReady || !kv.concept.trim()} onClick={() => { void generate() }}>{generating ? 'Đang tạo (có thể mất 1–2 phút)…' : 'Tạo nền bằng AI'}</button>
+      <button className="btn" onClick={() => backgroundInput.current?.click()}>Tải nền có sẵn</button>
+      <input ref={backgroundInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={uploadBackground} />
+    </div>
+    {!aiReady && <p className="notice">Chưa có API key. <button className="link" onClick={onManageKeys}>Thêm API key</button> để tạo nền bằng AI, hoặc tải nền có sẵn.</p>}
+    {aiReady && !kv.concept.trim() && <p className="notice">Điền "Mô tả không khí" ở Moodboard (hoặc bấm "AI đọc moodboard") để tạo nền.</p>}
+    {campaign.backgrounds.length > 0 && <div className="bg-grid">
+      {campaign.backgrounds.map((background) => <figure key={background.id}>
+        <button className="zoom" onClick={() => setViewer({ src: assetUrl(background.assetId), title: `${background.label} · ${formatOf(background.format).label}` })} aria-label={`Xem lớn ${background.label}`}><img src={assetUrl(background.assetId)} alt={background.label} /></button>
+        <figcaption><span>{background.label}<small>{formatOf(background.format).label}</small></span><button className="btn small ghost" onClick={() => removeBackground(background.id)}>Xóa</button></figcaption>
+      </figure>)}
+    </div>}
+  </Section>
+
+  const components = <details className="card collapsible">
+    <summary><h2>Thành phần đồ họa ({campaign.components.length})</h2><span className="muted">Sao, đường bay, thẻ kính… cắt từ PDF để đặt lên bài</span></summary>
+    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button></div>
+    {campaign.components.length === 0
+      ? <p className="muted">Chưa có thành phần.</p>
+      : <div className="components">
+        {campaign.components.map((item) => <figure key={item.id} title={item.name}>
+          <div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div>
+          <figcaption><span>{item.name}</span><button className="btn small ghost" aria-label={`Xóa ${item.name}`} onClick={() => removeComponent(item.id)}>×</button></figcaption>
+        </figure>)}
+      </div>}
+  </details>
+
   return <div className="page">
     <div className="page-head">
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
       <div className="row"><button className="btn" onClick={() => setDialog('import')}>Nhập lại từ PDF Key Visual</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
-    <PlanSection workspace={workspace} campaign={campaign} edit={edit} onError={onError} keys={keys} onManageKeys={onManageKeys} />
-    <div className="two-col">
-      <div className="stack">
-        {showLoose && <Section title="Bài đăng lẻ" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
-          {campaign.posts.filter((post) => !post.pieceId).length === 0
-            ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở mục Kế hoạch nội dung.</p></div>
-            : <div className="list">
-              {campaign.posts.filter((post) => !post.pieceId).map((post) => {
-                const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
-                return <div className="list-row" key={post.id}>
-                  <div className="thumb">{background && <img src={assetUrl(background.assetId)} alt="" />}</div>
-                  <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>
-                    <strong>{post.name}</strong>
-                    <small>{post.headline || 'Chưa có tiêu đề'} · {formatOf(post.format).label}</small>
-                  </button>
-                  <button className="btn small ghost" onClick={() => setDialog({ delete: post.id })}>Xóa</button>
-                </div>
-              })}
-            </div>}
-        </Section>}
+    <nav className="steps" aria-label="Các bước của chiến dịch">
+      {tabs.map((item) => <button key={item.key} className={item.key === tab ? 'on' : ''} aria-current={item.key === tab ? 'page' : undefined} onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, tab: item.key })}>
+        <strong>{item.label}</strong><small>{item.hint}</small>
+      </button>)}
+    </nav>
 
-        <Section title="Thành phần đồ họa" aside={<button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>}>
-          {campaign.components.length === 0
-            ? <p className="muted">Chưa có thành phần. Cắt các phần tử đồ họa (sao, đường bay, thẻ kính, logo…) từ key visual để đặt lên bài đăng.</p>
-            : <div className="components">
-              {campaign.components.map((item) => <figure key={item.id} title={item.name}>
-                <div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div>
-                <figcaption><span>{item.name}</span><button className="btn small ghost" aria-label={`Xóa ${item.name}`} onClick={() => removeComponent(item.id)}>×</button></figcaption>
-              </figure>)}
-            </div>}
-        </Section>
-
-        <Section title="Nền Key Visual" aside={<span className="muted">{campaign.backgrounds.length} nền</span>}>
-          <div className="row wrap end">
-            <Field label="Khổ ảnh">
-              <select value={genFormat} onChange={(event) => setGenFormat(event.target.value as FormatKey)}>{FORMATS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
-            </Field>
-            <Field label="Biến thể (không bắt buộc)"><input value={variation} placeholder="Ví dụ: ánh sáng bình minh ấm hơn" onChange={(event) => setVariation(event.target.value)} /></Field>
-          </div>
-          {aiReady && <Field label="Dùng API"><select value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.model}</option>)}</select></Field>}
-          <div className="row wrap">
-            <button className="btn primary" disabled={generating || !aiReady || !kv.concept.trim()} onClick={() => { void generate() }}>{generating ? 'Đang tạo (có thể mất 1–2 phút)…' : 'Tạo nền bằng AI'}</button>
-            <button className="btn" onClick={() => backgroundInput.current?.click()}>Tải nền có sẵn</button>
-            <input ref={backgroundInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={uploadBackground} />
-          </div>
-          {!aiReady && <p className="notice">Chưa có API key. <button className="link" onClick={onManageKeys}>Thêm API key</button> để tạo nền bằng AI, hoặc tải nền có sẵn.</p>}
-          {aiReady && !kv.concept.trim() && <p className="notice">Điền "Ý tưởng chủ đạo" bên cạnh để tạo nền.</p>}
-          {campaign.backgrounds.length > 0 && <div className="bg-grid">
-            {campaign.backgrounds.map((background) => <figure key={background.id}>
-              <button className="zoom" onClick={() => setViewer({ src: assetUrl(background.assetId), title: `${background.label} · ${formatOf(background.format).label}` })} aria-label={`Xem lớn ${background.label}`}><img src={assetUrl(background.assetId)} alt={background.label} /></button>
-              <figcaption><span>{background.label}<small>{formatOf(background.format).label}</small></span><button className="btn small ghost" onClick={() => removeBackground(background.id)}>Xóa</button></figcaption>
-            </figure>)}
-          </div>}
-        </Section>
-      </div>
-
-      <Section title="Key Visual (đầu vào)">
-        <Field label="Ý tưởng chủ đạo" hint="Mô tả cảnh/phong cách nền bạn muốn. Đây là phần quan trọng nhất của prompt."><textarea rows={4} value={kv.concept} onChange={(event) => setKv('concept', event.target.value)} /></Field>
-        <SubjectImages keyVisual={kv} components={campaign.components} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onError={onError} />
-        <Field label="Điều cần tránh"><textarea rows={2} value={kv.avoid} onChange={(event) => setKv('avoid', event.target.value)} /></Field>
-
-        <div className="field">
-          <span className="field-label">Bảng màu</span>
-          <div className="palette">
-            {kv.palette.map((color, index) => <div className="swatch" key={index}>
-              <input type="color" aria-label={`Màu ${index + 1}`} value={safeColor(color, '#888888')} onChange={(event) => setColor(index, event.target.value)} />
-              <input value={color} maxLength={7} aria-label={`Mã HEX ${index + 1}`} onChange={(event) => setColor(index, event.target.value)} />
-              {kv.palette.length > 1 && <button className="btn small ghost" aria-label="Xóa màu" onClick={() => setKv('palette', kv.palette.filter((_, i) => i !== index))}>×</button>}
-            </div>)}
-            {kv.palette.length < 6 && <button className="btn small" onClick={() => setKv('palette', [...kv.palette, '#FFFFFF'])}>+ Thêm màu</button>}
-          </div>
-        </div>
-
-        <div className="row wrap">
-          <Field label="Màu nhấn (nút, dòng nhấn)">
-            <div className="swatch"><input type="color" value={safeColor(kv.accentColor, '#FF4D5E')} onChange={(event) => setKv('accentColor', event.target.value)} /><input value={kv.accentColor} maxLength={7} onChange={(event) => setKv('accentColor', event.target.value)} /></div>
-          </Field>
-          <Field label="Màu chữ trên nền">
-            <select value={kv.textTone} onChange={(event) => setKv('textTone', event.target.value as KeyVisual['textTone'])}>
-              <option value="light">Chữ sáng (nền tối)</option>
-              <option value="dark">Chữ tối (nền sáng)</option>
-            </select>
-          </Field>
-        </div>
-
-        <div className="row wrap">
-          <Field label="Font tiêu đề" hint="Tên font Google Fonts, hoặc tải file font riêng.">
-            <input value={kv.displayFont} onChange={(event) => edit((draft) => { draft.keyVisual.displayFont = event.target.value; draft.keyVisual.displayFontAssetId = null })} />
-          </Field>
-          <Field label="Font nội dung" hint="Tên font Google Fonts."><input value={kv.bodyFont} onChange={(event) => setKv('bodyFont', event.target.value)} /></Field>
-        </div>
-        <div className="row">
-          <button className="btn small" onClick={() => fontInput.current?.click()}>Tải font tiêu đề (.woff2/.ttf/.otf)</button>
-          {kv.displayFontAssetId && <span className="muted">Đang dùng font đã tải lên</span>}
-          <input ref={fontInput} type="file" accept=".woff2,.woff,.ttf,.otf" hidden onChange={uploadFont} />
-        </div>
-
-        <div className="field">
-          <span className="field-label">Ảnh tham chiếu (tối đa 4)</span>
-          <div className="refs">
-            {kv.referenceIds.map((id) => <div className="ref" key={id}><img src={assetUrl(id)} alt="Ảnh tham chiếu" /><button aria-label="Xóa ảnh tham chiếu" onClick={() => removeReference(id)}>×</button></div>)}
-            {kv.referenceIds.length < 4 && <button className="ref add" onClick={() => referenceInput.current?.click()}>+</button>}
-          </div>
-          <input ref={referenceInput} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={addReferences} />
-        </div>
+    {tab === 'moodboard' && <div className="two-col">
+      <Section title="Moodboard">
+        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
-    </div>
+      <div className="stack">{identity}{backgrounds}{components}</div>
+    </div>}
+    {tab === 'plan' && <PlanTab {...tabProps} />}
+    {tab === 'production' && <><ProductionTab {...tabProps} />{loosePosts}</>}
+    {tab === 'schedule' && <ScheduleTab {...tabProps} />}
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}

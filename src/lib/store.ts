@@ -15,6 +15,7 @@ function normalize(store: Store): Store {
       campaign.guardrailNotes ??= []
       campaign.guardrails ??= []
       campaign.keyVisual.subjectIds ??= []
+      campaign.keyVisual.sampleIds ??= []
       for (const piece of campaign.pieces) {
         piece.assets ??= []
         piece.production ??= piece.kind === 'reel' ? guessProduction(piece.visual) : 'internal'

@@ -41,7 +41,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
 
   function removeCampaign(id: string) {
     const campaign = workspace.campaigns.find((item) => item.id === id)
-    if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
+    if (campaign) [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...(campaign.keyVisual.subjectIds ?? []), ...(campaign.keyVisual.sampleIds ?? []), ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)].forEach((asset) => { if (asset) void api.deleteAsset(asset) })
     edit((draft) => { draft.campaigns = draft.campaigns.filter((item) => item.id !== id) })
   }
 
