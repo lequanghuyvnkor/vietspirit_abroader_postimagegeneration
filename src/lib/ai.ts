@@ -1,5 +1,6 @@
 import type { Campaign, Piece, Workspace } from './types.ts'
 import { inferBeats } from './beats.ts'
+import { foundationBrief } from './foundation.ts'
 import { splitSlides } from './text.ts'
 
 export type DraftSlide = { eyebrow: string; headline: string; accent: string; subtitle: string; cta: string }
@@ -24,7 +25,7 @@ export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piec
   const guardrails = [...campaign.guardrailNotes, ...campaign.guardrails].map((line) => `- ${line}`).join('\n')
   const prompt = [
     `THƯƠNG HIỆU: ${company.name}${company.industry ? ` (${company.industry})` : ''}. Đối tượng: ${company.audience || 'xem kế hoạch'}. Giọng điệu: ${company.tone || 'xem kế hoạch'}.`,
-    campaign.strategy && `CHIẾN LƯỢC CHIẾN DỊCH:\n${campaign.strategy}`,
+    foundationBrief(campaign),
     guardrails && `KHÔNG ĐƯỢC NÓI:\n${guardrails}`,
     `BÀI CẦN SOẠN: ${piece.code} · ${piece.title}`,
     `Funnel: ${piece.plan.funnel} · Pillar: ${piece.plan.pillar} · Định dạng: ${piece.plan.format}`,

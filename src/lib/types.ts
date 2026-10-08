@@ -138,6 +138,25 @@ export type Component = { id: string; name: string; assetId: string; width: numb
 /** A component placed on a post. Position is the center, as a fraction of the canvas. */
 export type Layer = { id: string; componentId: string; x: number; y: number; /** width as a fraction of canvas width */ w: number; opacity: number; rotation: number }
 
+export type Kpi = { id: string; label: string; target: string }
+export type Audience = { id: string; name: string; insight: string; barrier: string }
+export type Pillar = { id: string; name: string; message: string; proof: string }
+
+/** The campaign's communication foundation: what every post, AI prompt and check is built on. */
+export type Foundation = {
+  objective: string
+  /** Campaign period, YYYY-MM-DD. */
+  start: string
+  end: string
+  kpis: Kpi[]
+  audiences: Audience[]
+  bigIdea: string
+  keyMessage: string
+  pillars: Pillar[]
+  tone: string
+  dos: string[]
+}
+
 export type Campaign = {
   id: string
   name: string
@@ -149,6 +168,7 @@ export type Campaign = {
   pieces: Piece[]
   /** Values for [PLACEHOLDER] tokens, filled once and applied everywhere. */
   variables: Record<string, string>
+  foundation: Foundation
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */
@@ -208,5 +228,5 @@ export function newPost(name: string, company: Company): Post {
 }
 
 export function newCampaign(name: string, keyVisual: KeyVisual = emptyKeyVisual(), sources: Source[] = []): Campaign {
-  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], pieces: [], variables: {}, strategy: '', guardrailNotes: [], guardrails: [], updatedAt: now() }
+  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], pieces: [], variables: {}, foundation: { objective: '', start: '', end: '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }, strategy: '', guardrailNotes: [], guardrails: [], updatedAt: now() }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { defaultProductionNote, kindLabel, pieceTexts, scheduleWindow, suggestDates } from '../lib/plan.ts'
+import { campaignWindow } from '../lib/foundation.ts'
+import { defaultProductionNote, kindLabel, pieceTexts, suggestDates } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
 import { unresolvedIn } from '../lib/text.ts'
 import { STATUS_LABELS } from '../lib/types.ts'
@@ -33,7 +34,7 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
   const signature = useMemo(() => JSON.stringify(buildCards(campaign)), [campaign])
   const lastPushed = useRef<string | null>(null)
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
-  const window = scheduleWindow(campaign.strategy)
+  const window = campaignWindow(campaign)
   const undated = campaign.pieces.filter((piece) => !piece.date)
   const sorted = [...campaign.pieces].filter((piece) => piece.date).sort((a, b) => a.date.localeCompare(b.date) || a.plan.time.localeCompare(b.plan.time) || a.code.localeCompare(b.code))
   const perDay = new Map<string, number>()

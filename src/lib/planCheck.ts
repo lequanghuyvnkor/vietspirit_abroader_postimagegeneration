@@ -1,4 +1,5 @@
-import { pieceTexts, scheduleWindow } from './plan.ts'
+import { campaignWindow } from './foundation.ts'
+import { pieceTexts } from './plan.ts'
 import { unresolvedIn } from './text.ts'
 import type { Campaign, Piece } from './types.ts'
 
@@ -9,7 +10,7 @@ const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length
 /** Problems in one piece of the plan that are cheaper to fix now than after images are made. */
 export function pieceIssues(campaign: Campaign, piece: Piece): PlanIssue[] {
   const out: PlanIssue[] = []
-  const window = scheduleWindow(campaign.strategy)
+  const window = campaignWindow(campaign)
   if (!piece.date) out.push({ text: 'Chưa có ngày đăng', level: 'warn' })
   else if (window && (piece.date < window.start || piece.date > window.end)) out.push({ text: 'Ngày đăng ngoài kỳ chiến dịch', level: 'warn' })
   if (!piece.plan.hook.trim()) out.push({ text: 'Thiếu hook', level: 'warn' })

@@ -11,6 +11,8 @@ import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
 import { useBatch } from '../lib/batch.ts'
 import { Moodboard } from './Moodboard.tsx'
+import { FoundationTab } from './FoundationTab.tsx'
+import { hasFoundation } from '../lib/foundation.ts'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -138,12 +140,13 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   }
 
   const tabs: { key: CampaignTab; label: string; hint: string }[] = [
-    { key: 'moodboard', label: '① Moodboard', hint: 'Ảnh, không khí, màu, font, nền' },
-    { key: 'plan', label: '② Kế hoạch', hint: 'Nhập Excel, điền biến, kiểm tra' },
-    { key: 'production', label: '③ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
-    { key: 'schedule', label: '④ Lịch & xuất', hint: 'Lịch đăng, Google Docs, zip' },
+    { key: 'foundation', label: '① Nền tảng', hint: 'Mục tiêu, đối tượng, thông điệp, dữ kiện' },
+    { key: 'moodboard', label: '② Moodboard', hint: 'Ảnh, không khí, màu, font, nền' },
+    { key: 'plan', label: '③ Kế hoạch', hint: 'Các bài, lịch, kiểm tra' },
+    { key: 'production', label: '④ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
+    { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch đăng, Google Docs, zip' },
   ]
-  const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : 'moodboard')
+  const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : hasFoundation(campaign) ? 'moodboard' : 'foundation')
   const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch }
 
   const loosePosts = showLoose && <Section title="Bài đăng lẻ (ngoài kế hoạch)" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
@@ -249,6 +252,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       </button>)}
     </nav>
 
+    {tab === 'foundation' && <FoundationTab {...tabProps} />}
     {tab === 'moodboard' && <div className="two-col">
       <Section title="Moodboard">
         <Moodboard keyVisual={kv} components={campaign.components} keys={keys} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.ts'
-import { defaultProductionNote, guessProduction } from './plan.ts'
+import { defaultProductionNote, guessProduction, scheduleWindow } from './plan.ts'
 import type { Store } from './types.ts'
 
 /** Fills fields added after data was first saved. */
@@ -14,6 +14,10 @@ function normalize(store: Store): Store {
       campaign.strategy ??= ''
       campaign.guardrailNotes ??= []
       campaign.guardrails ??= []
+      if (!campaign.foundation) {
+        const window = scheduleWindow(campaign.strategy)
+        campaign.foundation = { objective: '', start: window?.start ?? '', end: window?.end ?? '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }
+      }
       campaign.keyVisual.subjectIds ??= []
       campaign.keyVisual.sampleIds ??= []
       for (const piece of campaign.pieces) {

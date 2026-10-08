@@ -12,7 +12,6 @@ import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { ScheduleTable } from './ScheduleTable.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
-import { VariablesPanel } from './VariablesPanel.tsx'
 
 type Props = {
   workspace: Workspace
@@ -94,9 +93,9 @@ function KeyPicker({ batch, keys }: { batch: Batch; keys: ApiKey[] }) {
   return <select aria-label="API dùng cho AI" value={batch.activeKey?.id ?? ''} onChange={(event) => batch.setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>
 }
 
-/** ② Kế hoạch: import, variables, and a check of every piece before production starts. */
+/** ③ Kế hoạch: the pieces, imported or written here, with a check of each before production starts. */
 export function PlanTab(props: Props & { batch: Batch }) {
-  const { workspace, campaign, edit, batch } = props
+  const { workspace, campaign, batch } = props
   const [importing, setImporting] = useState(false)
   const issues = campaign.pieces.map((piece) => ({ piece, issues: pieceIssues(campaign, piece) }))
   const withIssues = issues.filter((entry) => entry.issues.length > 0)
@@ -125,7 +124,6 @@ export function PlanTab(props: Props & { batch: Batch }) {
         </div>}
       {campaign.pieces.length > 0 && <p className={withIssues.length ? 'notice' : 'muted'}>{withIssues.length ? `${withIssues.length}/${campaign.pieces.length} bài còn điểm cần xem lại trước khi sản xuất.` : 'Kế hoạch ổn, chuyển sang tab Sản xuất.'}</p>}
     </Section>
-    <VariablesPanel workspace={workspace} campaign={campaign} edit={edit} />
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
   </>
 }

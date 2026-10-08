@@ -342,3 +342,13 @@ textarea { resize: vertical; }
 .piece-brief { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; }
 .piece-brief details summary { cursor: pointer; }
 @media (max-width: 900px) { .piece-flow { grid-template-columns: minmax(0, 1fr); } .piece-brief { position: static; max-height: none; } }
+
+/* Foundation */
+.steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 900px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sub-card { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.sub-card .row input { flex: 1; min-width: 0; }
+.issues { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .85rem; }
+.issues li.warn::marker { color: #b36b00; }
+.issues li.info::marker { color: var(--muted); }
