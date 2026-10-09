@@ -156,7 +156,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       <button className="piece-body" onClick={() => open(piece)}>
         <strong>{piece.code} · {piece.title}</strong>
         <small className="muted">{kindLabel(piece)}{slides.length > 1 ? ` · ${slides.length} ảnh` : ''}{piece.date ? ` · ${piece.date.slice(8, 10)}/${piece.date.slice(5, 7)}` : ''}</small>
-        <small>Tiếp theo: <b>{nextStep(piece)}</b>{warn ? <span className="flag warn">{warn} cảnh báo</span> : null}</small>
+        <small>Tiếp theo: <b>{nextStep(piece)}</b>{piece.approval && piece.status === 'ready' ? <span className="flag ok">🔒 Đã duyệt</span> : null}{warn ? <span className="flag warn">{warn} cảnh báo</span> : null}</small>
       </button>
       {makes && <div className="piece-actions">
         <button className="btn small" disabled={blocked || slides.length === 0} title={slides.length === 0 ? 'Bài này chưa có slide' : 'Tạo ảnh chỉ cho bài này'} onClick={() => { void batch.backgroundsAll([piece]) }}>Tạo ảnh</button>

@@ -430,3 +430,14 @@ textarea { resize: vertical; }
 .coverage-gaps { grid-column: 1 / -1; margin: 0; padding: 10px 12px 10px 28px; border-radius: 8px; background: color-mix(in srgb, #d98a00 14%, transparent); font-size: .85rem; }
 
 .doc-preview { width: 100%; height: 640px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
+/* Review */
+.review-tier { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.review-tier h3 { margin: 0; font-size: .9rem; }
+.auto-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .85rem; }
+.auto-checks li { padding: 6px 10px; border-radius: 6px; background: var(--bg); }
+.auto-block { background: color-mix(in srgb, var(--danger) 10%, transparent) !important; color: var(--danger); }
+.auto-warn { background: color-mix(in srgb, #d98a00 14%, transparent) !important; }
+.auto-ok { background: color-mix(in srgb, #1f9d55 14%, transparent) !important; }
+.notice.approved { background: color-mix(in srgb, #1f9d55 14%, transparent); }
+.review-history > summary { cursor: pointer; margin-bottom: 8px; }

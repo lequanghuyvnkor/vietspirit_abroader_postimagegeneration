@@ -86,8 +86,8 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
       <td className="production-cell"><select aria-label={`Bên sản xuất ${piece.code}`} value={piece.production} onChange={(event) => patch(piece.id, (item) => { item.production = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production === 'external' ? 'internal' : 'external')) item.productionNote = defaultProductionNote(item.production) })}><option value="internal">Nội bộ</option><option value="external">Bên ngoài</option></select>{piece.productionNote && <small className="muted block">{piece.productionNote.slice(0, 70)}{piece.productionNote.length > 70 ? '…' : ''}</small>}</td>
       <td>{piece.plan.funnel}<small className="muted block">{piece.plan.pillar}</small></td>
       <td>
-        <select aria-label={`Trạng thái ${piece.code}`} value={piece.status} onChange={(event) => patch(piece.id, (item) => { item.status = event.target.value as PieceStatus })}>
-          {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+        <select aria-label={`Trạng thái ${piece.code}`} value={piece.status} onChange={(event) => patch(piece.id, (item) => { item.status = event.target.value as PieceStatus; if (item.status !== 'ready') delete item.approval })}>
+          {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && piece.status !== 'ready'}>{STATUS_LABELS[status]}</option>)}
         </select>
       </td>
       <td className="flags">{flags.length === 0 ? <span className="muted">—</span> : flags.map((flag) => <span key={flag.text} className={`flag ${flag.level}`}>{flag.text}</span>)}</td>

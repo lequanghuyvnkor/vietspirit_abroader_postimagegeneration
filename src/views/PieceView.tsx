@@ -18,6 +18,7 @@ import { ConfirmDialog, Field, Section } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { PieceAssets } from './PieceAssets.tsx'
 import { PieceBriefEditor } from './PieceBriefEditor.tsx'
+import { ReviewPanel } from './ReviewPanel.tsx'
 import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 
 type Props = {
@@ -134,7 +135,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
     downloadBlob(await buildPack(workspace, campaign, [piece], false), `${piece.code}.zip`)
   }
 
-  const setStatus = (status: PieceStatus) => edit((_, item) => { item.status = status })
+  const setStatus = (status: PieceStatus) => edit((_, item) => { item.status = status; if (status !== 'ready') delete item.approval })
   const aiButton = <div className="row wrap">
     {keys.length > 0 && <select aria-label="API dùng để soạn" value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.textModel}</option>)}</select>}
     <button className="btn primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('ai', aiDraft) }}>{busy === 'ai' ? 'AI đang soạn…' : 'Soạn nháp bằng AI'}</button>
@@ -152,7 +153,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
         <label className="field"><span className="field-label">Ngày đăng</span><input type="date" value={piece.date} onChange={(event) => edit((_, item) => { item.date = event.target.value })} /></label>
         <label className="field"><span className="field-label">Trạng thái</span>
           <select value={piece.status} onChange={(event) => setStatus(event.target.value as PieceStatus)}>
-            {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && blockers.length > 0}>{STATUS_LABELS[status]}{status === 'ready' && blockers.length ? ` (còn ${blockers.join(', ')})` : ''}</option>)}
+            {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && piece.status !== 'ready'}>{STATUS_LABELS[status]}{status === 'ready' && piece.status !== 'ready' ? ' (qua bước Duyệt)' : ''}</option>)}
           </select>
         </label>
       </div>
@@ -249,21 +250,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
         </Section>}
         <PieceAssets workspace={workspace} campaign={campaign} piece={piece} slides={slides} edit={edit} onError={onError} />
 
-        <Section title={`${parked ? '' : '3 · '}Duyệt`} aside={<span className="muted">{piece.checks.filter((check) => check.done).length}/{piece.checks.length} mục</span>}>
-          {piece.checks.length === 0 && <p className="muted">Không có mục duyệt nào.</p>}
-          <div className="list">
-            {piece.checks.map((check) => <label className="check-row" key={check.id}>
-              <input type="checkbox" checked={check.done} onChange={(event) => edit((_, item) => { const target = item.checks.find((entry) => entry.id === check.id); if (target) target.done = event.target.checked })} />
-              <span><span className={check.done ? 'done' : ''}>{check.text}</span><small className="muted"> · {check.owner}</small></span>
-            </label>)}
-          </div>
-          {piece.compliance && <p className="muted">Ghi chú duyệt: {piece.compliance}</p>}
-          <div className="row wrap">
-            {piece.status !== 'review' && piece.status !== 'ready' && <button className="btn" onClick={() => setStatus('review')}>Gửi duyệt</button>}
-            <button className="btn primary" disabled={blockers.length > 0 || piece.status === 'ready'} onClick={() => setStatus('ready')}>{piece.status === 'ready' ? 'Đã sẵn sàng' : 'Đánh dấu sẵn sàng'}</button>
-            {blockers.length > 0 && <small className="muted">Còn {blockers.join(' và ')}.</small>}
-          </div>
-        </Section>
+        <ReviewPanel campaign={campaign} piece={piece} parked={parked} edit={edit} />
 
         {!parked && <Section title="4 · Xuất">
           <div className="row wrap">

@@ -14,6 +14,7 @@ import { BackupsDialog } from './views/BackupsDialog.tsx'
 import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
 import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
 import { DocsChip } from './views/DocsChip.tsx'
+import { ApprovalGuard } from './views/ApprovalGuard.tsx'
 import './App.css'
 
 function useRoute(): Route {
@@ -80,6 +81,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   ]
 
   return <DocsSyncProvider store={store} update={update}><SheetSyncProvider store={store} update={update}><div className="shell">
+    <ApprovalGuard store={store} update={update} onNotice={reportError} />
     <header className="topbar">
       <nav aria-label="Vị trí hiện tại" className="crumbs">
         {crumbs.map((crumb, index) => <span key={index}>{index > 0 && <i>/</i>}{index === crumbs.length - 1 && !post

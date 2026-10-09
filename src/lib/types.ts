@@ -146,6 +146,16 @@ export type SheetSync = {
   conflicts: SheetConflict[]
 }
 
+/** What a piece looked like at one moment: enough to restore it. Pictures stay referenced by background id. */
+export type PieceSnapshot = { title: string; date: string; plan: PiecePlan; visual: VisualBrief; caption: string; hashtags: string; compliance: string; checks: Check[]; posts: Post[] }
+
+export type PieceVersionEvent = 'submitted' | 'approved' | 'changes' | 'edited' | 'reopened' | 'manual' | 'restore'
+
+export type PieceVersion = { id: string; at: string; event: PieceVersionEvent; note: string; snapshot: PieceSnapshot }
+
+/** The brand approval of a piece: when, and the content fingerprint that was approved (any later edit breaks it). */
+export type Approval = { at: string; fingerprint: string; note: string }
+
 /** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
 export type Piece = {
   id: string
@@ -165,6 +175,10 @@ export type Piece = {
   production: Production
   /** What the Sheet said at the last pull for the fields both sides edit; tells a Sheet change from an app change. */
   sheetBase?: { caption: string; hashtags: string; date: string; time: string; linked?: boolean; assets?: string[] }
+  approval?: Approval
+  /** Why the reviewer sent it back (shown until the next submission). */
+  reviewNote?: string
+  history?: PieceVersion[]
   /** Hand-off note for whoever produces it (shown in the plan and in the hand-off brief). */
   productionNote: string
 }

@@ -52,6 +52,9 @@ export function duplicatePiece(campaign: Campaign, id: string): Piece | null {
   copy.checks = copy.checks.map((check) => ({ ...check, id: newId(), done: false }))
   copy.assets = copy.assets.map((asset) => ({ ...asset, id: newId(), assetId: null, done: false }))
   delete copy.sheetBase
+  delete copy.approval
+  delete copy.reviewNote
+  delete copy.history
   addPiece(campaign, copy, id)
   return copy
 }
