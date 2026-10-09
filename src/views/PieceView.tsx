@@ -231,6 +231,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
               <figcaption>
                 <strong>{post.name}</strong>
                 <small>{post.headline || 'Chưa có tiêu đề'}{post.accent ? ` · ${post.accent}` : ''}</small>
+                {!post.excluded && lintCopy(applyVars([post.eyebrow, post.headline, post.accent, post.subtitle].filter(Boolean).join('. '), campaign.variables)).filter((hit) => hit.level === 'warn').slice(0, 2).map((hit) => <small className="flag warn" key={hit.rule} title={hit.excerpt}>{hit.rule}</small>)}
                 {isReel && <label className="duration">Thời lượng <input type="number" min={1} max={30} step={0.5} aria-label={`Thời lượng ${post.name} (giây)`} value={post.duration ?? 3} onChange={(event) => edit((draft) => { const target = draft.posts.find((item) => item.id === post.id); if (target) target.duration = Math.min(30, Math.max(1, Number(event.target.value) || sceneDuration(post))) })} /> giây</label>}
                 {(post.variantOf || post.excluded) && <small className="flag info">{post.variantOf ? 'Bản chỉnh' : 'Bản gốc'} · {post.excluded ? 'không xuất' : 'đang xuất'}</small>}
                 <span className="row wrap">

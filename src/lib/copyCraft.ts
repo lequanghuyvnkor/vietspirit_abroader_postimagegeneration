@@ -53,7 +53,7 @@ CÁCH LÀM:
 export type CopyHit = { rule: string; excerpt: string; level: 'warn' | 'info' }
 
 const RULES: { rule: string; pattern: RegExp; level: 'warn' | 'info' }[] = [
-  { rule: 'Phủ định rồi đảo ("không chỉ X mà còn Y")', pattern: /không chỉ[^.\n]{2,80}mà còn|không phải[^.\n]{2,60}mà là|không đơn thuần[^.\n]{2,60}mà/i, level: 'warn' },
+  { rule: 'Phủ định rồi đảo ("không chỉ X mà còn Y")', pattern: /không chỉ[^.\n]{2,80}mà còn|không chỉ\s+(là\s+)?[^.\n]{2,70}[,;]\s*(đây|mà|còn)\b|không phải[^.\n]{2,60}(mà là|[,;]\s*(mà|đây là))|không đơn thuần[^.\n]{2,60}mà/i, level: 'warn' },
   { rule: 'Chuỗi phủ định ("không X, không Y, không Z")', pattern: /(không|chẳng)\s[^,.;\n]{1,30}[,;]\s*(không|chẳng)\s[^,.;\n]{1,30}[,;]\s*(và\s)?(không|chẳng)\s/i, level: 'warn' },
   { rule: 'Câu tự hỏi tự đáp', pattern: /(Kết quả|Bí quyết|Điều tuyệt vời nhất|Điểm đặc biệt|Sự thật)\s*[?:]/, level: 'warn' },
   { rule: 'Mở bài sáo rỗng', pattern: /(trong (thế giới|thời đại|bối cảnh)[^.\n]{0,40}(hiện nay|ngày nay|nhanh|số)|bạn đã bao giờ tự hỏi|hãy cùng (khám phá|tìm hiểu|bắt đầu)|bạn có biết rằng)/i, level: 'warn' },
