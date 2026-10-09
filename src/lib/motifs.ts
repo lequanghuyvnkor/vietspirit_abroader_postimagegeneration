@@ -1,0 +1,119 @@
+import { formatOf, newId } from './types.ts'
+import type { Campaign, Component, Layer, MotifRole, Post } from './types.ts'
+
+export const ROLE_LABELS: Record<MotifRole, string> = { hero: 'Biểu tượng chính', line: 'Đường bay / vệt dài', decor: 'Họa tiết điểm', off: 'Không dùng' }
+
+/** A rough first guess from the shape alone (logos and long thin pieces are easy; the main symbol needs a human or the AI). */
+export function guessRole(component: Component): MotifRole {
+  if (/^logo/i.test(component.name)) return 'off'
+  const aspect = component.width / Math.max(1, component.height)
+  if (aspect >= 7 || aspect <= 1 / 7) return 'line'
+  if (Math.max(component.width, component.height) <= 140 && aspect >= 0.6 && aspect <= 1.7) return 'decor'
+  return 'off'
+}
+
+export type MotifPool = { hero: Component[]; line: Component[]; decor: Component[] }
+
+/** The graphics the user (or the AI) has given a role. A graphic with no role is never used on its own. */
+export function motifPool(campaign: Campaign): MotifPool {
+  const pool: MotifPool = { hero: [], line: [], decor: [] }
+  for (const component of campaign.components) if (component.role && component.role !== 'off') pool[component.role].push(component)
+  return pool
+}
+
+export const motifCount = (pool: MotifPool) => pool.hero.length + pool.line.length + pool.decor.length
+
+/**
+ * "composite": the app puts the brand graphics on the slide itself (exact shapes), and the AI is told to leave that room as plain atmosphere.
+ * "ai": the graphics are sent to the AI as references and it draws its own version. Composite is the default once any graphic has a role.
+ */
+export const compositeMode = (campaign: Campaign): boolean => campaign.keyVisual.motifMode !== 'ai' && motifCount(motifPool(campaign)) > 0
+
+function seeded(seed: string): () => number {
+  let h = 1779033703 ^ seed.length
+  for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19) }
+  let state = (h ^ (h >>> 16)) >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export type FreeBand = { freeFrom: number; freeTo: number }
+
+const layer = (component: Component, x: number, y: number, w: number, opacity: number, rotation: number): Layer => ({ id: newId(), componentId: component.id, x, y, w, opacity, rotation, auto: true })
+
+/**
+ * Where the brand graphics go on each slide of a piece: only inside the free band (the room the text does not use).
+ * The main symbol travels across a carousel, the long line continues from slide to slide, and small ornaments are scattered
+ * with a fixed seed so the same slide always gets the same picture.
+ */
+export function planMotifs(campaign: Campaign, slides: Post[], band: FreeBand, density = 0.5): Map<string, Layer[]> {
+  const pool = motifPool(campaign)
+  const out = new Map<string, Layer[]>()
+  const count = slides.length
+  slides.forEach((post, index) => {
+    const { width, height } = formatOf(post.format)
+    const top = band.freeFrom * height
+    const room = (band.freeTo - band.freeFrom) * height
+    const layers: Layer[] = []
+    out.set(post.id, layers)
+    if (room < height * 0.07 || post.hero?.layout === 'full') return
+    const random = seeded(post.id)
+    const progress = count > 1 ? index / (count - 1) : 0.5
+    let heroBox: { x0: number; x1: number; y0: number; y1: number } | null = null
+
+    if (pool.line.length > 0) {
+      const line = pool.line[index % pool.line.length]
+      const w = 1.3
+      layers.push(layer(line, 0.5 + ((count - 1) / 2 - index) * 0.16, (top + room * 0.88) / height, w, 0.8, -2))
+    }
+    if (pool.hero.length > 0) {
+      const hero = pool.hero[0]
+      const aspect = hero.width / Math.max(1, hero.height)
+      let h = room * 0.62
+      let w = h * aspect
+      if (w > width * 0.42) { w = width * 0.42; h = w / aspect }
+      const x = count > 1 ? 0.28 + 0.44 * progress : 0.7
+      const y = (top + room * 0.5) / height
+      layers.push(layer(hero, x, y, w / width, 1, 0))
+      heroBox = { x0: x - w / width / 2 - 0.03, x1: x + w / width / 2 + 0.03, y0: y - h / height / 2 - 0.03, y1: y + h / height / 2 + 0.03 }
+    }
+    if (pool.decor.length > 0) {
+      const wanted = 2 + Math.round(4 * density)
+      for (let placed = 0, tries = 0; placed < wanted && tries < wanted * 12; tries++) {
+        const x = 0.06 + random() * 0.88
+        const y = (top + room * (0.05 + random() * 0.9)) / height
+        if (heroBox && x > heroBox.x0 && x < heroBox.x1 && y > heroBox.y0 && y < heroBox.y1) continue
+        const w = 0.03 + random() * 0.04
+        layers.push(layer(pool.decor[(index + placed) % pool.decor.length], x, y, w, 0.45 + random() * 0.45, Math.round(random() * 40 - 20)))
+        placed++
+      }
+    }
+  })
+  return out
+}
+
+/** Slides of a piece that carry the motifs: originals only, in order. */
+const baseSlides = (campaign: Campaign, pieceId: string) => campaign.posts.filter((post) => post.pieceId === pieceId && !post.variantOf && !post.excluded)
+
+/** Replaces the automatic graphics of a piece's slides (or of one slide) by a fresh plan. Graphics the user placed or moved are kept. */
+export function applyMotifs(campaign: Campaign, pieceId: string, band: FreeBand, onlyPostId?: string): number {
+  if (!compositeMode(campaign)) return 0
+  const slides = baseSlides(campaign, pieceId)
+  const plan = planMotifs(campaign, slides, band, campaign.keyVisual.motifDensity ?? 0.5)
+  let changed = 0
+  for (const post of slides) {
+    if (onlyPostId && post.id !== onlyPostId) continue
+    post.layers = [...post.layers.filter((item) => !item.auto), ...(plan.get(post.id) ?? [])]
+    changed += 1
+  }
+  return changed
+}
+
+export function clearAutoMotifs(campaign: Campaign, pieceId: string): void {
+  for (const post of campaign.posts) if (post.pieceId === pieceId) post.layers = post.layers.filter((item) => !item.auto)
+}

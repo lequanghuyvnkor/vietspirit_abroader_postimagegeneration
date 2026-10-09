@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ApiKey } from './api.ts'
 import { applyDraft, fetchDraft } from './draft.ts'
-import { applyLayouts, attachPlate, generatePlate, layoutWithPlate } from './plate.ts'
+import { applyLayouts, applyMotifs, attachPlate, compositeMode, generatePlate, layoutWithPlate, motifBand } from './plate.ts'
 import type { Campaign, Piece, Workspace } from './types.ts'
 
 export type Job = { label: string; done: number; total: number; failures: string[] }
@@ -31,7 +31,8 @@ export function useBatch(workspace: Workspace, campaign: Campaign, edit: (change
   const backgroundsAll = (pieces: Piece[]) => run('Tạo ảnh (nền theo chữ)', pieces, async (piece) => {
     const result = await generatePlate(workspace, campaign, piece, activeKey?.id)
     const layouts = await layoutWithPlate(workspace, campaign, piece, result)
-    edit((draftCampaign) => { attachPlate(draftCampaign, piece.id, result); applyLayouts(draftCampaign, layouts) })
+    const band = compositeMode(campaign) ? await motifBand(workspace, campaign, piece, { result, patches: layouts }) : null
+    edit((draftCampaign) => { attachPlate(draftCampaign, piece.id, result); applyLayouts(draftCampaign, layouts); if (band) applyMotifs(draftCampaign, piece.id, band) })
     if (result.warning) throw new Error(result.warning)
   })
 

@@ -1,3 +1,4 @@
+import { compositeMode } from './motifs.ts'
 import { formatOf, type Campaign, type FormatKey, type Workspace } from './types.ts'
 
 /**
@@ -10,17 +11,20 @@ const percent = (value: number) => `${Math.round(value * 100)}%`
 
 /** Clauses that ask for cards, tickets or panels are dropped: those are layout, added later, and the model draws them as blank rectangles under the text. */
 const LAYOUT_WORDS = /(thẻ|card|boarding|panel|\bvé\b|ticket|giao diện|\bui\b|khung chứa|nút bấm|button)/i
-export const sceneConcept = (concept: string) => concept
+/** Clauses that describe the brand symbol or its route lines: in composite mode the app draws those itself, so the AI must not hear about them. */
+const MOTIF_WORDS = /(ngôi sao|chòm sao|sao|quỹ đạo|đường bay|vệt|route|orbit|flight path|constellation|star)/i
+export const sceneConcept = (concept: string, composite = false) => concept
   // Split at ";" too: the brief often joins the star, the route and the card in one sentence, and only the card clause may go.
   .split(/(?<=[.!?;])\s+/)
-  .filter((clause) => !LAYOUT_WORDS.test(clause))
+  .filter((clause) => !LAYOUT_WORDS.test(clause) && !(composite && MOTIF_WORDS.test(clause)))
   .join(' ')
   .replace(/[;,]\s*$/, '.')
   .trim()
 
 /** Main-symbol images first, then mood images, at most four (what the image models accept). Sample posts are never sent. */
-export function generationRefs(kv: Campaign['keyVisual']): string[] {
-  return [...(kv.subjectIds ?? []), ...kv.referenceIds].slice(0, 4)
+export function generationRefs(kv: Campaign['keyVisual'], composite = false): string[] {
+  // In composite mode the main symbol is added by the app afterwards, so it is not shown to the AI.
+  return [...(composite ? [] : kv.subjectIds ?? []), ...kv.referenceIds].slice(0, 4)
 }
 
 /** Builds a background-plate prompt from the campaign's key visual inputs. No text is ever requested from the model. */
@@ -28,13 +32,15 @@ export function buildBackgroundPrompt(workspace: Workspace, campaign: Campaign, 
   const { company } = workspace
   const kv = campaign.keyVisual
   const { width, height } = formatOf(format)
-  const refs = generationRefs(kv)
+  const composite = compositeMode(campaign)
+  const refs = generationRefs(kv, composite)
   const subjects = refs.filter((id) => (kv.subjectIds ?? []).includes(id)).length
   const moods = refs.length - subjects
   const lines = [
     `Create a background image plate for a social media post (${width}x${height}). Text and logo are added later in a separate layout step.`,
-    kv.concept && `Key visual concept: ${zones ? sceneConcept(kv.concept) : kv.concept}`,
-    kv.subject && `Main visual element: ${kv.subject}`,
+    kv.concept && `Moodboard concept: ${zones || composite ? sceneConcept(kv.concept, composite) : kv.concept}`,
+    kv.subject && !composite && `Main visual element: ${kv.subject}`,
+    composite && 'IMPORTANT: the brand graphics (the main symbol, route lines and small ornaments) are placed on top afterwards by the app as separate transparent images. Do NOT draw any star, constellation, route line, orbit, flight path, arrow or ornament anywhere. Keep the free band as clean atmosphere only (soft glow, gradient, subtle texture) where those graphics will sit.',
     subjects > 0 && `The first ${subjects} attached image(s) show the campaign's main visual symbol. Keep that symbol recognisable (its shape and colors) in the scene, placed in the lower part of the frame.`,
     moods > 0 && `The ${subjects ? 'other' : ''} ${moods} attached image(s) are mood references. Take ONLY their color grading, lighting, atmosphere and material feel. Do not copy any object, card, panel, ticket, badge, icon, frame, line, chart, text or layout from them.`,
     kv.palette.length > 0 && `Color palette (use as the dominant colors): ${kv.palette.join(', ')}.`,

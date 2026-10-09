@@ -8,6 +8,8 @@ import { Field, Modal } from './ui.tsx'
 type Props = {
   keyVisual: KeyVisual
   components: Component[]
+  /** The app places the graphics itself (so the main symbol is not sent to the AI). */
+  composite?: boolean
   keys: ApiKey[]
   /** The Foundation's wording (big idea, message, tone) that the AI turns into a visual direction. */
   brief?: string
@@ -17,14 +19,14 @@ type Props = {
 }
 
 /** Moodboard images with a role each, the AI reading of them, and the written direction the image model follows. */
-export function Moodboard({ keyVisual: kv, components, keys, brief = '', onChange, onManageKeys, onError }: Props) {
+export function Moodboard({ keyVisual: kv, components, composite = false, keys, brief = '', onChange, onManageKeys, onError }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [uploadRole, setUploadRole] = useState<MoodRole>('mood')
   const [picking, setPicking] = useState(false)
   const [reading, setReading] = useState(false)
   const [proposal, setProposal] = useState<MoodReading | null>(null)
   const images = moodImages(kv)
-  const sent = new Set(generationRefs(kv))
+  const sent = new Set(generationRefs(kv, composite))
   const key = keys.find((item) => item.isDefault) ?? keys[0]
 
   function pick(role: MoodRole) {

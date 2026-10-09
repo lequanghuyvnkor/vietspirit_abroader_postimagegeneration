@@ -11,6 +11,8 @@ import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
 import { useBatch } from '../lib/batch.ts'
 import { Moodboard } from './Moodboard.tsx'
+import { ROLE_LABELS, compositeMode, guessRole } from '../lib/motifs.ts'
+import type { MotifRole } from '../lib/types.ts'
 import { FoundationTab } from './FoundationTab.tsx'
 import { DocumentTab } from './DocumentTab.tsx'
 import { MeasureTab } from './MeasureTab.tsx'
@@ -173,17 +175,31 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     </div>}
   </details>
 
-  const components = <details className="card collapsible">
-    <summary><h2>Thành phần đồ họa ({campaign.components.length})</h2><span className="muted">Sao, đường bay, thẻ kính… cắt từ PDF để đặt lên bài</span></summary>
-    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button></div>
+  const setRole = (id: string, role: MotifRole) => edit((draft) => { const item = draft.components.find((entry) => entry.id === id); if (item) item.role = role })
+  const suggestRoles = () => edit((draft) => { for (const item of draft.components) item.role = guessRole(item) })
+  const composite = compositeMode(campaign)
+  const components = <details className="card collapsible" open={campaign.components.length > 0 && !campaign.components.some((item) => item.role)}>
+    <summary><h2>Họa tiết thương hiệu ({campaign.components.length})</h2><span className="muted">{composite ? 'App tự đặt lên ảnh, AI không vẽ lại' : 'Gán vai trò để app đặt đúng lên ảnh'}</span></summary>
+    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>{campaign.components.length > 0 && <button className="btn small" title="Đoán vai trò theo hình dạng: dài mảnh = đường bay, nhỏ vuông = họa tiết điểm. Biểu tượng chính bạn tự chọn." onClick={suggestRoles}>Gợi ý vai trò</button>}</div>
     {campaign.components.length === 0
-      ? <p className="muted">Chưa có thành phần.</p>
-      : <div className="components">
-        {campaign.components.map((item) => <figure key={item.id} title={item.name}>
-          <div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div>
-          <figcaption><span>{item.name}</span><button className="btn small ghost" aria-label={`Xóa ${item.name}`} onClick={() => removeComponent(item.id)}>×</button></figcaption>
-        </figure>)}
-      </div>}
+      ? <p className="muted">Chưa có họa tiết.</p>
+      : <>
+        <div className="components">
+          {campaign.components.map((item) => <figure key={item.id} title={item.name}>
+            <div className="checker"><img src={assetUrl(item.assetId)} alt={item.name} /></div>
+            <figcaption><span>{item.name}</span><button className="btn small ghost" aria-label={`Xóa ${item.name}`} onClick={() => removeComponent(item.id)}>×</button></figcaption>
+            <select aria-label={`Vai trò của ${item.name}`} value={item.role ?? 'off'} onChange={(event) => setRole(item.id, event.target.value as MotifRole)}>
+              {(Object.keys(ROLE_LABELS) as MotifRole[]).map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+            </select>
+          </figure>)}
+        </div>
+        <div className="row">
+          <label><input type="radio" name="motif-mode" checked={kv.motifMode !== 'ai'} onChange={() => edit((draft) => { draft.keyVisual.motifMode = 'composite' })} /> App đặt họa tiết (chính xác, khuyên dùng)</label>
+          <label><input type="radio" name="motif-mode" checked={kv.motifMode === 'ai'} onChange={() => edit((draft) => { draft.keyVisual.motifMode = 'ai' })} /> AI tự vẽ theo mô tả</label>
+        </div>
+        {kv.motifMode !== 'ai' && <label className="row">Độ dày họa tiết điểm <input type="range" min={0} max={1} step={0.1} value={kv.motifDensity ?? 0.5} onChange={(event) => edit((draft) => { draft.keyVisual.motifDensity = Number(event.target.value) })} /></label>}
+        <p className="muted">{composite ? 'Khi tạo ảnh, họa tiết được đặt vào vùng trống của từng slide. Có thể kéo, đổi cỡ, xóa trong "Chỉnh" của slide, hoặc bấm "Đặt lại họa tiết" ở bài.' : 'Chưa gán vai trò nào (hoặc đang chọn AI vẽ): ảnh chỉ dựa vào mô tả chữ.'}</p>
+      </>}
   </details>
 
   return <div className="page">
@@ -202,7 +218,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {tab === 'moodboard' && <p className="muted tab-note"><b>Moodboard</b> là phần HÌNH của chiến dịch: màu, font, ảnh tham chiếu, thành phần đồ họa, nền. Nội dung chữ (mục tiêu, thông điệp, trụ cột) nằm ở tab ① Nền tảng và ③ Kế hoạch; "Mô tả không khí" ở đây là để AI vẽ nền, không phải ý tưởng truyền thông.</p>}
     {tab === 'moodboard' && <div className="two-col">
       <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF moodboard. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button>}>
-        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
+        <Moodboard keyVisual={kv} components={campaign.components} composite={compositeMode(campaign)} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
       <div className="stack">{identity}{backgrounds}{components}</div>
     </div>}

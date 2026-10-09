@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, fetchCaption, fetchDraft } from '../lib/draft.ts'
-import { applyLayouts, attachPlate, generatePlate, layoutWithPlate } from '../lib/plate.ts'
+import { applyLayouts, applyMotifs, attachPlate, compositeMode, generatePlate, layoutWithPlate, motifBand } from '../lib/plate.ts'
 import { planLayouts } from '../lib/autoLayout.ts'
 import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { buildStoryboard } from '../lib/storyboard.ts'
@@ -103,15 +103,27 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   /** Free: re-chooses where each slide's text sits, its size and the crop of the shared picture. */
   async function relayout() {
     const layouts = await planLayouts(workspace, campaign, slides)
-    edit((c) => applyLayouts(c, layouts))
+    // The text moved, so the room left for the brand graphics moved too.
+    const preview = structuredClone(campaign)
+    applyLayouts(preview, layouts)
+    const band = layouts.size > 0 && compositeMode(campaign) ? await motifBand(workspace, preview, piece) : null
+    edit((c, item) => { applyLayouts(c, layouts); if (band) applyMotifs(c, item.id, band) })
     setPlateNote(layouts.size === 0 ? 'Chưa có nền để bố cục. Bấm "Tạo ảnh" trước.' : `Đã chọn lại bố cục cho ${layouts.size} slide.`)
+  }
+
+  /** Free: places the brand graphics (main symbol, route line, ornaments) on the slides, inside the free band. */
+  async function placeGraphics() {
+    const band = await motifBand(workspace, campaign, piece)
+    edit((c, item) => { applyMotifs(c, item.id, band) })
+    setPlateNote(compositeMode(campaign) ? `Đã đặt họa tiết lên ${slides.length} slide. Kéo, đổi cỡ hoặc xóa từng họa tiết ở nút "Chỉnh" của slide.` : 'Chưa có họa tiết nào được gán vai trò. Vào tab Moodboard → Họa tiết để gán.')
   }
 
   async function makeBackground(onlyPostId?: string) {
     setPlateNote('')
     const result = await generatePlate(workspace, campaign, piece, activeKey?.id, onlyPostId)
     const layouts = await layoutWithPlate(workspace, campaign, piece, result, onlyPostId)
-    edit((c, item) => { attachPlate(c, item.id, result, onlyPostId); applyLayouts(c, layouts) })
+    const band = compositeMode(campaign) ? await motifBand(workspace, campaign, piece, { result, patches: layouts, onlyPostId }) : null
+    edit((c, item) => { attachPlate(c, item.id, result, onlyPostId); applyLayouts(c, layouts); if (band) applyMotifs(c, item.id, band, onlyPostId) })
     const free = Math.round((result.zones.freeTo - result.zones.freeFrom) * 100)
     setPlateNote([result.warning, free < 20 ? `Chữ chiếm gần hết ảnh: chỉ còn ${free}% chiều cao cho hình. Rút ngắn câu dẫn thì nền đẹp hơn.` : ''].filter(Boolean).join(' '))
   }
@@ -210,6 +222,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
           </div>
           <div className="row wrap">
             <button className="btn small" disabled={busy !== '' || baseSlides.length === 0} title="Không tốn phí AI: thử các vị trí và cỡ chữ trên nền hiện có, chọn chỗ êm nhất" onClick={() => { void guard('bg', relayout) }}>Bố cục tự động</button>
+            {compositeMode(campaign) && <button className="btn small" disabled={busy !== '' || baseSlides.length === 0} title="Không tốn phí AI: đặt lại biểu tượng, đường bay và họa tiết thương hiệu lên các slide" onClick={() => { void guard('bg', placeGraphics) }}>Đặt lại họa tiết</button>}
           </div>
           {plateNote && <p className="notice" role="status">{plateNote}</p>}
           {baseSlides.length === 0 && <p className="muted">Chưa có {isReel ? 'cảnh' : 'slide'}. Bấm "Tạo lại từ kế hoạch" hoặc "Soạn nháp bằng AI" ở bước 1.</p>}

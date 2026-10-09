@@ -33,6 +33,10 @@ export type KeyVisual = {
   referenceIds: string[]
   /** Finished sample posts on the moodboard: shown for reference, never sent to the image model. */
   sampleIds: string[]
+  /** "composite" (default once graphics have roles): the app places the exact graphics on each slide. "ai": the graphics are sent to the AI as references. */
+  motifMode?: 'composite' | 'ai'
+  /** How many small ornaments are scattered, 0 to 1 (default 0.5). */
+  motifDensity?: number
 }
 
 export type Background = {
@@ -189,11 +193,14 @@ export type Piece = {
 /** A full-size image (PDF page or upload) that components are cut from. */
 export type Source = { id: string; assetId: string; label: string }
 
+/** What a cut-out graphic is for when the app places it by itself: the main symbol, a long route line, a small ornament, or nothing. */
+export type MotifRole = 'hero' | 'line' | 'decor' | 'off'
+
 /** A cut-out graphic element (transparent PNG) reusable across the campaign's posts. */
-export type Component = { id: string; name: string; assetId: string; width: number; height: number }
+export type Component = { id: string; name: string; assetId: string; width: number; height: number; role?: MotifRole }
 
 /** A component placed on a post. Position is the center, as a fraction of the canvas. */
-export type Layer = { id: string; componentId: string; x: number; y: number; /** width as a fraction of canvas width */ w: number; opacity: number; rotation: number }
+export type Layer = { id: string; componentId: string; x: number; y: number; /** width as a fraction of canvas width */ w: number; opacity: number; rotation: number; /** Placed by the app from the graphics' roles: it is replaced when images are made again, until the user moves or edits it. */ auto?: boolean }
 
 export type Kpi = { id: string; label: string; target: string }
 export type Audience = { id: string; name: string; insight: string; barrier: string }

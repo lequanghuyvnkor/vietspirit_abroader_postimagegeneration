@@ -1,4 +1,5 @@
 import { api } from './api.ts'
+import { applyMotifs, compositeMode, type FreeBand } from './motifs.ts'
 import { buildBackgroundPrompt, generationRefs, type Zones } from './prompt.ts'
 import { drawCover, loadImage, renderPost, type LayoutInfo } from './render.ts'
 import { applyLayouts, planLayouts, type LayoutPatch } from './autoLayout.ts'
@@ -93,7 +94,7 @@ export async function generatePlate(workspace: Workspace, campaign: Campaign, pi
   const lightText = campaign.keyVisual.textTone === 'light'
   // The palette belongs to the campaign's Moodboard: a per-piece palette note from the plan must not compete with it.
   const variation = [piece.visual.hero, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
-  const refs = generationRefs(campaign.keyVisual)
+  const refs = generationRefs(campaign.keyVisual, compositeMode(campaign))
 
   const make = (extra: string) => api.generate({ prompt: buildBackgroundPrompt(workspace, campaign, format, [variation, extra].filter(Boolean).join(' '), zones), width, height, quality: 'high', referenceIds: refs, keyId })
   let assetId = await make('')
@@ -143,4 +144,15 @@ export async function layoutWithPlate(workspace: Workspace, campaign: Campaign, 
   return patches
 }
 
-export { applyLayouts }
+/**
+ * The free band (room the text leaves) of a piece's slides, measured on a copy that already has the new plate and layouts,
+ * so the brand graphics are placed where the text will really be.
+ */
+export async function motifBand(workspace: Workspace, campaign: Campaign, piece: Piece, change?: { result: Pick<PlateResult, 'assetId' | 'format' | 'label'>; patches: Map<string, LayoutPatch>; onlyPostId?: string }): Promise<FreeBand> {
+  const preview = structuredClone(campaign)
+  if (change) { attachPlate(preview, piece.id, change.result, change.onlyPostId); applyLayouts(preview, change.patches) }
+  const zones = await measureZones(workspace, preview, slidesOf(preview, piece).filter((post) => post.hero?.layout !== 'full'))
+  return { freeFrom: zones.freeFrom, freeTo: zones.freeTo }
+}
+
+export { applyLayouts, applyMotifs, compositeMode }

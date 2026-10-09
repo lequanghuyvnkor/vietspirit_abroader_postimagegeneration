@@ -57,6 +57,9 @@ Mục tiêu, thời gian, KPI, đối tượng, ý tưởng lớn, thông điệ
 ### ② Moodboard: phần HÌNH
 Ảnh theo vai trò (chủ thể, không khí, bài mẫu), bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
 
+**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Biểu tượng chính*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
+
+
 ### ③ Kế hoạch (bảng tính, 4 sheet ở thanh dưới)
 | Sheet | Nội dung |
 |---|---|
@@ -91,7 +94,7 @@ Mọi bài xếp theo trạng thái **Brief → Copy → Visual → Sẵn sàng*
 
 1. **Sửa kế hoạch của bài** (mở rộng ra): tên, loại, brief, visual brief, mục kiểm tra.
 2. **1 · Chữ:** *Soạn nháp bằng AI* (chữ từng slide), *AI viết lại caption*, hashtag, soi văn phong.
-3. **2 · Hình:** *Tạo ảnh* (app đo chỗ đặt chữ rồi nhờ AI vẽ nền chỉ ở phần còn trống), *Bố cục tự động* (miễn phí). Mỗi slide có **Chỉnh**: đổi chữ, vị trí, cỡ chữ, logo, thành phần đồ họa, ảnh chủ đạo (ảnh thật của mentor), và **Khoanh vùng + ghi chú** để AI chỉnh đúng chỗ bạn khoanh (tạo *bản chỉnh* bên cạnh, bấm *Dùng bản này* khi ưng).
+3. **2 · Hình:** *Tạo ảnh* (app đo chỗ đặt chữ rồi nhờ AI vẽ nền chỉ ở phần còn trống), *Bố cục tự động* (miễn phí), *Đặt lại họa tiết* (miễn phí, khi đã gán vai trò họa tiết). Mỗi slide có **Chỉnh**: đổi chữ, vị trí, cỡ chữ, logo, thành phần đồ họa, ảnh chủ đạo (ảnh thật của mentor), và **Khoanh vùng + ghi chú** để AI chỉnh đúng chỗ bạn khoanh (tạo *bản chỉnh* bên cạnh, bấm *Dùng bản này* khi ưng).
 4. **Tài nguyên:** tải ảnh thật cần cho bài, tách nền khi nền trơn.
 5. **3 · Soát và sẵn sàng:** app tự soát (✖ chặn: còn biến trống, cụm bị cấm, chưa có caption; ⚠ cảnh báo: ngày sau kỳ chiến dịch, số liệu không thấy trong kế hoạch, điều "Không được nói", văn phong máy…), tick mục kiểm tra, rồi **Đánh dấu sẵn sàng**. Có **Phiên bản đã lưu**: lưu lại trước khi sửa lớn và khôi phục khi cần.
 6. **4 · Xuất:** gói zip (ảnh + caption); reel không người: storyboard hoặc MP4 (dựng trong Chrome/Edge, không có tiếng).

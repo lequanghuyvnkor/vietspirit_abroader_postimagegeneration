@@ -129,7 +129,8 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
     } catch (error) { onError(error instanceof Error ? error.message : 'Không thêm được ảnh.') }
   }
 
-  const patchLayer = (id: string, change: Partial<Layer>) => edit((draft) => { const layer = draft.layers.find((item) => item.id === id); if (layer) Object.assign(layer, change) })
+  // Moving or editing a graphic makes it the user's: the app will not replace it when it places graphics again.
+  const patchLayer = (id: string, change: Partial<Layer>) => edit((draft) => { const layer = draft.layers.find((item) => item.id === id); if (layer) { Object.assign(layer, change); delete layer.auto } })
 
   function addLayer(componentId: string) {
     const layer: Layer = { id: newId(), componentId, x: 0.5, y: 0.5, w: 0.3, opacity: 1, rotation: 0 }
