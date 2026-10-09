@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { emptySheetSync, sheetSyncReady, sheetUrlProblem, takeSheetValue, tokenIsShort } from '../lib/sheetSync.ts'
 import { useSheetSync } from '../lib/sheetSyncState.ts'
+import type { PullPreview } from '../lib/sheetSyncState.ts'
 import type { Campaign, SheetConflict, SheetSync, Workspace } from '../lib/types.ts'
+import { Modal } from './ui.tsx'
 
 type Props = {
   workspace: Workspace
@@ -15,13 +17,25 @@ const FIELD_LABELS: Record<SheetConflict['field'], string> = { caption: 'Caption
 export function SheetPanel({ workspace, campaign, edit }: Props) {
   const sheet = useSheetSync()
   const [editing, setEditing] = useState(false)
+  const [preview, setPreview] = useState<PullPreview | null>(null)
+  const [previewError, setPreviewError] = useState('')
+  const [previewing, setPreviewing] = useState(false)
   const settings = campaign.sheetSync ?? emptySheetSync()
   const ready = sheetSyncReady(settings)
   const status = sheet.status[campaign.id]
   const failed = Boolean(status?.message.startsWith('Lỗi'))
   const problem = sheetUrlProblem(settings.url)
   const set = (change: Partial<SheetSync>) => edit((draft) => { draft.sheetSync = { ...emptySheetSync(), ...draft.sheetSync, ...change } })
-  const pull = () => { void sheet.pull(workspace.id, campaign.id) }
+  const conflict = settings.allowShared ? undefined : sheet.conflicts[campaign.id]
+  // The first pull of a campaign shows what it would add and replace before touching anything.
+  async function pull() {
+    if (settings.pulledAt) { void sheet.pull(workspace.id, campaign.id); return }
+    setPreviewing(true)
+    setPreviewError('')
+    try { setPreview(await sheet.preview(workspace.id, campaign.id)) }
+    catch (error) { setPreviewError(error instanceof Error ? error.message : 'Không đọc được Sheet.') }
+    finally { setPreviewing(false) }
+  }
   const resolve = (conflict: SheetConflict, useSheet: boolean) => edit((draft) => {
     if (useSheet) takeSheetValue(draft, conflict)
     if (draft.sheetSync) draft.sheetSync.conflicts = draft.sheetSync.conflicts.filter((item) => !(item.code === conflict.code && item.field === conflict.field))
@@ -60,11 +74,20 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
 
     {ready && !settings.frozen && <>
       <div className="row wrap">
-        <button className="btn primary" disabled={status?.busy} onClick={pull}>{status?.busy ? 'Đang đọc…' : 'Cập nhật từ Sheet'}</button>
+        <button className="btn primary" disabled={status?.busy || previewing || Boolean(conflict)} onClick={() => { void pull() }}>{status?.busy || previewing ? 'Đang đọc…' : settings.pulledAt ? 'Cập nhật từ Sheet' : 'Xem trước và kéo từ Sheet'}</button>
         <label className="row" title="Mỗi phút app hỏi Sheet có đổi không; nếu có thì tự kéo về và hợp nhất. Chỉ chạy khi app đang mở."><input type="checkbox" checked={settings.auto} onChange={(event) => set({ auto: event.target.checked })} /> Tự kéo khi Sheet thay đổi</label>
         <button className="link" onClick={() => setEditing((open) => !open)} aria-expanded={editing}>Đổi kết nối</button>
         <button className="btn small ghost" title="Soạn kế hoạch ngay trong app và ngừng đọc Sheet" onClick={() => set({ frozen: true })}>Đóng băng Sheet</button>
       </div>
+      {conflict && <div className="notice late-alert" role="alert">
+        <p><b>Sheet này đang nối với chiến dịch "{conflict.campaign}" ({conflict.workspace}).</b> Nếu kéo, bài của chiến dịch kia sẽ lẫn vào đây. Mỗi chiến dịch cần một Sheet riêng. App đã tạm dừng việc kéo.</p>
+        <div className="row wrap">
+          <button className="btn small primary" onClick={() => edit((draft) => { delete draft.sheetSync })}>Gỡ kết nối Sheet khỏi chiến dịch này</button>
+          <button className="btn small ghost" onClick={() => set({ allowShared: true })}>Tôi biết, cố ý dùng chung</button>
+        </div>
+      </div>}
+      {!settings.pulledAt && !conflict && <p className="muted">Chưa kéo lần nào. Bấm nút trên để xem trước những gì sẽ được thêm vào chiến dịch này; chưa có gì thay đổi cho tới khi bạn đồng ý. Tự kéo chỉ bật sau lần kéo đầu tiên.</p>}
+      {previewError && <p className="notice error" role="alert">{previewError}</p>}
       {status?.message && <p className={failed ? 'notice error' : 'muted'} role="status">{status.message}</p>}
       {settings.pulledAt && !status?.message && <p className="muted">Kéo lần cuối: {new Date(settings.pulledAt).toLocaleString('vi-VN')}</p>}
       {editing && fields}
@@ -79,5 +102,15 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
         </div>
       </div>}
     </>}
+    {preview && <Modal title="Xem trước lần kéo đầu tiên" onClose={() => setPreview(null)}>
+      <p>Chiến dịch <b>"{campaign.name}"</b> thuộc workspace <b>"{workspace.name}"</b>. Sheet có <b>{preview.pieces} bài</b>.</p>
+      <ul>
+        <li>Sẽ thêm {preview.report.added.length} bài{preview.report.added.length ? `: ${preview.report.added.slice(0, 12).join(', ')}${preview.report.added.length > 12 ? '…' : ''}` : ''}.</li>
+        {preview.existingPieces > 0 && <li>Chiến dịch đã có {preview.existingPieces} bài; {preview.report.updated.length} bài trùng mã sẽ được cập nhật theo Sheet.</li>}
+        <li>Chiến lược ({preview.strategyChars.toLocaleString('vi-VN')} ký tự) và các điều "không được nói" của Sheet sẽ được ghi vào chiến dịch{preview.replacesStrategy ? ', thay chiến lược hiện có' : ''}.</li>
+      </ul>
+      <p className="notice">Kiểm tra: đây có đúng là kế hoạch của <b>{workspace.name}</b> không? Nếu là kế hoạch của doanh nghiệp khác, bấm Hủy.</p>
+      <div className="modal-actions"><button className="btn ghost" onClick={() => setPreview(null)}>Hủy</button><button className="btn primary" onClick={() => { setPreview(null); void sheet.pull(workspace.id, campaign.id, true) }}>Đúng, kéo về</button></div>
+    </Modal>}
   </section>
 }

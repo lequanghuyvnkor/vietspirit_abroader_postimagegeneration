@@ -143,6 +143,7 @@ export function PlanGrid({ workspace, campaign, edit, keys, onManageKeys, locked
               <td><LazyInput disabled={locked} aria-label={`Hook ${piece.code}`} value={piece.plan.hook} placeholder="Câu mở bài" onCommit={(text) => patch(piece.id, (item) => { item.plan.hook = text })} /></td>
               <td><LazyInput disabled={locked} aria-label={`CTA ${piece.code}`} value={piece.plan.cta} placeholder="Kêu gọi" onCommit={(text) => patch(piece.id, (item) => { item.plan.cta = text })} /></td>
               <td className="plan-actions">
+                {piece.sheetBase?.linked && <span className="flag info" title="Bài này được kéo về từ Google Sheet">Sheet</span>}
                 <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>Mở{warn ? ` · ${warn}!` : ''}</button>
                 <button className="btn small ghost" aria-label={`Lên ${piece.code}`} disabled={locked || index === 0} onClick={() => edit((draft) => movePiece(draft, piece.id, -1))}>↑</button>
                 <button className="btn small ghost" aria-label={`Xuống ${piece.code}`} disabled={locked || index === campaign.pieces.length - 1} onClick={() => edit((draft) => movePiece(draft, piece.id, 1))}>↓</button>

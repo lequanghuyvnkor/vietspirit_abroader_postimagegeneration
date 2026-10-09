@@ -140,6 +140,8 @@ export type SheetSync = {
   auto: boolean
   /** The plan is now edited in the app: the Sheet is no longer read, so the two cannot drift apart. */
   frozen?: boolean
+  /** The user confirmed that another campaign reads the same Sheet on purpose. */
+  allowShared?: boolean
   /** Fingerprint of the Sheet at the last pull. */
   hash: string
   pulledAt: string
@@ -249,6 +251,8 @@ export type DocsSync = {
   doc: string
   /** Re-send the changed pieces a few seconds after any edit. */
   auto: boolean
+  /** The user confirmed that another campaign writes to the same Doc on purpose. */
+  allowShared?: boolean
   /** Per piece id: fingerprint of the content and images last sent. */
   sent: Record<string, string>
 }

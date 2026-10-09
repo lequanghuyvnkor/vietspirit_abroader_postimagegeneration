@@ -6,10 +6,11 @@ import { ConfirmDialog, Field, ImageSlot, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { api } from '../lib/api.ts'
 import { TemplateSection } from './TemplateSection.tsx'
+import { IntegrityPanel } from './IntegrityPanel.tsx'
 
 type Props = { store: Store; update: (change: (draft: Store) => void) => void; workspace: Workspace; onError: (message: string) => void }
 
-export function WorkspaceView({ update, workspace, onError }: Props) {
+export function WorkspaceView({ store, update, workspace, onError }: Props) {
   const [dialog, setDialog] = useState<'create' | 'import' | { delete: string } | null>(null)
   const target = typeof dialog === 'object' && dialog ? workspace.campaigns.find((item) => item.id === dialog.delete) : undefined
 
@@ -51,6 +52,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
     <div className="page-head">
       <div><span className="eyebrow">Workspace</span><h1>{workspace.name}</h1></div>
     </div>
+    <IntegrityPanel store={store} update={update} workspaceId={workspace.id} />
     <div className="two-col">
       <Section title="Chiến dịch" aside={<div className="row"><button className="btn small" onClick={() => setDialog('create')}>+ Chiến dịch trống</button><button className="btn primary small" onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button></div>}>
         {workspace.campaigns.length === 0

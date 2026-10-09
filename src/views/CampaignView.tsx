@@ -13,9 +13,11 @@ import { Moodboard } from './Moodboard.tsx'
 import { FoundationTab } from './FoundationTab.tsx'
 import { DocumentTab } from './DocumentTab.tsx'
 import { MeasureTab } from './MeasureTab.tsx'
+import { IntegrityPanel } from './IntegrityPanel.tsx'
 import { hasFoundation, moodBrief } from '../lib/foundation.ts'
 
 type Props = {
+  store: Store
   update: (change: (draft: Store) => void) => void
   workspace: Workspace
   campaign: Campaign
@@ -25,7 +27,7 @@ type Props = {
   tab?: CampaignTab
 }
 
-export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
+export function CampaignView({ store, update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
   const kv = campaign.keyVisual
   const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | { delete: string } | null>(null)
   const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
@@ -221,6 +223,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
       <div className="row"><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
+    <IntegrityPanel store={store} update={update} campaignId={campaign.id} />
     <nav className="steps" aria-label="Các bước của chiến dịch">
       {tabs.map((item) => <button key={item.key} className={item.key === tab ? 'on' : ''} aria-current={item.key === tab ? 'page' : undefined} onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, tab: item.key })}>
         <strong>{item.label}</strong><small>{item.hint}</small>

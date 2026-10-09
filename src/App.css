@@ -483,3 +483,7 @@ textarea { resize: vertical; }
 }
 
 .tab-note { margin: 0; font-size: .85rem; }
+
+.integrity { border-color: var(--danger); }
+.integrity-item p { margin: 0 0 8px; }
+.integrity-item + .integrity-item { margin-top: 4px; }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { docsSyncReady, pieceSignature, pushPiece } from '../lib/docsSync.ts'
+import { linkBlocked } from '../lib/integrity.ts'
 import { DocsSyncContext, type SyncStatus } from '../lib/docsSyncState.ts'
 import type { Store } from '../lib/types.ts'
 
@@ -46,6 +47,8 @@ export function DocsSyncProvider({ store, update, children }: Props) {
     const settings = first.campaign?.docsSync
     if (!first.workspace || !first.campaign || !settings) return
     if (!docsSyncReady(settings)) { say(campaignId, false, 'Cần link Google Docs và URL ứng dụng web đúng dạng.'); return }
+    const owner = linkBlocked(storeRef.current, first.campaign, 'docs')
+    if (owner) { say(campaignId, false, `Lỗi: Google Docs này đang nối với "${owner.campaign.name}" (${owner.workspace.name}). Mỗi chiến dịch cần một Docs riêng.`); return }
     const todo = first.campaign.pieces.filter((piece) => force || settings.sent[piece.id] !== pieceSignature(first.workspace!, first.campaign!, piece))
     if (todo.length === 0) { say(campaignId, false, 'Google Docs đã khớp với app.'); return }
 

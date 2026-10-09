@@ -146,6 +146,16 @@ Reel **có người thật** do bên khác quay: app giữ caption, mục duyệ
 
 ---
 
+### Tách bạch dữ liệu giữa các doanh nghiệp
+
+- Mỗi **Workspace** là một doanh nghiệp; chiến dịch, bài, ảnh, mẫu của workspace này không hiện ở workspace khác.
+- **Mỗi chiến dịch phải có Google Sheet và Google Docs riêng.** Nếu hai chiến dịch (kể cả ở hai workspace) cùng nối một Sheet, app **dừng kéo**, báo đỏ ở đầu trang và ở trang chủ, kèm nút gỡ.
+- **Lần kéo Sheet đầu tiên luôn có bước xem trước**: app cho biết Sheet có bao nhiêu bài, sẽ thêm bài nào, có thay chiến lược hiện có không; chưa đồng ý thì chưa có gì đổi. Tự kéo chỉ bật sau lần đầu.
+- Khung **"Kiểm tra dữ liệu"** tự phát hiện: dùng chung Sheet/Docs, hoặc từ ba bài trở lên giống hệt (cùng mã và tiêu đề) giữa hai workspace. Nút **"Gỡ dữ liệu Sheet khỏi chiến dịch này"** xóa các bài kéo từ Sheet (kèm slide), chiến lược và điều không được nói do Sheet ghi vào, ngắt kết nối; giữ nguyên bài bạn tự tạo, Nền tảng, Moodboard. Trước khi sửa app tự tạo bản sao lưu đầy đủ.
+- Bài kéo từ Sheet có nhãn **Sheet** trong bảng kế hoạch.
+
+---
+
 ## 8. Quy trình mẫu cho một chiến dịch 2 tuần
 
 | Thời điểm | Việc |

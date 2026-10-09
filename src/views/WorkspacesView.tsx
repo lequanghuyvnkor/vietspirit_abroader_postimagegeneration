@@ -4,6 +4,7 @@ import type { Store } from '../lib/types.ts'
 import { navigate } from '../lib/route.ts'
 import { ConfirmDialog, NameDialog } from './ui.tsx'
 import { api } from '../lib/api.ts'
+import { IntegrityPanel } from './IntegrityPanel.tsx'
 
 type Props = { store: Store; update: (change: (draft: Store) => void) => void }
 
@@ -31,6 +32,7 @@ export function WorkspacesView({ store, update }: Props) {
       <div><span className="eyebrow">Workspace</span><h1>Doanh nghiệp</h1><p>Mỗi workspace là một doanh nghiệp, với thông tin, chiến dịch và bài đăng riêng.</p></div>
       <button className="btn primary" onClick={() => setDialog('create')}>+ Tạo workspace</button>
     </div>
+    <IntegrityPanel store={store} update={update} />
     {store.workspaces.length === 0
       ? <div className="empty"><h3>Chưa có workspace nào</h3><p>Tạo workspace đầu tiên để bắt đầu.</p><button className="btn primary" onClick={() => setDialog('create')}>+ Tạo workspace</button></div>
       : <div className="grid">
