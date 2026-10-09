@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { emptySheetSync, sheetSyncReady, sheetUrlProblem, takeSheetValue } from '../lib/sheetSync.ts'
+import { emptySheetSync, sheetSyncReady, sheetUrlProblem, takeSheetValue, tokenIsShort } from '../lib/sheetSync.ts'
 import { useSheetSync } from '../lib/sheetSyncState.ts'
 import type { Campaign, SheetConflict, SheetSync, Workspace } from '../lib/types.ts'
 
@@ -31,7 +31,10 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
     <label className="field"><span className="field-label">URL ứng dụng web của Sheet (kết thúc bằng /exec)</span><input placeholder="https://script.google.com/macros/s/…/exec" value={settings.url} onChange={(event) => set({ url: event.target.value })} />
       {problem && <small className="error-text" role="alert">{problem}</small>}
     </label>
-    <label className="field"><span className="field-label">Mã bí mật (cùng mã bạn đặt trong script)</span><input type="password" autoComplete="off" value={settings.token} onChange={(event) => set({ token: event.target.value })} /></label>
+    <label className="field"><span className="field-label">Mã bí mật (đúng mã bạn đặt ở dòng TOKEN trong script)</span><input type="password" autoComplete="off" value={settings.token} onChange={(event) => set({ token: event.target.value })} />
+      {tokenIsShort(settings.token) && <small className="muted">Mã ngắn thì người biết URL có thể đoán ra. Nên đổi sang mã dài hơn ở cả script (rồi triển khai lại) và ở đây.</small>}
+      {!settings.token.trim() && settings.url.trim() !== '' && !problem && <small className="muted">Nhập mã bí mật để kết nối.</small>}
+    </label>
   </div>
 
   return <section className="card sheet-panel" aria-label="Google Sheet kế hoạch">

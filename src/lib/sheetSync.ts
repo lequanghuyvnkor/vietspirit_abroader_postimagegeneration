@@ -1,4 +1,4 @@
-import { draftSlides, parsePlan, type ParsedPlan } from './plan.ts'
+import { draftSlides, madeInApp, parsePlan, type ParsedPlan } from './plan.ts'
 import type { Campaign, Check, Company, Piece, SheetConflict, SheetSync } from './types.ts'
 import type { Sheets } from './xlsx.ts'
 
@@ -8,7 +8,10 @@ export function emptySheetSync(): SheetSync {
   return { url: '', token: '', auto: true, hash: '', pulledAt: '', conflicts: [] }
 }
 
-export const sheetSyncReady = (settings: Pick<SheetSync, 'url' | 'token'>) => URL_OK.test(settings.url.trim()) && settings.token.trim().length >= 8
+export const sheetSyncReady = (settings: Pick<SheetSync, 'url' | 'token'>) => URL_OK.test(settings.url.trim()) && settings.token.trim().length > 0
+
+/** A short code works, but anyone who learns the URL could guess it. */
+export const tokenIsShort = (token: string) => token.trim().length > 0 && token.trim().length < 8
 
 /** What is wrong with the pasted URL, in words the user can act on. */
 export function sheetUrlProblem(url: string): string {
@@ -20,7 +23,7 @@ export function sheetUrlProblem(url: string): string {
 }
 
 async function call(settings: Pick<SheetSync, 'url' | 'token'>, extra: string): Promise<Record<string, unknown>> {
-  if (!sheetSyncReady(settings)) throw new Error('Cần URL ứng dụng web Apps Script và mã bí mật (từ 8 ký tự).')
+  if (!sheetSyncReady(settings)) throw new Error('Cần URL ứng dụng web Apps Script và mã bí mật (đúng mã đã đặt trong script).')
   const response = await fetch(`${settings.url.trim()}?token=${encodeURIComponent(settings.token.trim())}${extra}`)
   if (!response.ok) throw new Error(`Apps Script trả về ${response.status}`)
   const data = (await response.json()) as Record<string, unknown>
@@ -104,6 +107,12 @@ export function mergePlan(campaign: Campaign, plan: ParsedPlan, company: Company
       existing.sheetBase[field] = fromSheet
     }
     existing.sheetBase.linked = true
+
+    // A piece that has just become one this app makes (a reel with people turned into a photo, say) has no slides yet.
+    if (madeInApp(existing) && options.makeSlides && !campaign.posts.some((post) => post.pieceId === existing.id)) {
+      campaign.posts.push(...draftSlides(existing, company, campaign.backgrounds))
+      if (!report.updated.includes(existing.code)) report.updated.push(existing.code)
+    }
 
     const after = JSON.stringify([existing.title, existing.kind, existing.plan, existing.visual, existing.compliance, existing.assets.map((asset) => asset.label), existing.checks.map((check) => check.text), ...FIELDS.map((field) => read(existing, field))])
     if (after !== before) report.updated.push(existing.code)
