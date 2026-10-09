@@ -1,8 +1,9 @@
 import { createServer } from 'node:http'
-import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, unlinkSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'node:fs'
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { createBackups } from './backups.mjs'
 
 function loadLocalEnv() {
   try {
@@ -23,6 +24,7 @@ const STORE_FILE = join(DATA_DIR, 'store.json')
 const AUTH_FILE = join(DATA_DIR, 'auth.json')
 const KEYS_FILE = join(DATA_DIR, 'keys.json')
 mkdirSync(ASSET_DIR, { recursive: true })
+const backups = createBackups({ dataDir: DATA_DIR, assetDir: ASSET_DIR, storeFile: STORE_FILE })
 
 const MAX_STORE_BYTES = 8 * 1024 * 1024
 const MAX_ASSET_BYTES = 16 * 1024 * 1024
@@ -338,6 +340,29 @@ async function generateText(req, res) {
   return send(res, 200, { text, provider: key.provider, model })
 }
 
+// ---------- Backups ----------
+async function manageBackups(req, res, method, rest) {
+  if (!rest && method === 'GET') return send(res, 200, { backups: backups.list() })
+  if (!rest && method === 'POST') {
+    const { label } = await readJson(req, 4096)
+    const raw = backups.readStore()
+    if (!raw) throw fail(409, 'Chưa có dữ liệu để sao lưu.')
+    backups.snapshot('manual', raw, typeof label === 'string' ? label.slice(0, 80) : '')
+    return send(res, 200, { backups: backups.list() })
+  }
+  const [id, action] = (rest ?? '').split('/')
+  if (action === 'restore' && method === 'POST') {
+    const result = backups.restore(id)
+    if (result.error) throw fail(404, result.error)
+    return send(res, 200, { ...result, backups: backups.list() })
+  }
+  if (!action && method === 'DELETE') {
+    backups.remove(id)
+    return send(res, 200, { backups: backups.list() })
+  }
+  throw fail(404, 'Không tìm thấy API này.')
+}
+
 // ---------- Routing ----------
 async function route(req, res) {
   const { pathname } = new URL(req.url, 'http://127.0.0.1')
@@ -391,7 +416,9 @@ async function route(req, res) {
   if (method === 'PUT' && pathname === '/api/store') {
     const store = await readJson(req, MAX_STORE_BYTES)
     if (!Array.isArray(store.workspaces)) throw fail(400, 'Dữ liệu workspace không hợp lệ.')
-    writeAtomic(STORE_FILE, JSON.stringify(store))
+    const raw = JSON.stringify(store)
+    backups.beforeSave(raw)
+    writeAtomic(STORE_FILE, raw)
     return send(res, 200, { ok: true })
   }
   if (pathname === '/api/keys' || pathname.startsWith('/api/keys/')) return manageKeys(req, res, method, pathname.slice('/api/keys/'.length) || null)
@@ -400,10 +427,12 @@ async function route(req, res) {
     const id = decodeURIComponent(pathname.slice('/api/assets/'.length))
     if (method === 'GET') return serveAsset(res, id)
     if (method === 'DELETE') {
-      try { unlinkSync(assetPath(id)) } catch { /* Already gone. */ }
+      assetPath(id)
+      backups.discardAsset(id)
       return send(res, 200, { ok: true })
     }
   }
+  if (pathname === '/api/backups' || pathname.startsWith('/api/backups/')) return manageBackups(req, res, method, pathname.slice('/api/backups/'.length) || null)
   if (method === 'POST' && pathname === '/api/generate') return generate(req, res)
   if (method === 'POST' && pathname === '/api/text') return generateText(req, res)
   throw fail(404, 'Không tìm thấy API này.')
@@ -416,5 +445,8 @@ const server = createServer((req, res) => {
     if (!error.status) console.error(error)
   })
 })
+
+try { backups.ensureDaily() } catch (error) { console.error('Backup failed', error) }
+setInterval(() => { try { backups.ensureDaily() } catch (error) { console.error('Backup failed', error) } }, 30 * 60 * 1000).unref()
 
 server.listen(PORT, '127.0.0.1', () => console.log(`Creative API listening on http://127.0.0.1:${PORT} · data: ${DATA_DIR}`))

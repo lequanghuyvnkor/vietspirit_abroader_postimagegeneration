@@ -40,6 +40,7 @@ export function useStore() {
   const [loadError, setLoadError] = useState('')
   const pending = useRef<Store | null>(null)
   const timer = useRef<number>(0)
+  const frozen = useRef(false)
 
   useEffect(() => {
     api.loadStore().then((loaded) => setStore(normalize(loaded))).catch((error: Error) => setLoadError(error.message))
@@ -47,7 +48,7 @@ export function useStore() {
 
   const flush = useCallback(async () => {
     const next = pending.current
-    if (!next) return
+    if (!next || frozen.current) return
     pending.current = null
     try { await api.saveStore(next); setSaveState(pending.current ? 'saving' : 'saved') }
     catch { setSaveState('error') }
@@ -72,5 +73,13 @@ export function useStore() {
     return () => window.removeEventListener('pagehide', onHide)
   }, [flush])
 
-  return { store, update, saveState, loadError }
+  /** Saves anything pending, then blocks further saves (used right before a restore replaces the data). */
+  const freeze = useCallback(async () => {
+    window.clearTimeout(timer.current)
+    await flush()
+    frozen.current = true
+    pending.current = null
+  }, [flush])
+
+  return { store, update, saveState, loadError, freeze }
 }

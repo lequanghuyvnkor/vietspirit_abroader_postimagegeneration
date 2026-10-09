@@ -2,6 +2,9 @@ import type { Store } from './types.ts'
 
 export type Session = { configured: boolean; authed: boolean; ai?: { ready: boolean } }
 
+export type BackupMeta = { id: string; kind: 'auto' | 'manual' | 'history' | 'pre'; label: string; at: string; assets: number; campaigns: number; pieces: number; posts: number; bytes: number }
+export type RestoreResult = { safety: string | null; restored: number; missing: number; backups: BackupMeta[] }
+
 export type Provider = 'openai' | 'gemini'
 export type ApiKey = { id: string; provider: Provider; label: string; model: string; textModel: string; last4: string; isDefault: boolean; fromEnv: boolean }
 export type KeyInput = { provider?: Provider; label?: string; model?: string; textModel?: string; apiKey?: string; isDefault?: boolean }
@@ -38,6 +41,10 @@ export const api = {
   saveStore: (store: Store) => request('/api/store', { method: 'PUT', body: JSON.stringify(store) }),
   uploadAsset: (name: string, dataUrl: string) => post<{ id: string }>('/api/assets', { name, dataUrl }).then((result) => result.id),
   deleteAsset: (id: string) => request(`/api/assets/${id}`, { method: 'DELETE' }),
+  listBackups: () => request<{ backups: BackupMeta[] }>('/api/backups').then((result) => result.backups),
+  createBackup: (label: string) => post<{ backups: BackupMeta[] }>('/api/backups', { label }).then((result) => result.backups),
+  restoreBackup: (id: string) => post<RestoreResult>(`/api/backups/${id}/restore`, {}),
+  deleteBackup: (id: string) => request<{ backups: BackupMeta[] }>(`/api/backups/${id}`, { method: 'DELETE' }).then((result) => result.backups),
   listKeys: () => request<{ keys: ApiKey[] }>('/api/keys').then((result) => result.keys),
   addKey: (input: KeyInput) => post<{ keys: ApiKey[] }>('/api/keys', input).then((result) => result.keys),
   updateKey: (id: string, input: KeyInput) => request<{ keys: ApiKey[] }>(`/api/keys/${id}`, { method: 'PUT', body: JSON.stringify(input) }).then((result) => result.keys),

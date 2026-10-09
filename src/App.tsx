@@ -10,6 +10,7 @@ import { StudioView } from './views/StudioView.tsx'
 import { PieceView } from './views/PieceView.tsx'
 import { Modal } from './views/ui.tsx'
 import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
+import { BackupsDialog } from './views/BackupsDialog.tsx'
 import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
 import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
 import { DocsChip } from './views/DocsChip.tsx'
@@ -46,11 +47,12 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
 }
 
 function Studio({ onLogout }: { onLogout: () => void }) {
-  const { store, update, saveState, loadError } = useStore()
+  const { store, update, saveState, loadError, freeze } = useStore()
   const route = useRoute()
   const [error, setError] = useState('')
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [keysOpen, setKeysOpen] = useState(false)
+  const [backupsOpen, setBackupsOpen] = useState(false)
   const [keys, setKeys] = useState<ApiKey[]>([])
   useEffect(() => { api.listKeys().then(setKeys).catch(() => setKeys([])) }, [])
   const reportError = useCallback((message: string) => setError(message), [])
@@ -88,6 +90,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
         {campaign && <DocsChip campaign={campaign} workspaceId={workspace!.id} />}
         <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : 'Đã lưu'}</span>
         <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
+        <button className="btn small ghost" onClick={() => setBackupsOpen(true)}>Sao lưu</button>
         <button className="btn small ghost" onClick={() => setPasswordOpen(true)}>Đổi mật khẩu</button>
         <button className="btn small ghost" onClick={onLogout}>Đăng xuất</button>
       </div>
@@ -95,6 +98,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     {error && <div className="toast" role="alert"><span>{error}</span><button aria-label="Đóng thông báo" onClick={() => setError('')}>×</button></div>}
     <main>{view}</main>
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
+    {backupsOpen && <BackupsDialog freeze={freeze} onClose={() => setBackupsOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
   </div></SheetSyncProvider></DocsSyncProvider>
 }
