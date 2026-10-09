@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, fetchCaption, fetchDraft } from '../lib/draft.ts'
-import { attachPlate, generatePlate } from '../lib/plate.ts'
+import { applyLayouts, attachPlate, generatePlate, layoutWithPlate } from '../lib/plate.ts'
+import { planLayouts } from '../lib/autoLayout.ts'
 import { buildHandoff } from '../lib/handoff.ts'
 import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { buildStoryboard } from '../lib/storyboard.ts'
@@ -98,10 +99,18 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   }
 
   /** One background for the piece, or just for one slide whose text needs its own picture. */
+  /** Free: re-chooses where each slide's text sits, its size and the crop of the shared picture. */
+  async function relayout() {
+    const layouts = await planLayouts(workspace, campaign, slides)
+    edit((c) => applyLayouts(c, layouts))
+    setPlateNote(layouts.size === 0 ? 'Chưa có nền để bố cục. Bấm "Tạo ảnh" trước.' : `Đã chọn lại bố cục cho ${layouts.size} slide.`)
+  }
+
   async function makeBackground(onlyPostId?: string) {
     setPlateNote('')
     const result = await generatePlate(workspace, campaign, piece, activeKey?.id, onlyPostId)
-    edit((c, item) => attachPlate(c, item.id, result, onlyPostId))
+    const layouts = await layoutWithPlate(workspace, campaign, piece, result, onlyPostId)
+    edit((c, item) => { attachPlate(c, item.id, result, onlyPostId); applyLayouts(c, layouts) })
     const free = Math.round((result.zones.freeTo - result.zones.freeFrom) * 100)
     setPlateNote([result.warning, free < 20 ? `Chữ chiếm gần hết ảnh: chỉ còn ${free}% chiều cao cho hình. Rút ngắn câu dẫn thì nền đẹp hơn.` : ''].filter(Boolean).join(' '))
   }
@@ -210,6 +219,9 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
           <div className="row wrap">
             <button className="btn primary" disabled={busy !== '' || keys.length === 0 || baseSlides.length === 0} onClick={() => { void guard('bg', () => makeBackground()) }}>{busy === 'bg' ? 'Đang tạo ảnh (1–3 phút)…' : 'Tạo ảnh'}</button>
             <small className="muted">App đo chỗ đặt chữ của các {isReel ? 'cảnh' : 'slide'}, rồi AI vẽ nền chỉ đặt hình ở phần còn trống và tự kiểm tra vùng chữ. Mỗi lần tạo là 1–2 ảnh AI.</small>
+          </div>
+          <div className="row wrap">
+            <button className="btn small" disabled={busy !== '' || baseSlides.length === 0} title="Không tốn phí AI: thử các vị trí và cỡ chữ trên nền hiện có, chọn chỗ êm nhất" onClick={() => { void guard('bg', relayout) }}>Bố cục tự động</button>
           </div>
           {plateNote && <p className="notice" role="status">{plateNote}</p>}
           {baseSlides.length === 0 && <p className="muted">Chưa có {isReel ? 'cảnh' : 'slide'}. Bấm "Tạo lại từ kế hoạch" hoặc "Soạn nháp bằng AI" ở bước 1.</p>}

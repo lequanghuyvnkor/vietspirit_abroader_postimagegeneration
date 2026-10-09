@@ -73,6 +73,12 @@ export type Post = {
   scrim: boolean
   layers: Layer[]
   logo?: LogoPlacement
+  /** Which part of the background shows: a zoom and a shift (-1..1 of the spare room), so slides sharing one picture look like a pan. */
+  bgView?: { zoom: number; x: number; y: number }
+  /** A frosted panel behind the text, for backgrounds with no calm place for it. */
+  panel?: boolean
+  /** Carousel page dots and the swipe arrow (default on for slides of a carousel). */
+  chrome?: boolean
   /** Reel scenes: seconds on screen (default 3). */
   duration?: number
   /** Multiplier for the headline and lead text size (default 1). */

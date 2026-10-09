@@ -1,6 +1,7 @@
 import { api } from './api.ts'
 import { buildBackgroundPrompt, generationRefs, type Zones } from './prompt.ts'
 import { drawCover, loadImage, renderPost, type LayoutInfo } from './render.ts'
+import { applyLayouts, planLayouts, type LayoutPatch } from './autoLayout.ts'
 import { slidesOf } from './pack.ts'
 import { formatKeyOf } from './plan.ts'
 import { formatOf, newId } from './types.ts'
@@ -30,7 +31,7 @@ export async function measureZones(workspace: Workspace, campaign: Campaign, sli
   return { logoBottom, textTop, textBottom, lower, freeFrom: from, freeTo: to }
 }
 
-export type PlateCheck = { ok: boolean; mean: number; spread: number }
+export type PlateCheck = { ok: boolean; mean: number; spread: number; seam: number }
 
 /** How bright and how busy the generated picture is exactly where the text will sit. */
 export async function plateQuality(assetId: string, zones: Zones, format: FormatKey, lightText: boolean): Promise<PlateCheck | null> {
@@ -57,8 +58,19 @@ export async function plateQuality(assetId: string, zones: Zones, format: Format
   }
   const mean = sum / count
   const spread = Math.sqrt(Math.max(0, sumSquares / count - mean * mean))
-  const ok = lightText ? mean <= 0.4 && spread <= 0.16 : mean >= 0.6 && spread <= 0.16
-  return { ok, mean, spread }
+  // A "seam": the average brightness of the sky jumps between two neighbouring rows, which is how flat bands and hard steps look.
+  const rows: number[] = []
+  const skyRows = Math.max(3, Math.floor(canvas.height * Math.min(0.6, zones.freeFrom)))
+  const sky = ctx.getImageData(0, 0, canvas.width, skyRows).data
+  for (let row = 0; row < skyRows; row++) {
+    let total = 0
+    for (let x = 0; x < canvas.width; x++) { const i = (row * canvas.width + x) * 4; total += (0.2126 * sky[i] + 0.7152 * sky[i + 1] + 0.0722 * sky[i + 2]) / 255 }
+    rows.push(total / canvas.width)
+  }
+  let seam = 0
+  for (let row = 1; row < rows.length; row++) seam = Math.max(seam, Math.abs(rows[row] - rows[row - 1]))
+  const ok = (lightText ? mean <= 0.4 && spread <= 0.16 : mean >= 0.6 && spread <= 0.16) && seam <= 0.045
+  return { ok, mean, spread, seam }
 }
 
 export type PlateResult = { assetId: string; format: FormatKey; label: string; warning?: string; zones: Zones }
@@ -84,19 +96,20 @@ export async function generatePlate(workspace: Workspace, campaign: Campaign, pi
   let check = await plateQuality(assetId, zones, format, lightText)
   let warning: string | undefined
   if (check && !check.ok) {
+    const seamNote = check.seam > 0.045 ? ' It also had a visible horizontal band or step in the sky: make the sky one smooth continuous gradient with no seam.' : ''
     const finding = lightText
-      ? `Previous attempt was ${check.mean > 0.4 ? 'too bright' : 'too busy'} in the text band (brightness ${Math.round(check.mean * 100)}%, contrast ${Math.round(check.spread * 100)}%). Make the text band much darker and smoother, and move every bright or detailed element lower, into the free band only.`
-      : `Previous attempt was ${check.mean < 0.6 ? 'too dark' : 'too busy'} in the text band (brightness ${Math.round(check.mean * 100)}%, contrast ${Math.round(check.spread * 100)}%). Make the text band much lighter and smoother, and move every dark or detailed element lower, into the free band only.`
+      ? `Previous attempt was ${check.mean > 0.4 ? 'too bright' : 'too busy'} in the text band (brightness ${Math.round(check.mean * 100)}%, contrast ${Math.round(check.spread * 100)}%). Make the text band much darker and smoother, and move every bright or detailed element lower, into the free band only.${seamNote}`
+      : `Previous attempt was ${check.mean < 0.6 ? 'too dark' : 'too busy'} in the text band (brightness ${Math.round(check.mean * 100)}%, contrast ${Math.round(check.spread * 100)}%). Make the text band much lighter and smoother, and move every dark or detailed element lower, into the free band only.${seamNote}`
     const retry = await make(finding)
     const retryCheck = await plateQuality(retry, zones, format, lightText)
     // Lower is better: how far the text band is from calm and dark (light text) or calm and light (dark text).
-    const badness = (item: PlateCheck) => (lightText ? item.mean : 1 - item.mean) + item.spread
+    const badness = (item: PlateCheck) => (lightText ? item.mean : 1 - item.mean) + item.spread + item.seam * 3
     if (retryCheck && (retryCheck.ok || badness(retryCheck) < badness(check))) {
       void api.deleteAsset(assetId)
       assetId = retry
       check = retryCheck
     } else void api.deleteAsset(retry)
-    if (check && !check.ok) warning = 'Vùng chữ vẫn hơi sáng hoặc nhiều chi tiết; app sẽ làm dịu vùng đó khi vẽ chữ. Nếu chữ khó đọc, bấm "Tạo lại nền slide này".'
+    if (check && !check.ok) warning = 'Nền vẫn hơi sáng, nhiều chi tiết hoặc có vệt ngang ở phần trời. App đã tự chọn lại vị trí chữ; nếu chưa vừa ý, bấm "Nền riêng" ở slide đó.'
   }
   const label = onlyPostId ? `${piece.code} · ${slides[0].name}` : `${piece.code} · ${piece.title.slice(0, 28)}`
   return { assetId, format, label, warning, zones }
@@ -110,3 +123,20 @@ export function attachPlate(campaign: Campaign, pieceId: string, result: Pick<Pl
     .filter((post) => post.pieceId === pieceId && !post.excluded && post.format === result.format && (!onlyPostId || post.id === onlyPostId))
     .forEach((post) => { post.backgroundId = id })
 }
+
+/**
+ * What the pieces' slides look like with a new plate: layouts are chosen on a copy that already has the plate,
+ * so the caller can attach the plate and the layouts in one edit.
+ */
+export async function layoutWithPlate(workspace: Workspace, campaign: Campaign, piece: Piece, result: Pick<PlateResult, 'assetId' | 'format' | 'label'>, onlyPostId?: string): Promise<Map<string, LayoutPatch>> {
+  const preview = structuredClone(campaign)
+  attachPlate(preview, piece.id, result, onlyPostId)
+  const slides = slidesOf(preview, piece).filter((post) => !onlyPostId || post.id === onlyPostId)
+  // A single replaced slide is judged against the whole set, so its crop matches its neighbours.
+  const all = onlyPostId ? slidesOf(preview, piece) : slides
+  const patches = await planLayouts(workspace, preview, all)
+  if (onlyPostId) for (const id of [...patches.keys()]) if (id !== onlyPostId) patches.delete(id)
+  return patches
+}
+
+export { applyLayouts }

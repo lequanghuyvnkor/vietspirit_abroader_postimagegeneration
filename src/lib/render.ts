@@ -105,11 +105,38 @@ export function loadImage(assetId: string | null): Promise<HTMLImageElement | nu
   return cached
 }
 
-export function drawCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number) {
-  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight)
+export type BgView = { zoom: number; x: number; y: number }
+
+export function drawCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, width: number, height: number, view?: BgView) {
+  const zoom = Math.max(1, view?.zoom ?? 1)
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight) * zoom
   const w = image.naturalWidth * scale
   const h = image.naturalHeight * scale
-  ctx.drawImage(image, (width - w) / 2, (height - h) / 2, w, h)
+  // x and y (-1..1) move the picture inside the spare room that zooming creates.
+  const dx = ((view?.x ?? 0) * (w - width)) / 2
+  const dy = ((view?.y ?? 0) * (h - height)) / 2
+  ctx.drawImage(image, (width - w) / 2 - dx, (height - h) / 2 - dy, w, h)
+}
+
+const channel = (value: number) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
+function luminanceOf(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return 0.2
+  const n = parseInt(m[1], 16)
+  return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255)
+}
+const mix = (hex: string, target: number, amount: number) => {
+  const n = parseInt(hex.replace('#', ''), 16)
+  const part = (shift: number) => Math.round(((n >> shift) & 255) * (1 - amount) + target * amount)
+  return `#${[16, 8, 0].map((shift) => part(shift).toString(16).padStart(2, '0')).join('')}`
+}
+
+/** The accent colour moved toward white (or black) only as far as needed for large text to reach 3:1 on the background it sits on. */
+export function accentForBackground(accent: string, backgroundLuminance: number, lightText: boolean): string {
+  const ratio = (color: string) => { const a = luminanceOf(color) + 0.05; const b = backgroundLuminance + 0.05; return Math.max(a, b) / Math.min(a, b) }
+  let color = accent
+  for (let amount = 0.08; ratio(color) < 3 && amount <= 0.8; amount += 0.08) color = mix(accent, lightText ? 255 : 0, amount)
+  return color
 }
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -174,7 +201,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   if (parts.has('plate')) {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
-    if (bgImage) drawCover(ctx, bgImage, width, height)
+    if (bgImage) drawCover(ctx, bgImage, width, height, post.bgView)
   }
 
   // Legibility scrims at top and bottom, where text sits.
@@ -214,6 +241,11 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   })
 
   const isCover = post.format === 'cover'
+  // Carousel chrome: page dots and a swipe arrow, only for the finished slides of a carousel or a static set.
+  const siblings = post.pieceId ? campaign.posts.filter((item) => item.pieceId === post.pieceId && !item.variantOf && !item.excluded) : []
+  const pieceKind = campaign.pieces.find((item) => item.id === post.pieceId)?.kind
+  const pageIndex = siblings.findIndex((item) => item.id === (post.variantOf ?? post.id))
+  const chromeOn = post.chrome !== false && !isCover && pieceKind !== undefined && pieceKind !== 'reel' && siblings.length >= 2 && pageIndex >= 0
   const safe = post.format === 'story' ? STORY_SAFE : 0
   const left = MARGIN
   const top = MARGIN + safe
@@ -231,7 +263,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   let subLine = Math.round(subSize * 1.45)
   const maxSubLines = isCover ? 3 : 5
   ctx.font = `400 22px ${body}`
-  const footerLines = post.footer ? wrap(ctx, post.footer, width - MARGIN * 2).slice(0, 6) : []
+  const footerLines = post.footer ? wrap(ctx, post.footer, width - MARGIN * 2 - (chromeOn ? 280 : 0)).slice(0, 6) : []
   const footerLineHeight = 30
   // A multi-line footer grows upward, so the separator, the CTA and the text area all move with it.
   const footerY = bottom - Math.max(0, footerLines.length - 1) * footerLineHeight
@@ -273,10 +305,12 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   // ---- Local legibility shade: darken (or lighten) behind the text only where the background is busy or bright.
   const blockBox = { x: left - 28, y: blockTop - 22, w: textWidth + 56, h: block.height + 44 }
   if (options.layoutOut) Object.assign(options.layoutOut, { width, height, logoBottom: top + (placement.hidden ? 0 : logoHeight), textTop: blockTop, textBottom: blockTop + block.height, ctaTop: post.cta && !isCover ? ctaTop : null, footerTop: post.footer ? footerY - 44 : null })
+  let backgroundLuma = 0
   if (parts.has('plate')) {
   const lum = regionLuminance(ctx, blockBox)
+  backgroundLuma = lum
   const need = dark ? Math.max(0, 0.72 - lum * 0.9) : Math.max(0, (lum - 0.2) * 2.1)
-  if (need > 0.04) feather(ctx, blockBox, dark ? '255,255,255' : '0,0,0', Math.min(0.72, need), 70)
+  if (need > 0.04 && !post.panel) feather(ctx, blockBox, dark ? '255,255,255' : '0,0,0', Math.min(0.72, need), 70)
   for (const shade of post.shades ?? []) {
     feather(ctx, { x: shade.x * width, y: shade.y * height, w: shade.w * width, h: shade.h * height }, shade.tone === 'light' ? '255,255,255' : '0,0,0', Math.min(0.9, Math.max(0, shade.strength)), Math.min(shade.w * width, shade.h * height) * 0.35)
   }
@@ -296,6 +330,30 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.fillText(workspace.company.name, left, top + 30)
   }
 
+  // ---- Frosted panel behind the text, when the background has no calm place for it.
+  if (post.panel) {
+    const panel = { x: left - 34, y: blockTop - 30, w: textWidth + 68, h: block.height + 60 }
+    const fill = ctx.createLinearGradient(0, panel.y, 0, panel.y + panel.h)
+    fill.addColorStop(0, dark ? 'rgba(255,255,255,0.70)' : 'rgba(14,26,64,0.66)')
+    fill.addColorStop(1, dark ? 'rgba(255,255,255,0.58)' : 'rgba(8,16,44,0.54)')
+    ctx.save()
+    ctx.beginPath()
+    ctx.roundRect(panel.x, panel.y, panel.w, panel.h, 34)
+    ctx.fillStyle = fill
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'
+    ctx.shadowBlur = 40
+    ctx.shadowOffsetY = 10
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+    ctx.lineWidth = 2
+    ctx.strokeStyle = dark ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.20)'
+    ctx.stroke()
+    ctx.restore()
+  }
+  // The accent line is lightened only as far as it needs to read on whatever sits behind it.
+  const behindLuma = post.panel ? (dark ? 0.85 : 0.06) : backgroundLuma ** 2.2
+  const accentUse = parts.has('plate') ? accentForBackground(accent, behindLuma, !dark) : accent
+
   // ---- Text block.
   let y = blockTop
   ctx.save()
@@ -313,7 +371,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   }
   ctx.font = `700 ${headSize}px ${display}`
   for (const { line, color } of block.lines) {
-    ctx.fillStyle = color
+    ctx.fillStyle = color === accent ? accentUse : color
     ctx.fillText(line, left, y + headSize * 0.92)
     y += block.lineHeight
   }
@@ -341,6 +399,54 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
     ctx.globalAlpha = 0.25
     ctx.fillRect(left, footerY - 44, width - MARGIN * 2, 1)
     ctx.globalAlpha = 1
+  }
+
+  // ---- Carousel chrome: page dots and the swipe arrow.
+  if (chromeOn && parts.has('text')) {
+    const total = siblings.length
+    const cy = (post.footer ? footerY : bottom) - 8
+    const right = width - MARGIN
+    const last = pageIndex === total - 1
+    let x = right
+    ctx.save()
+    if (!last) {
+      ctx.beginPath()
+      ctx.arc(right - 24, cy, 24, 0, Math.PI * 2)
+      ctx.fillStyle = dark ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.16)'
+      ctx.fill()
+      ctx.lineWidth = 2
+      ctx.strokeStyle = dark ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.45)'
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(right - 31, cy - 9)
+      ctx.lineTo(right - 20, cy)
+      ctx.lineTo(right - 31, cy + 9)
+      ctx.lineWidth = 3.5
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.strokeStyle = text
+      ctx.stroke()
+      x = right - 64
+    }
+    if (total <= 9) {
+      for (let i = total - 1; i >= 0; i--) {
+        const active = i === pageIndex
+        const w = active ? 30 : 10
+        ctx.beginPath()
+        ctx.roundRect(x - w, cy - 5, w, 10, 5)
+        ctx.fillStyle = active ? accentUse : text
+        ctx.globalAlpha = active ? 1 : 0.38
+        ctx.fill()
+        x -= w + 9
+      }
+    } else {
+      ctx.globalAlpha = 0.8
+      ctx.font = `600 22px ${body}`
+      ctx.fillStyle = text
+      ctx.textAlign = 'right'
+      ctx.fillText(`${pageIndex + 1} / ${total}`, x, cy + 8)
+    }
+    ctx.restore()
   }
 
   }

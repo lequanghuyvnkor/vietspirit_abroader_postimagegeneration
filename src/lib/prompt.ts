@@ -50,16 +50,16 @@ export function buildBackgroundPrompt(workspace: Workspace, campaign: Campaign, 
 /** The composition instruction when the text layout is known. */
 function zoneLines(zones: Zones, format: FormatKey, lightText: boolean): string {
   const tone = lightText ? 'dark' : 'light'
+  const horizon = Math.min(0.78, Math.max(0.36, zones.freeFrom))
   const free = zones.freeTo - zones.freeFrom
   return [
-    'Composition. Headline and lead text, a button and a footer are laid over this picture afterwards. Their positions are measured, as a percentage of the image height from the top edge:',
-    `- 0%–${percent(zones.textTop)}: top margin with a small logo. Calm and ${tone}.`,
-    `- ${percent(zones.textTop)}–${percent(zones.textBottom)}: headline and lead text across most of the width. THIS BAND MUST BE CALM AND ${tone.toUpperCase()}: a smooth soft gradient, haze or very faint stars only. No horizon line, planet, star, glow, route line, building or any bright or detailed element crosses it.`,
-    `- ${percent(zones.lower)}–100%: button and footer. Calm and ${tone} as well.`,
-    free >= 0.12
-      ? `All scenery (horizon, planet, the main symbol, glows, route lines) belongs ONLY between ${percent(zones.freeFrom)} and ${percent(zones.freeTo)} of the height, with its brightest point inside that band.${free < 0.2 ? ' The band is narrow: keep the scene compact and low.' : ''}`
-      : `There is almost no free space, so keep the whole picture a calm ${tone} gradient with only a faint soft glow near ${percent(zones.freeFrom)}–${percent(Math.min(1, zones.freeFrom + 0.1))}.`,
+    'Composition. Headline and lead text, a button and a footer are laid over this picture afterwards.',
+    `The upper ${percent(horizon)} of the frame is open ${tone} sky behind that text: a smooth, deep gradient that grows only slightly brighter toward the horizon, with a few tiny faint stars. Nothing sharp, bright or detailed in it.`,
+    `Below it the scenery fills the rest of the frame down to the bottom edge, with no empty strip: the curved horizon of the planet peaks at about ${percent(horizon)} of the height at the centre, the main symbol sits on that horizon, and the planet surface below it carries the detail (city lights, glowing route lines, a soft atmospheric glow along the horizon). Keep the lowest 15% a calmer, darker part of the planet surface so a footer line stays readable.`,
+    free < 0.12 ? 'The text needs most of the height, so keep the scene compact and low and the sky quiet.' : '',
+    'ONE continuous image. All tone changes are smooth and gradual. Never paint horizontal bands, stripes, steps, flat dark rectangles, vignette boxes or visible seams at any height, and no hard line anywhere except the planet horizon itself.',
     'Do not draw any card, panel, ticket, frame, button, badge, window, label or text-like shape anywhere, including blank glass or frosted rectangles. They are added by the layout, never by the picture.',
+    'Style: premium cinematic space photography, rich but restrained colour, high detail only in the lower scenery.',
     format === 'story' ? 'For stories also keep the top and bottom 13% completely clear.' : '',
   ].filter(Boolean).join('\n')
 }

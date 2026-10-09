@@ -208,6 +208,8 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
           <Field label="Chân bài" hint="Nhiều dòng được (Enter để xuống dòng)."><textarea rows={2} value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
           <LogoPanel workspace={workspace} campaign={campaign} post={post} keys={keys} edit={edit} onError={onError} applyToAll={applyLogoToAll} />
           <label className="check"><input type="checkbox" checked={post.scrim} onChange={(event) => set('scrim', event.target.checked)} /> Làm tối/sáng nhẹ mép trên và dưới để chữ dễ đọc</label>
+          <label className="check"><input type="checkbox" checked={post.panel === true} onChange={(event) => set('panel', event.target.checked)} /> Tấm kính mờ sau chữ (dùng khi nền không có chỗ êm cho chữ)</label>
+          <label className="check"><input type="checkbox" checked={post.chrome !== false} onChange={(event) => set('chrome', event.target.checked)} /> Chấm trang và mũi tên vuốt (chỉ hiện với bài nhiều slide)</label>
         </Section>
         <Section title="Thành phần đồ họa">
           {pieceAssets.length > 0 && <div className="field">
