@@ -1,0 +1,130 @@
+import { campaignWindow, emptyFoundation } from './foundation.ts'
+import { slidesOf } from './pack.ts'
+import { kindLabel, madeInApp } from './plan.ts'
+import { coverage } from './schedule.ts'
+import { applyVars, unresolvedIn } from './text.ts'
+import { STATUS_LABELS, formatOf } from './types.ts'
+import type { Campaign, DocBlock, DocModel, Piece, Workspace } from './types.ts'
+
+export type DocOptions = {
+  /** Only pieces that reached "Sẵn sàng". */
+  readyOnly: boolean
+  /** Put the slide images in (references to be rendered later). */
+  images: boolean
+}
+
+export const POST_REF = 'post:'
+export const ASSET_REF = 'asset:'
+
+const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
+const weekday = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'long' })
+
+/** Short stable fingerprint (FNV-1a) to tell whether a piece changed since a version was approved. */
+export function fingerprint(text: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 0x01000193) }
+  return (hash >>> 0).toString(16)
+}
+
+export const sortedPieces = (campaign: Campaign): Piece[] =>
+  [...campaign.pieces].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.plan.time.localeCompare(b.plan.time) || a.code.localeCompare(b.code))
+
+export function documentPieces(campaign: Campaign, options: DocOptions): Piece[] {
+  return sortedPieces(campaign).filter((piece) => !options.readyOnly || piece.status === 'ready')
+}
+
+/** What a piece contributes to the document, including what its slides say and when they last changed. */
+export function pieceFingerprint(campaign: Campaign, piece: Piece): string {
+  const slides = slidesOf(campaign, piece).map((post) => [post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.backgroundId, post.updatedAt])
+  return fingerprint(JSON.stringify([piece.title, piece.date, piece.status, piece.plan, piece.caption, piece.hashtags, piece.checks.map((check) => [check.text, check.done]), slides]))
+}
+
+function strategyBlocks(campaign: Campaign): DocBlock[] {
+  const foundation = campaign.foundation ?? emptyFoundation()
+  const window = campaignWindow(campaign)
+  const blocks: DocBlock[] = [{ t: 'h', level: 2, text: '1. Chiến lược' }]
+  const rows: [string, string][] = [
+    ['Mục tiêu', foundation.objective],
+    ['Thời gian', window ? `${dmy(window.start)} – ${dmy(window.end)}` : ''],
+    ['Ý tưởng lớn', foundation.bigIdea],
+    ['Thông điệp chính', foundation.keyMessage],
+    ['Giọng điệu', foundation.tone],
+  ]
+  const filled = rows.filter(([, value]) => value.trim())
+  if (filled.length === 0 && campaign.strategy.trim()) {
+    blocks.push(...campaign.strategy.split('\n').filter((line) => line.trim()).map((line): DocBlock => ({ t: 'p', text: line.trim() })))
+  } else if (filled.length > 0) blocks.push({ t: 'kv', rows: filled })
+  if (foundation.kpis.length > 0) blocks.push({ t: 'h', level: 3, text: 'KPI' }, { t: 'table', head: ['Chỉ số', 'Mục tiêu'], rows: foundation.kpis.map((kpi) => [kpi.label, kpi.target]) })
+  if (foundation.audiences.length > 0) blocks.push({ t: 'h', level: 3, text: 'Đối tượng' }, { t: 'table', head: ['Nhóm', 'Insight', 'Rào cản'], rows: foundation.audiences.map((item) => [item.name, item.insight, item.barrier]) })
+  if (foundation.pillars.length > 0) blocks.push({ t: 'h', level: 3, text: 'Trụ cột nội dung' }, { t: 'table', head: ['Trụ cột', 'Thông điệp', 'Bằng chứng'], rows: foundation.pillars.map((item) => [item.name, item.message, item.proof]) })
+  if (foundation.dos.length > 0) blocks.push({ t: 'h', level: 3, text: 'Nên nói' }, { t: 'list', items: foundation.dos })
+  const donts = [...campaign.guardrailNotes, ...campaign.guardrails].filter((line) => line.trim())
+  if (donts.length > 0) blocks.push({ t: 'h', level: 3, text: 'Không được nói' }, { t: 'list', items: donts })
+  const facts = Object.entries(campaign.variables).filter(([, value]) => value.trim())
+  if (facts.length > 0) blocks.push({ t: 'h', level: 3, text: 'Dữ kiện đã xác nhận' }, { t: 'table', head: ['Biến', 'Giá trị'], rows: facts.map(([key, value]) => [`[${key}]`, value.trim()]) })
+  return blocks
+}
+
+function scheduleBlocks(campaign: Campaign, pieces: Piece[]): DocBlock[] {
+  const blocks: DocBlock[] = [{ t: 'h', level: 2, text: '2. Lịch đăng' }]
+  blocks.push({ t: 'table', head: ['Ngày', 'Giờ', 'Mã', 'Bài', 'Loại', 'Phễu', 'Trạng thái'], rows: pieces.map((piece) => [piece.date ? `${weekday(piece.date)} ${dmy(piece.date).slice(0, 5)}` : 'Chưa xếp lịch', piece.plan.time, piece.code, piece.title, kindLabel(piece), piece.plan.funnel, STATUS_LABELS[piece.status]]) })
+  const data = coverage({ ...campaign, pieces })
+  if (pieces.length > 0) blocks.push({ t: 'p', text: `Phễu: ${data.funnel.map((item) => `${item.key} ${item.count} bài`).join(' · ')}.` })
+  return blocks
+}
+
+function pieceBlocks(campaign: Campaign, piece: Piece, options: DocOptions): DocBlock[] {
+  const fill = (text: string) => applyVars(text, campaign.variables)
+  const rows: [string, string][] = [
+    ['Ngày giờ đăng', piece.date ? `${weekday(piece.date)}, ${dmy(piece.date)} ${piece.plan.time}`.trim() : 'Chưa xếp lịch'],
+    ['Loại', `${kindLabel(piece)}${piece.plan.format ? ` · ${piece.plan.format}` : ''}`],
+    ['Phễu · Trụ cột', [piece.plan.funnel, piece.plan.pillar].filter(Boolean).join(' · ')],
+    ['Trạng thái', STATUS_LABELS[piece.status]],
+    ['Mục tiêu', fill(piece.plan.goal)],
+    ['Hook', fill(piece.plan.hook)],
+    ['Cấu trúc', fill(piece.plan.structure)],
+    ['CTA', fill(piece.plan.cta)],
+    ['Caption', fill(piece.caption)],
+    ['Hashtag', piece.hashtags],
+    ['Bên sản xuất', piece.kind === 'reel' && piece.production === 'external' ? `Bên ngoài. ${piece.productionNote}`.trim() : ''],
+    ['Điều kiện trước đăng', fill(piece.plan.conditions)],
+  ]
+  const blocks: DocBlock[] = [{ t: 'break' }, { t: 'h', level: 3, text: `${piece.code} · ${piece.title || piece.plan.hook}` }, { t: 'kv', rows: rows.filter(([, value]) => value.trim()) }]
+  if (options.images && madeInApp(piece)) {
+    const slides = slidesOf(campaign, piece)
+    if (slides.length > 0) {
+      blocks.push({ t: 'images', items: slides.map((post, index) => {
+        const format = formatOf(post.format)
+        return { ref: `${POST_REF}${post.id}`, caption: `${piece.kind === 'reel' ? 'Cảnh' : slides.length > 1 ? 'Slide' : 'Ảnh'} ${index + 1}${post.headline ? `: ${fill(post.headline)}` : ''}`, w: format.width, h: format.height }
+      }) })
+    }
+  }
+  if (piece.checks.length > 0) blocks.push({ t: 'p', text: 'Mục cần duyệt:' }, { t: 'list', items: piece.checks.map((check) => `${check.done ? '[x]' : '[ ]'} ${check.text}${check.owner ? ` (${check.owner})` : ''}`) })
+  return blocks
+}
+
+/** Compiles the campaign into one document: strategy, calendar, then each piece with its images, caption and checklist. */
+export function buildDocument(workspace: Workspace, campaign: Campaign, options: DocOptions): DocModel {
+  const pieces = documentPieces(campaign, options)
+  const window = campaignWindow(campaign)
+  const cover: [string, string][] = [
+    ['Thương hiệu', workspace.company.name],
+    ['Chiến dịch', campaign.name],
+    ['Thời gian', window ? `${dmy(window.start)} – ${dmy(window.end)}` : ''],
+    ['Số bài', `${pieces.length}${options.readyOnly ? ' (chỉ bài Sẵn sàng)' : ''}`],
+  ]
+  const blocks: DocBlock[] = [
+    { t: 'h', level: 1, text: `${campaign.name} · Tài liệu kế hoạch nội dung` },
+    { t: 'kv', rows: cover.filter(([, value]) => value.trim()) },
+    ...strategyBlocks(campaign),
+    ...scheduleBlocks(campaign, pieces),
+    { t: 'h', level: 2, text: '3. Các bài đăng' },
+    ...pieces.flatMap((piece) => pieceBlocks(campaign, piece, options)),
+  ]
+  return { title: campaign.name, blocks }
+}
+
+/** Variables still unfilled in the pieces of the document (the document would show them in square brackets). */
+export function unresolvedInDocument(campaign: Campaign, pieces: Piece[]): string[] {
+  return [...new Set(pieces.flatMap((piece) => [piece.caption, piece.plan.hook, piece.plan.cta, piece.plan.goal].flatMap((text) => unresolvedIn(text, campaign.variables))))]
+}

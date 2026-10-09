@@ -344,7 +344,7 @@ textarea { resize: vertical; }
 @media (max-width: 900px) { .piece-flow { grid-template-columns: minmax(0, 1fr); } .piece-brief { position: static; max-height: none; } }
 
 /* Foundation */
-.steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.steps { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 900px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sub-card { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
@@ -428,3 +428,5 @@ textarea { resize: vertical; }
 .coverage .bar i.f-BOFU { background: #1f9d55; }
 .funnel-tag { font-size: .7rem; font-weight: 700; width: 44px; }
 .coverage-gaps { grid-column: 1 / -1; margin: 0; padding: 10px 12px 10px 28px; border-radius: 8px; background: color-mix(in srgb, #d98a00 14%, transparent); font-size: .85rem; }
+
+.doc-preview { width: 100%; height: 640px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }

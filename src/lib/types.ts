@@ -207,6 +207,35 @@ export type DocsSync = {
   sent: Record<string, string>
 }
 
+export type DocImage = { ref: string; caption: string; w: number; h: number }
+
+/** The campaign document as plain data, so one source feeds the preview, PDF, Word, Markdown and the approved versions. */
+export type DocBlock =
+  | { t: 'h'; level: 1 | 2 | 3; text: string }
+  | { t: 'p'; text: string }
+  | { t: 'list'; items: string[] }
+  | { t: 'table'; head: string[]; rows: string[][] }
+  | { t: 'kv'; rows: [string, string][] }
+  | { t: 'images'; items: DocImage[] }
+  | { t: 'break' }
+
+export type DocModel = {
+  title: string
+  blocks: DocBlock[]
+}
+
+/** An approved snapshot of the campaign document: the text as it was, and the pictures kept as assets. */
+export type DocVersion = {
+  id: string
+  label: string
+  at: string
+  note: string
+  readyOnly: boolean
+  model: DocModel
+  /** Per piece id: fingerprint at approval, to tell later which pieces changed. */
+  pieces: Record<string, string>
+}
+
 /** Days before the publish date by which text, images and approval must be done (the backward schedule). */
 export type Lead = { copy: number; visual: number; review: number }
 
@@ -225,6 +254,7 @@ export type Campaign = {
   docsSync?: DocsSync
   sheetSync?: SheetSync
   lead?: Lead
+  docVersions?: DocVersion[]
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */

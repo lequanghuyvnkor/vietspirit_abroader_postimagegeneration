@@ -11,6 +11,7 @@ import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
 import { useBatch } from '../lib/batch.ts'
 import { Moodboard } from './Moodboard.tsx'
 import { FoundationTab } from './FoundationTab.tsx'
+import { DocumentTab } from './DocumentTab.tsx'
 import { hasFoundation } from '../lib/foundation.ts'
 
 type Props = {
@@ -123,7 +124,8 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     { key: 'moodboard', label: '② Moodboard', hint: 'Ảnh, không khí, màu, font, nền' },
     { key: 'plan', label: '③ Kế hoạch', hint: 'Các bài, lịch, kiểm tra' },
     { key: 'production', label: '④ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
-    { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch đăng, Google Docs, zip' },
+    { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch tháng, bảng ngày, zip ảnh' },
+    { key: 'document', label: '⑥ Tài liệu', hint: 'PDF, Word, bản duyệt, Google Docs' },
   ]
   const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : hasFoundation(campaign) ? 'moodboard' : 'foundation')
   const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch }
@@ -231,6 +233,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {tab === 'plan' && <PlanTab {...tabProps} />}
     {tab === 'production' && <><ProductionTab {...tabProps} />{loosePosts}</>}
     {tab === 'schedule' && <ScheduleTab {...tabProps} />}
+    {tab === 'document' && <DocumentTab {...tabProps} />}
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}

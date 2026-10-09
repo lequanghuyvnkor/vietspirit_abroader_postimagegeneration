@@ -10,7 +10,6 @@ import type { Campaign, Piece, PieceStatus, Workspace } from '../lib/types.ts'
 import { readXlsx } from '../lib/xlsx.ts'
 import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
-import { DocsPanel } from './DocsPanel.tsx'
 import { SheetPanel } from './SheetPanel.tsx'
 import { PlanGrid } from './PlanEditor.tsx'
 import { CalendarPanel, CoveragePanel, LateAlerts } from './CalendarPanel.tsx'
@@ -226,7 +225,6 @@ export function ScheduleTab({ workspace, campaign, edit, batch }: Props & { batc
     </Section>
     <Section title="Lịch đăng" aside={<button className="btn small primary" disabled={withSlides.length === 0 || batch.running} onClick={() => setConfirm(true)}>Xuất ảnh hoàn chỉnh ({withSlides.length} bài)</button>}>
       <JobStatus job={batch.job} />
-      <DocsPanel workspace={workspace} campaign={campaign} edit={edit} />
       <ScheduleTable workspace={workspace} campaign={campaign} edit={edit} />
     </Section>
     {confirm && <Modal title="Xuất ảnh hoàn chỉnh" onClose={() => setConfirm(false)}>
