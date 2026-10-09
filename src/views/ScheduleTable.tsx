@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
 import { campaignWindow } from '../lib/foundation.ts'
 import { defaultProductionNote, kindLabel, pieceTexts, suggestDates } from '../lib/plan.ts'
 import { navigate } from '../lib/route.ts'
@@ -8,8 +8,10 @@ import type { Campaign, Piece, PieceStatus, Production, Workspace } from '../lib
 import { ConfirmDialog } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { slidesOf } from '../lib/pack.ts'
-import { buildCards, copyDocsHtml } from '../lib/docsExport.ts'
-import { loadDocsSync, pushToDocs, saveDocsSync } from '../lib/docsSync.ts'
+import { copyDocsHtml } from '../lib/docsExport.ts'
+import { docsSyncReady, emptyDocsSync, loadDocsSync } from '../lib/docsSync.ts'
+import { useDocsSync } from '../lib/docsSyncState.ts'
+import type { DocsSync } from '../lib/types.ts'
 
 type Props = {
   workspace: Workspace
@@ -28,11 +30,12 @@ function csvCell(value: string): string {
 
 export function ScheduleTable({ workspace, campaign, edit }: Props) {
   const [confirmSuggest, setConfirmSuggest] = useState(false)
-  const [sync, setSync] = useState(loadDocsSync)
+  const [prefill] = useState(loadDocsSync)
   const [syncOpen, setSyncOpen] = useState(false)
-  const [syncState, setSyncState] = useState<{ busy: boolean; message: string }>({ busy: false, message: '' })
-  const signature = useMemo(() => JSON.stringify(buildCards(campaign)), [campaign])
-  const lastPushed = useRef<string | null>(null)
+  const docs = useDocsSync()
+  const sync = campaign.docsSync ?? emptyDocsSync(prefill)
+  const syncStatus = docs.status[campaign.id]
+  const pending = docs.pending[campaign.id] ?? campaign.pieces.length
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
   const window = campaignWindow(campaign)
   const undated = campaign.pieces.filter((piece) => !piece.date)
@@ -73,37 +76,12 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     setTimeout(() => setCopied(null), 4000)
   }
 
-  async function pushDocs(settings = sync, auto = false) {
-    saveDocsSync(settings)
-    lastPushed.current = signature
-    setSyncState({ busy: true, message: 'Đang đẩy lên Google Docs…' })
-    try {
-      const result = await pushToDocs(settings, campaign)
-      const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-      setSyncState({ busy: false, message: auto ? `Tự động đẩy lúc ${time}.` : `Xong: tạo ${result.created ?? 0} tab, cập nhật ${result.updated ?? 0} tab.` })
-    } catch (error) {
-      lastPushed.current = null
-      setSyncState({ busy: false, message: `Lỗi: ${error instanceof Error ? error.message : String(error)}` })
-    }
-  }
-
-  const ready = sync.url.trim() !== '' && sync.doc.trim() !== ''
-  // With auto-push on, send the cards a few seconds after the plan stops changing.
-  useEffect(() => {
-    if (!sync.auto || !ready) return
-    if (lastPushed.current === null) { lastPushed.current = signature; return }
-    if (lastPushed.current === signature) return
-    const timer = setTimeout(() => { void pushDocs(sync, true) }, 4000)
-    return () => clearTimeout(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, sync, ready])
+  const setSync = (change: Partial<DocsSync>) => edit((draft) => { draft.docsSync = { ...emptyDocsSync(prefill), ...draft.docsSync, ...change } })
+  const ready = docsSyncReady(sync)
 
   function toggleAuto(on: boolean) {
-    const next = { ...sync, auto: on }
-    setSync(next)
-    saveDocsSync(next)
-    if (on && ready) void pushDocs(next, true)
-    else lastPushed.current = null
+    setSync({ auto: on })
+    if (on && ready) void docs.pushNow(workspace.id, campaign.id, false)
   }
 
   function applySuggestion() {
@@ -149,12 +127,18 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
       <button className="btn small" onClick={() => setSyncOpen((open) => !open)} aria-expanded={syncOpen}>Đẩy lên Google Docs</button>
       <button className="btn small" onClick={exportCsv}>Xuất CSV</button>
     </div>
-    {syncOpen && <div className="row wrap schedule-bar">
-      <input aria-label="Link Google Docs" placeholder="Link Google Docs" value={sync.doc} onChange={(event) => setSync({ ...sync, doc: event.target.value })} />
-      <input aria-label="URL web app Apps Script" placeholder="URL web app Apps Script (…/exec)" value={sync.url} onChange={(event) => setSync({ ...sync, url: event.target.value })} />
-      <button className="btn small primary" disabled={syncState.busy || !ready} onClick={() => void pushDocs()}>Đẩy {campaign.pieces.length} bài</button>
-      <label className="row" title="Mỗi khi kế hoạch thay đổi, tự đẩy lại sau vài giây. Chỉ chạy khi trang Bảng theo ngày đang mở."><input type="checkbox" checked={sync.auto} disabled={!ready} onChange={(event) => toggleAuto(event.target.checked)} /> Tự động đẩy khi có thay đổi</label>
-      {syncState.message && <span className="muted" role="status">{syncState.message}</span>}
+    {syncOpen && <div className="stack schedule-bar">
+      <div className="row wrap">
+        <input aria-label="Link Google Docs" placeholder="Link Google Docs" value={sync.doc} onChange={(event) => setSync({ doc: event.target.value })} />
+        <input aria-label="URL web app Apps Script" placeholder="URL web app Apps Script (…/exec)" value={sync.url} onChange={(event) => setSync({ url: event.target.value })} />
+      </div>
+      <div className="row wrap">
+        <button className="btn small primary" disabled={syncStatus?.busy || !ready} onClick={() => { void docs.pushNow(workspace.id, campaign.id, false) }}>{pending > 0 ? `Đẩy ${pending} bài thay đổi` : 'Đã khớp, đẩy lại bài thay đổi'}</button>
+        <button className="btn small" disabled={syncStatus?.busy || !ready} onClick={() => { void docs.pushNow(workspace.id, campaign.id, true) }}>Đẩy lại tất cả {campaign.pieces.length} bài</button>
+        <label className="row" title="Khi nội dung hoặc hình ảnh của một bài đổi (ở bất kỳ trang nào của app), Google Docs tự cập nhật bài đó sau vài giây."><input type="checkbox" checked={sync.auto} disabled={!ready} onChange={(event) => toggleAuto(event.target.checked)} /> Tự động cập nhật khi có thay đổi</label>
+      </div>
+      {syncStatus?.message && <span className="muted" role="status">{syncStatus.message}</span>}
+      <small className="muted">Mỗi bài là một tab: bảng thông tin và ảnh hoàn chỉnh (hoặc các cảnh của Reel). Chữ bạn gõ tay trong các tab này sẽ bị thay khi bài đó được đẩy lại.</small>
     </div>}
     <div className="table-wrap">
       <table>

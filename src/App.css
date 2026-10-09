@@ -352,3 +352,9 @@ textarea { resize: vertical; }
 .issues { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .85rem; }
 .issues li.warn::marker { color: #b36b00; }
 .issues li.info::marker { color: var(--muted); }
+
+/* Docs sync chip */
+.docs-chip { font-size: .8rem; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.docs-chip.warn { color: #b36b00; border-color: #d98a00; }
+.docs-chip.ok { color: #187a43; }
+.docs-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

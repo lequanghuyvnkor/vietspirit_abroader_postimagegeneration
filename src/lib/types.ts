@@ -157,6 +157,16 @@ export type Foundation = {
   dos: string[]
 }
 
+/** Link to the campaign's Google Docs (through an Apps Script web app) and what was last sent to it. */
+export type DocsSync = {
+  url: string
+  doc: string
+  /** Re-send the changed pieces a few seconds after any edit. */
+  auto: boolean
+  /** Per piece id: fingerprint of the content and images last sent. */
+  sent: Record<string, string>
+}
+
 export type Campaign = {
   id: string
   name: string
@@ -169,6 +179,7 @@ export type Campaign = {
   /** Values for [PLACEHOLDER] tokens, filled once and applied everywhere. */
   variables: Record<string, string>
   foundation: Foundation
+  docsSync?: DocsSync
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */

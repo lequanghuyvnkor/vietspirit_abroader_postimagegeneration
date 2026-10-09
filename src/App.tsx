@@ -10,6 +10,8 @@ import { StudioView } from './views/StudioView.tsx'
 import { PieceView } from './views/PieceView.tsx'
 import { Modal } from './views/ui.tsx'
 import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
+import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
+import { DocsChip } from './views/DocsChip.tsx'
 import './App.css'
 
 function useRoute(): Route {
@@ -74,7 +76,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     ...(workspace && campaign && piece ? [{ label: piece.code, route: { workspace: workspace.id, campaign: campaign.id, piece: piece.id } }] : []),
   ]
 
-  return <div className="shell">
+  return <DocsSyncProvider store={store} update={update}><div className="shell">
     <header className="topbar">
       <nav aria-label="Vị trí hiện tại" className="crumbs">
         {crumbs.map((crumb, index) => <span key={index}>{index > 0 && <i>/</i>}{index === crumbs.length - 1 && !post
@@ -82,6 +84,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
           : <button className="link" onClick={() => navigate(crumb.route)}>{crumb.label}</button>}</span>)}
       </nav>
       <div className="topbar-actions">
+        {campaign && <DocsChip campaign={campaign} workspaceId={workspace!.id} />}
         <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : 'Đã lưu'}</span>
         <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
         <button className="btn small ghost" onClick={() => setPasswordOpen(true)}>Đổi mật khẩu</button>
@@ -92,7 +95,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     <main>{view}</main>
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
-  </div>
+  </div></DocsSyncProvider>
 }
 
 export default function App() {

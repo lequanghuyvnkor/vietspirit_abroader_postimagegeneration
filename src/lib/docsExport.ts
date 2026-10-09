@@ -47,8 +47,10 @@ export async function copyDocsHtml(campaign: Campaign): Promise<void> {
   await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) })])
 }
 
-/** Cards for the Apps Script sync: one tab per piece, titled by its code. */
-export function buildCards(campaign: Campaign): { tab: string; title: string; rows: [string, string][] }[] {
-  return [...campaign.pieces].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.plan.time.localeCompare(b.plan.time) || a.code.localeCompare(b.code))
-    .map((piece) => ({ tab: piece.code, title: `${piece.date ? `${dayMonth(piece.date).slice(0, 5)} · ` : ''}${piece.code} · ${piece.title}`, rows: cardRows(campaign, piece) }))
+export type DocsImage = { name: string; caption: string; data: string; w: number; h: number }
+export type DocsCard = { tab: string; title: string; rows: [string, string][]; imagesTitle: string; images: DocsImage[] }
+
+/** The text part of a piece's Docs tab: one tab per piece, titled by its code. */
+export function cardOf(campaign: Campaign, piece: Piece): Pick<DocsCard, 'tab' | 'title' | 'rows'> {
+  return { tab: piece.code, title: `${piece.date ? `${dayMonth(piece.date).slice(0, 5)} · ` : ''}${piece.code} · ${piece.title}`, rows: cardRows(campaign, piece) }
 }
