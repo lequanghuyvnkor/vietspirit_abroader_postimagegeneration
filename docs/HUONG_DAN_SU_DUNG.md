@@ -96,7 +96,7 @@ Từ trên xuống:
 
 1. **Sửa kế hoạch của bài** (mở rộng ra): tên, loại, brief, visual brief, mục duyệt.
 2. **1 · Chữ:** *Soạn nháp bằng AI* (chữ từng slide), *AI viết lại caption* (viết rồi tự biên tập một lần), hashtag. Có phần **soi văn phong** (dấu hiệu văn máy, văn thủ tục).
-3. **2 · Hình:** *Tạo ảnh* (app đo chỗ đặt chữ rồi nhờ AI vẽ nền chỉ ở phần còn trống), *Chọn lại bố cục* (miễn phí). Mỗi slide có **Chỉnh**:
+3. **2 · Hình:** *Tạo ảnh* (app đo chỗ đặt chữ rồi nhờ AI vẽ nền chỉ ở phần còn trống), *Bố cục tự động* (miễn phí, thử các vị trí và cỡ chữ trên nền hiện có). Mỗi slide có **Chỉnh**:
    - đổi chữ, vị trí, cỡ chữ, logo (ẩn/vị trí/kích thước), thành phần đồ họa, tấm kính mờ sau chữ;
    - **ảnh chủ đạo** (ảnh thật của mentor): đặt dưới/bên phải/toàn khung, dạng bo góc/tròn/tách nền, kèm bảng tên;
    - **Khoanh vùng + ghi chú** để AI chỉnh đúng chỗ bạn khoanh, tạo *bản chỉnh* bên cạnh bản gốc; bấm *Dùng bản này* khi ưng.
