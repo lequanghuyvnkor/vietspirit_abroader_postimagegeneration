@@ -21,6 +21,8 @@ type SyncResult = { ok?: boolean; created?: number; updated?: number; error?: st
 
 /** Sends one card per piece to the Apps Script web app, which writes one tab per piece. */
 export async function pushToDocs(settings: DocsSyncSettings, campaign: Campaign): Promise<SyncResult> {
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\/?$/.test(settings.url.trim())) throw new Error('Ô thứ hai cần URL ứng dụng web dạng https://script.google.com/macros/s/…/exec (Apps Script → Triển khai → Quản lý bản triển khai → Ứng dụng web), không phải link trang soạn code.')
+  if (!/\/document\/d\/[\w-]+|^[\w-]{25,}$/.test(settings.doc.trim())) throw new Error('Ô thứ nhất cần link Google Docs dạng https://docs.google.com/document/d/…')
   // text/plain keeps this a "simple" request, so the browser skips the CORS preflight Apps Script can't answer.
   const response = await fetch(settings.url.trim(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ doc: docIdOf(settings.doc), campaign: campaign.name, cards: buildCards(campaign) }) })
   if (!response.ok) throw new Error(`Máy chủ Apps Script trả về ${response.status}`)

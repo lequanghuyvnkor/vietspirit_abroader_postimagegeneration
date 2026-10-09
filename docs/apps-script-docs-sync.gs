@@ -5,48 +5,62 @@
  * Services (+) > "Google Docs API" (identifier Docs) > Add. Deploy > Manage deployments > edit (pencil)
  * > Version: New version > Deploy. The web app URL ends in /exec.
  *
- * Each card becomes a tab named by the piece code. Re-syncing replaces the content of the tab with that name
- * and leaves every other tab alone.
+ * Each card becomes a tab named by the piece code. Re-syncing replaces the tab with that name by a fresh one
+ * in the same place (no character positions to compute) and leaves every other tab alone.
  */
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents)
     var existing = tabsByTitle(data.doc)
-    var missing = data.cards.filter(function (card) { return !existing[card.tab] })
+    var updated = 0
 
-    if (missing.length) {
-      var added = Docs.Documents.batchUpdate({
-        requests: missing.map(function (card) { return { addDocumentTab: { tabProperties: { title: card.tab } } } })
-      }, data.doc)
-      added.replies.forEach(function (reply, i) {
-        existing[missing[i].tab] = { id: reply.addDocumentTab.tabProperties.tabId, end: 1 }
-      })
-    }
+    // Pass 1: a fresh, empty tab per card. An existing tab with that name is removed and recreated at its old position.
+    var requests = []
+    var addedFor = []
+    data.cards.forEach(function (card) {
+      var old = existing[card.tab]
+      var props = { title: card.tab }
+      if (old) {
+        props.index = old.index
+        if (old.parent) props.parentTabId = old.parent
+      }
+      // Add the fresh tab before removing the old one, so the doc never runs out of tabs.
+      requests.push({ addDocumentTab: { tabProperties: props } })
+      addedFor[requests.length - 1] = card.tab
+      if (old) {
+        updated++
+        requests.push({ deleteTab: { tabId: old.id } })
+      }
+    })
+    var replies = Docs.Documents.batchUpdate({ requests: requests }, data.doc).replies
+    replies.forEach(function (reply, i) {
+      if (addedFor[i]) existing[addedFor[i]] = { id: reply.addDocumentTab.tabProperties.tabId, end: 1 }
+    })
 
-    // Pass 1: clear each tab, write the title and an empty table.
+    // Pass 2: write the title and an empty table in each fresh tab.
     var layout = []
     data.cards.forEach(function (card) { layout = layout.concat(layoutRequests(existing[card.tab], card)) })
     Docs.Documents.batchUpdate({ requests: layout }, data.doc)
 
-    // Pass 2: the table's real cell positions are only known now, so read them back and fill the cells.
+    // Pass 3: the table's real cell positions are only known now, so read them back and fill the cells.
     var fill = []
     var tables = tablesByTitle(data.doc)
     data.cards.forEach(function (card) { fill = fill.concat(fillRequests(existing[card.tab].id, tables[card.tab], card)) })
     Docs.Documents.batchUpdate({ requests: fill }, data.doc)
-    return json({ ok: true, created: missing.length, updated: data.cards.length - missing.length })
+    return json({ ok: true, created: data.cards.length - updated, updated: updated })
   } catch (error) {
     return json({ error: String(error) })
   }
 }
 
-/** { title: { id, end } } for every tab (child tabs included); end = index where the body ends. */
+/** { title: { id, index, parent } } for every tab, child tabs included. */
 function tabsByTitle(docId) {
-  var doc = Docs.Documents.get(docId, { includeTabsContent: true })
+  var doc = Docs.Documents.get(docId)
   var out = {}
   ;(function walk(tabs) {
     tabs.forEach(function (tab) {
-      var content = tab.documentTab.body.content
-      out[tab.tabProperties.title] = { id: tab.tabProperties.tabId, end: content[content.length - 1].endIndex }
+      var props = tab.tabProperties
+      out[props.title] = { id: props.tabId, index: props.index, parent: props.parentTabId }
       if (tab.childTabs) walk(tab.childTabs)
     })
   })(doc.tabs)
@@ -55,8 +69,6 @@ function tabsByTitle(docId) {
 
 function layoutRequests(tab, card) {
   var requests = []
-  // The last newline of a tab body can't be deleted, so clear 1 .. end-1.
-  if (tab.end > 2) requests.push({ deleteContentRange: { range: { tabId: tab.id, startIndex: 1, endIndex: tab.end - 1 } } })
   requests.push({ insertText: { location: { tabId: tab.id, index: 1 }, text: card.title + '\n' } })
   requests.push({ updateParagraphStyle: { range: { tabId: tab.id, startIndex: 1, endIndex: 2 + card.title.length }, paragraphStyle: { namedStyleType: 'HEADING_1' }, fields: 'namedStyleType' } })
   requests.push({ insertTable: { location: { tabId: tab.id, index: 2 + card.title.length }, rows: card.rows.length, columns: 2 } })
