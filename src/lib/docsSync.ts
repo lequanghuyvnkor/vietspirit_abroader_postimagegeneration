@@ -1,6 +1,7 @@
 import { cardOf, type DocsCard, type DocsImage } from './docsExport.ts'
 import { slidesOf } from './pack.ts'
 import { renderBlob } from './render.ts'
+import { tokensIn } from './text.ts'
 import type { Campaign, DocsSync, Piece, Workspace } from './types.ts'
 
 const KEY = 'docs-sync'
@@ -39,12 +40,16 @@ export function pieceSignature(workspace: Workspace, campaign: Campaign, piece: 
   const components = slides.flatMap((post) => post.layers.map((layer) => campaign.components.find((item) => item.id === layer.componentId)?.assetId ?? null))
   const { company } = workspace
   const kv = campaign.keyVisual
+  // Only the shared facts this piece actually uses: editing one blank (a discount, a deadline) must not mark every piece as changed.
+  const texts = [piece.caption, piece.plan.cta, ...slides.flatMap((post) => [post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.footer])]
+  const used = [...new Set(texts.flatMap(tokensIn))].sort().map((key) => [key, campaign.variables[key] ?? ''])
   return hash(JSON.stringify([
     cardOf(campaign, piece),
     slides, backgrounds, components,
     [kv.palette, kv.accentColor, kv.textTone, kv.displayFont, kv.displayFontAssetId, kv.bodyFont],
-    [company.name, company.logoId, company.logoDarkId, company.logoHeight, company.footer],
-    campaign.variables,
+    // The default footer is not listed: every slide already carries its own footer text.
+    [company.name, company.logoId, company.logoDarkId, company.logoHeight],
+    used,
   ]))
 }
 
