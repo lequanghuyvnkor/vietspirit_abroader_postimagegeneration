@@ -90,7 +90,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })
   }
 
-  function applyImport({ name, keyVisual, sources, components, logos }: ImportResult) {
+  function applyImport({ keyVisual, sources, components, logos }: ImportResult) {
     if (logos.light || logos.dark) update((draft) => {
       const owner = draft.workspaces.find((entry) => entry.id === workspace.id)
       if (!owner) return
@@ -98,7 +98,8 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       if (logos.dark) owner.company.logoDarkId = logos.dark
     })
     campaign.sources.forEach((item) => { void api.deleteAsset(item.assetId) })
-    edit((draft) => { draft.name = name; draft.keyVisual = keyVisual; draft.sources = sources; draft.components.push(...components) })
+    // Only the Moodboard side changes: the campaign keeps its name, foundation and plan.
+    edit((draft) => { draft.keyVisual = keyVisual; draft.sources = sources; draft.components.push(...components) })
   }
 
   function removeComponent(id: string) {
@@ -121,8 +122,8 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   }
 
   const tabs: { key: CampaignTab; label: string; hint: string }[] = [
-    { key: 'foundation', label: '① Nền tảng', hint: 'Mục tiêu, đối tượng, thông điệp, dữ kiện' },
-    { key: 'moodboard', label: '② Moodboard', hint: 'Ảnh, không khí, màu, font, nền' },
+    { key: 'foundation', label: '① Nền tảng', hint: 'NÓI GÌ, với ai: mục tiêu, thông điệp, dữ kiện' },
+    { key: 'moodboard', label: '② Moodboard', hint: 'TRÔNG NHƯ THẾ NÀO: ảnh, màu, font, nền' },
     { key: 'plan', label: '③ Kế hoạch', hint: 'Các bài, lịch, kiểm tra' },
     { key: 'production', label: '④ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
     { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch tháng, bảng ngày, zip ảnh' },
@@ -218,7 +219,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   return <div className="page">
     <div className="page-head">
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
-      <div className="row"><button className="btn" onClick={() => setDialog('import')}>Nhập lại từ PDF Key Visual</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
+      <div className="row"><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
     <nav className="steps" aria-label="Các bước của chiến dịch">
       {tabs.map((item) => <button key={item.key} className={item.key === tab ? 'on' : ''} aria-current={item.key === tab ? 'page' : undefined} onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, tab: item.key })}>
@@ -226,9 +227,11 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       </button>)}
     </nav>
 
+    {tab === 'foundation' && <p className="muted tab-note"><b>Nền tảng</b> là phần LỜI của chiến dịch: nói gì, với ai, bằng giọng nào. Hình ảnh (màu, font, ảnh tham chiếu, nền) nằm ở tab ② Moodboard, nhập key visual PDF cũng ở đó.</p>}
     {tab === 'foundation' && <FoundationTab {...tabProps} />}
+    {tab === 'moodboard' && <p className="muted tab-note"><b>Moodboard</b> là phần HÌNH của chiến dịch: màu, font, ảnh tham chiếu, thành phần đồ họa, nền. Nội dung chữ (mục tiêu, thông điệp, trụ cột) nằm ở tab ① Nền tảng và ③ Kế hoạch; "Mô tả không khí" ở đây là để AI vẽ nền, không phải ý tưởng truyền thông.</p>}
     {tab === 'moodboard' && <div className="two-col">
-      <Section title="Moodboard">
+      <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF key visual. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập key visual từ PDF</button>}>
         <Moodboard keyVisual={kv} components={campaign.components} keys={keys} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
       <div className="stack">{identity}{backgrounds}{components}</div>
@@ -241,7 +244,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}
-    {dialog === 'import' && <ImportPdf base={kv} confirmLabel="Cập nhật chiến dịch" onApply={applyImport} onClose={() => setDialog(null)} />}
+    {dialog === 'import' && <ImportPdf base={kv} componentNames={campaign.components.map((item) => item.name)} confirmLabel="Cập nhật Moodboard" onApply={applyImport} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa bài đăng" message={`Xóa "${target.name}"?`} confirm="Xóa" onConfirm={() => edit((draft) => { draft.posts = draft.posts.filter((item) => item.id !== target.id) })} onClose={() => setDialog(null)} />}
   </div>
 }

@@ -12,13 +12,15 @@ type Props = {
   /** Existing key visual to fill gaps from and to keep untouched fields (update mode). */
   base?: KeyVisual
   confirmLabel: string
+  /** Names of components the campaign already has (a re-import skips pieces with the same name). */
+  componentNames?: string[]
   onApply: (result: ImportResult) => void
   onClose: () => void
 }
 
 const MAX_REFERENCES = 4
 
-export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
+export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, onClose }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +32,12 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
   const [found, setFound] = useState<FoundComponent[]>([])
   const [heroes, setHeroes] = useState<Set<string>>(new Set())
   const [roles, setRoles] = useState<Record<string, 'light' | 'dark' | ''>>({})
+  // Re-importing into an existing campaign must not silently replace work done since: every part is an explicit choice.
+  const updating = Boolean(base)
+  const [applyLook, setApplyLook] = useState(true)
+  const [replaceRefs, setReplaceRefs] = useState(!updating)
+  const [addComponents, setAddComponents] = useState(true)
+  const [setLogos, setSetLogos] = useState(!updating)
 
   async function open(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -87,17 +95,20 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
     setError('')
     try {
       const chosen = analysis.pages.filter((page) => picked.has(page.index))
-      const ids = await Promise.all(chosen.map(async (page) => api.uploadAsset(`page-${page.index}.webp`, await downscaleDataUrl(page.dataUrl, 1800))))
+      const keepRefs = updating && !replaceRefs
+      const ids = keepRefs ? [] : await Promise.all(chosen.map(async (page) => api.uploadAsset(`page-${page.index}.webp`, await downscaleDataUrl(page.dataUrl, 1800))))
       // Every page is kept at full resolution so components can be cut from it later.
-      const chosenComponents = found.filter((item) => item.checked && !roles[item.id])
-      const heroIds = await Promise.all(found.filter((item) => item.checked && heroes.has(item.id) && !roles[item.id]).map((item) => api.uploadAsset(`${item.name}-hero.png`, item.preview)))
+      const existingNames = new Set(componentNames.map((item) => item.trim().toLowerCase()))
+      const chosenComponents = !addComponents ? [] : found.filter((item) => item.checked && !roles[item.id] && !(updating && existingNames.has(item.name.trim().toLowerCase())))
+      const heroIds = await Promise.all(found.filter((item) => addComponents && item.checked && heroes.has(item.id) && !roles[item.id]).map((item) => api.uploadAsset(`${item.name}-hero.png`, item.preview)))
       const logoUploads = await Promise.all(found.filter((item) => item.checked && roles[item.id]).map(async (item) => ({ role: roles[item.id], assetId: await api.uploadAsset(`${item.name}.png`, item.preview) })))
-      const logos = { light: logoUploads.find((entry) => entry.role === 'light')?.assetId ?? null, dark: logoUploads.find((entry) => entry.role === 'dark')?.assetId ?? null }
+      const logos = setLogos ? { light: logoUploads.find((entry) => entry.role === 'light')?.assetId ?? null, dark: logoUploads.find((entry) => entry.role === 'dark')?.assetId ?? null } : { light: null, dark: null }
       const components = await Promise.all(chosenComponents.map(async (item): Promise<Component> => ({ id: crypto.randomUUID(), name: item.name.trim() || 'Thành phần', assetId: await api.uploadAsset(`${item.name}.png`, item.preview), width: item.width, height: item.height })))
       const sources = await Promise.all(analysis.pages.map(async (page): Promise<Source> => ({ id: crypto.randomUUID(), assetId: await api.uploadAsset(`source-${page.index}.webp`, page.dataUrl), label: `Trang ${page.index}` })))
       const palette = paletteText.split(/[,\s]+/).map((value) => value.trim().toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value))
-      base?.referenceIds.forEach((id) => { void api.deleteAsset(id) })
-      onApply({ name: name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...kv, palette: palette.length ? palette : kv.palette, referenceIds: ids, subjectIds: [...(kv.subjectIds ?? []), ...heroIds] }, sources, components, logos })
+      if (!keepRefs) base?.referenceIds.forEach((id) => { void api.deleteAsset(id) })
+      const look = updating && !applyLook ? base! : kv
+      onApply({ name: updating ? '' : name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...look, palette: updating && !applyLook ? look.palette : palette.length ? palette : look.palette, referenceIds: keepRefs ? base!.referenceIds : ids, subjectIds: [...(look.subjectIds ?? []), ...heroIds] }, sources, components, logos })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không lưu được ảnh từ PDF.')
@@ -114,8 +125,16 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
     {error && <p className="notice error" role="alert">{error}</p>}
     {analysis && <div className="import-review">
       <p className="muted">Đã đọc {analysis.pages.length} trang. Kiểm tra và sửa thông tin trước khi áp dụng.</p>
-      <Field label="Tên chiến dịch"><input value={name} onChange={(event) => setName(event.target.value)} /></Field>
-      <Field label="Ý tưởng chủ đạo"><textarea rows={4} value={kv.concept} onChange={(event) => set('concept', event.target.value)} /></Field>
+      <p className="notice">Key visual chỉ cập nhật <b>Moodboard</b> (màu, font, mô tả không khí, ảnh tham chiếu, thành phần đồ họa). Không đổi <b>Nền tảng</b> (mục tiêu, thông điệp, trụ cột) và không đổi <b>Kế hoạch</b> (các bài).</p>
+      {!updating && <Field label="Tên chiến dịch"><input value={name} onChange={(event) => setName(event.target.value)} /></Field>}
+      {updating && <div className="field">
+        <span className="field-label">Áp dụng những phần nào vào chiến dịch này</span>
+        <label className="check"><input type="checkbox" checked={applyLook} onChange={(event) => setApplyLook(event.target.checked)} /> Màu, font, mô tả không khí, điều cần tránh (thay giá trị hiện có ở tab Moodboard)</label>
+        <label className="check"><input type="checkbox" checked={addComponents} onChange={(event) => setAddComponents(event.target.checked)} /> Thêm thành phần đồ họa đã tích (bỏ qua mảnh trùng tên với thành phần đang có)</label>
+        <label className="check"><input type="checkbox" checked={replaceRefs} onChange={(event) => setReplaceRefs(event.target.checked)} /> Thay các ảnh moodboard đang có bằng trang PDF đã chọn bên dưới</label>
+        <label className="check"><input type="checkbox" checked={setLogos} onChange={(event) => setSetLogos(event.target.checked)} /> Đổi logo của cả Workspace (ảnh hưởng mọi chiến dịch, chỉ khi bạn đã chọn logo bên dưới)</label>
+      </div>}
+      <Field label="Mô tả không khí (AI dùng để vẽ nền; không phải ý tưởng truyền thông)"><textarea rows={4} value={kv.concept} onChange={(event) => set('concept', event.target.value)} /></Field>
       <div className="row wrap">
         <Field label="Bảng màu (HEX, cách nhau bằng dấu phẩy)">
           <input value={paletteText} onChange={(event) => setPaletteText(event.target.value)} />
@@ -130,7 +149,7 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
           <select value={kv.textTone} onChange={(event) => set('textTone', event.target.value as KeyVisual['textTone'])}><option value="light">Chữ sáng (nền tối)</option><option value="dark">Chữ tối (nền sáng)</option></select>
         </Field>
       </div>
-      <Field label="Điều cần tránh"><textarea rows={2} value={kv.avoid} onChange={(event) => set('avoid', event.target.value)} /></Field>
+      <Field label="Không được có trong nền"><textarea rows={2} value={kv.avoid} onChange={(event) => set('avoid', event.target.value)} /></Field>
 
       {found.length > 0 && <div className="field">
         <span className="field-label">Thành phần đồ họa tìm thấy ({found.filter((item) => item.checked).length}/{found.length} được giữ)</span>
@@ -147,7 +166,7 @@ export function ImportPdf({ base, confirmLabel, onApply, onClose }: Props) {
       </div>}
 
       <div className="field">
-        <span className="field-label">Trang làm ảnh tham chiếu (tối đa {MAX_REFERENCES})</span>
+        <span className="field-label">Trang làm ảnh moodboard (tối đa {MAX_REFERENCES}){updating && !replaceRefs ? ' · đang giữ ảnh hiện có, không dùng' : ''}</span>
         <div className="pdf-pages">
           {analysis.pages.map((page) => <button key={page.index} className={picked.has(page.index) ? 'pdf-page selected' : 'pdf-page'} onClick={() => toggle(page.index)} aria-pressed={picked.has(page.index)} title={page.format ? 'Bài mẫu' : 'Trang guideline'}>
             <img src={page.thumb} alt={`Trang ${page.index}`} />

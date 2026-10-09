@@ -28,7 +28,7 @@ const VISUAL_FIELDS: { key: keyof VisualBrief; label: string; rows?: number }[] 
   { key: 'layout', label: 'Bố cục', rows: 2 },
   { key: 'onImage', label: 'Chữ trên ảnh gợi ý', rows: 2 },
   { key: 'typography', label: 'Typography' },
-  { key: 'palette', label: 'Palette' },
+  { key: 'palette', label: 'Palette (chỉ tham khảo; ảnh luôn theo Moodboard)' },
   { key: 'motion', label: 'Chuyển động (Motion)', rows: 2 },
   { key: 'assets', label: 'Tài nguyên cần chuẩn bị', rows: 2 },
   { key: 'avoid', label: 'Cần tránh', rows: 2 },

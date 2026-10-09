@@ -481,3 +481,5 @@ textarea { resize: vertical; }
   .cal-chip, .cal-due { font-size: .62rem; }
   .stat { min-width: 96px; }
 }
+
+.tab-note { margin: 0; font-size: .85rem; }

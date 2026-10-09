@@ -91,7 +91,8 @@ export async function generatePlate(workspace: Workspace, campaign: Campaign, pi
   const [width, height] = formatOf(format).generate
   const zones = await measureZones(workspace, campaign, slides)
   const lightText = campaign.keyVisual.textTone === 'light'
-  const variation = [piece.visual.hero, piece.visual.palette && `Palette: ${piece.visual.palette}`, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
+  // The palette belongs to the campaign's Moodboard: a per-piece palette note from the plan must not compete with it.
+  const variation = [piece.visual.hero, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
   const refs = generationRefs(campaign.keyVisual)
 
   const make = (extra: string) => api.generate({ prompt: buildBackgroundPrompt(workspace, campaign, format, [variation, extra].filter(Boolean).join(' '), zones), width, height, quality: 'high', referenceIds: refs, keyId })
