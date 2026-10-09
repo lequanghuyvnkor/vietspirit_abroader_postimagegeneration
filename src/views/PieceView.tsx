@@ -9,6 +9,7 @@ import { allSlidesOf, baseSlidesOf, buildPack, downloadBlob, slidesOf } from '..
 import { removeFamily, removeVariant, chooseVersion } from '../lib/variants.ts'
 import { navigate } from '../lib/route.ts'
 import { applyVars, lintText, unresolvedIn } from '../lib/text.ts'
+import { lintCopy, mergeRepeats } from '../lib/copyCraft.ts'
 import { STATUS_LABELS, newId, now } from '../lib/types.ts'
 import type { Campaign, Piece, PieceStatus, Production, Store, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Field, Section } from './ui.tsx'
@@ -45,6 +46,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   const missing = [...new Set(pieceTexts(campaign, piece).flatMap((text) => unresolvedIn(text, campaign.variables)))]
   const openChecks = piece.checks.filter((check) => !check.done).length
   const lint = lintText(applyVars(piece.caption, campaign.variables) + '\n' + slides.map((post) => [post.headline, post.accent, post.subtitle].join(' ')).join('\n'), campaign.guardrails)
+  const craft = lintCopy(filledCaption, { caption: true })
   const blockers = [...(missing.length ? [`${missing.length} biến chưa điền`] : []), ...(openChecks ? [`${openChecks} mục duyệt chưa xong`] : [])]
 
   function edit(change: (draft: Campaign, item: Piece) => void) {
@@ -186,6 +188,12 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
           </details>}
           <Field label="Hashtag"><input value={piece.hashtags} onChange={(event) => edit((_, item) => { item.hashtags = event.target.value })} /></Field>
           {missing.length > 0 && <p className="notice">Biến chưa điền: {missing.map((key) => `[${key}]`).join(', ')}. Điền ở tab Kế hoạch của chiến dịch.</p>}
+          {craft.length > 0 && <details className="lint" open={craft.some((hit) => hit.level === 'warn')}>
+            <summary><strong>Soi văn phong ({craft.length})</strong> <span className="muted">dấu hiệu văn bản máy hoặc văn bản thủ tục</span></summary>
+            {craft.map((hit, index) => <p key={index}><b>{hit.rule}</b>{hit.excerpt && <><br /><span className="muted">…{hit.excerpt}…</span></>}</p>)}
+            {mergeRepeats(piece.caption) !== piece.caption && <button className="btn small" onClick={() => edit((_, item) => { item.caption = mergeRepeats(item.caption) })}>Gộp từ lặp</button>}
+            <small className="muted">Nút "AI viết lại caption" viết lại theo các nguyên tắc này rồi tự biên tập một lần nữa.</small>
+          </details>}
           {lint.length > 0 && <div className="lint" role="status">
             <strong>Cần xem lại ({lint.length})</strong>
             {lint.map((hit, index) => <p key={index}><b>{hit.rule}</b><br /><span className="muted">…{hit.excerpt}…</span></p>)}

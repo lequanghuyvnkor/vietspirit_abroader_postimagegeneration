@@ -23,7 +23,7 @@ const DOC_OK = /\/document\/d\/[\w-]+|^[\w-]{25,}$/
 export const docsSyncReady = (settings: Pick<DocsSync, 'url' | 'doc'>) => URL_OK.test(settings.url.trim()) && DOC_OK.test(settings.doc.trim())
 
 export function emptyDocsSync(prefill?: { url: string; doc: string }): DocsSync {
-  return { url: prefill?.url ?? '', doc: prefill?.doc ?? '', auto: false, sent: {} }
+  return { url: prefill?.url ?? '', doc: prefill?.doc ?? '', auto: true, sent: {} }
 }
 
 const hash = (text: string) => {

@@ -9,8 +9,19 @@ export function tokensIn(text: string): string[] {
   return [...new Set([...text.matchAll(TOKEN)].map((match) => tokenKey(match[1])))]
 }
 
+const lastWord = (value: string) => value.trim().split(/\s+/).at(-1)?.replace(/[^\p{L}\p{N}]+$/u, '').toLowerCase() ?? ''
+
+/**
+ * Replaces [PLACEHOLDERS] with their values. The plan writes "[SỐ SUẤT] suất sàng lọc" while the value is "10 suất":
+ * when the value already ends with the word that follows the placeholder, that word is not repeated.
+ */
 export function applyVars(text: string, vars: Record<string, string>): string {
-  return text.replace(TOKEN, (whole, inner: string) => vars[tokenKey(inner)]?.trim() || whole)
+  return text.replace(/\[([^\]\n]{2,60})\](?:(\s+)(\p{L}+))?/gu, (whole, inner: string, space: string | undefined, next: string | undefined) => {
+    const value = vars[tokenKey(inner)]?.trim()
+    if (!value) return whole
+    if (next && lastWord(value) === next.toLowerCase()) return value
+    return space && next ? `${value}${space}${next}` : value
+  })
 }
 
 export function unresolvedIn(text: string, vars: Record<string, string>): string[] {

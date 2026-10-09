@@ -8,10 +8,6 @@ import type { Campaign, Piece, PieceStatus, Production, Workspace } from '../lib
 import { ConfirmDialog } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { slidesOf } from '../lib/pack.ts'
-import { copyDocsHtml } from '../lib/docsExport.ts'
-import { docsSyncReady, emptyDocsSync, loadDocsSync } from '../lib/docsSync.ts'
-import { useDocsSync } from '../lib/docsSyncState.ts'
-import type { DocsSync } from '../lib/types.ts'
 
 type Props = {
   workspace: Workspace
@@ -30,13 +26,6 @@ function csvCell(value: string): string {
 
 export function ScheduleTable({ workspace, campaign, edit }: Props) {
   const [confirmSuggest, setConfirmSuggest] = useState(false)
-  const [prefill] = useState(loadDocsSync)
-  const [syncOpen, setSyncOpen] = useState(false)
-  const docs = useDocsSync()
-  const sync = campaign.docsSync ?? emptyDocsSync(prefill)
-  const syncStatus = docs.status[campaign.id]
-  const pending = docs.pending[campaign.id] ?? campaign.pieces.length
-  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
   const window = campaignWindow(campaign)
   const undated = campaign.pieces.filter((piece) => !piece.date)
   const sorted = [...campaign.pieces].filter((piece) => piece.date).sort((a, b) => a.date.localeCompare(b.date) || a.plan.time.localeCompare(b.plan.time) || a.code.localeCompare(b.code))
@@ -69,19 +58,6 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
     link.download = `lich-dang-${campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'chien-dich'}.csv`
     link.click()
     setTimeout(() => URL.revokeObjectURL(link.href), 1000)
-  }
-
-  async function copyForDocs() {
-    try { await copyDocsHtml(campaign); setCopied('ok') } catch { setCopied('fail') }
-    setTimeout(() => setCopied(null), 4000)
-  }
-
-  const setSync = (change: Partial<DocsSync>) => edit((draft) => { draft.docsSync = { ...emptyDocsSync(prefill), ...draft.docsSync, ...change } })
-  const ready = docsSyncReady(sync)
-
-  function toggleAuto(on: boolean) {
-    setSync({ auto: on })
-    if (on && ready) void docs.pushNow(workspace.id, campaign.id, false)
   }
 
   function applySuggestion() {
@@ -123,23 +99,8 @@ export function ScheduleTable({ workspace, campaign, edit }: Props) {
       <span className="muted">Đã xếp lịch {sorted.length}/{campaign.pieces.length} bài{window ? ` · kỳ ${dayMonth(window.start)}–${dayMonth(window.end)}` : ''}</span>
       <span className="spacer" />
       {window && undated.length > 0 && <button className="btn small" onClick={() => setConfirmSuggest(true)}>Gợi ý lịch cho {undated.length} bài chưa có ngày</button>}
-      <button className="btn small" onClick={copyForDocs} title="Mỗi bài một thẻ, dán thẳng vào Google Docs (Ctrl+V)">{copied === 'ok' ? 'Đã sao chép, hãy dán vào Docs' : copied === 'fail' ? 'Không sao chép được' : 'Sao chép cho Google Docs'}</button>
-      <button className="btn small" onClick={() => setSyncOpen((open) => !open)} aria-expanded={syncOpen}>Đẩy lên Google Docs</button>
       <button className="btn small" onClick={exportCsv}>Xuất CSV</button>
     </div>
-    {syncOpen && <div className="stack schedule-bar">
-      <div className="row wrap">
-        <input aria-label="Link Google Docs" placeholder="Link Google Docs" value={sync.doc} onChange={(event) => setSync({ doc: event.target.value })} />
-        <input aria-label="URL web app Apps Script" placeholder="URL web app Apps Script (…/exec)" value={sync.url} onChange={(event) => setSync({ url: event.target.value })} />
-      </div>
-      <div className="row wrap">
-        <button className="btn small primary" disabled={syncStatus?.busy || !ready} onClick={() => { void docs.pushNow(workspace.id, campaign.id, false) }}>{pending > 0 ? `Đẩy ${pending} bài thay đổi` : 'Đã khớp, đẩy lại bài thay đổi'}</button>
-        <button className="btn small" disabled={syncStatus?.busy || !ready} onClick={() => { void docs.pushNow(workspace.id, campaign.id, true) }}>Đẩy lại tất cả {campaign.pieces.length} bài</button>
-        <label className="row" title="Khi nội dung hoặc hình ảnh của một bài đổi (ở bất kỳ trang nào của app), Google Docs tự cập nhật bài đó sau vài giây."><input type="checkbox" checked={sync.auto} disabled={!ready} onChange={(event) => toggleAuto(event.target.checked)} /> Tự động cập nhật khi có thay đổi</label>
-      </div>
-      {syncStatus?.message && <span className="muted" role="status">{syncStatus.message}</span>}
-      <small className="muted">Mỗi bài là một tab: bảng thông tin và ảnh hoàn chỉnh (hoặc các cảnh của Reel). Chữ bạn gõ tay trong các tab này sẽ bị thay khi bài đó được đẩy lại.</small>
-    </div>}
     <div className="table-wrap">
       <table>
         <thead><tr><th>Ngày</th><th>Giờ</th><th>Bài</th><th>Ảnh</th><th>Loại</th><th>Bên sản xuất</th><th>Funnel</th><th>Trạng thái</th><th>Cần lưu ý</th></tr></thead>

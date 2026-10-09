@@ -1,5 +1,5 @@
 import { api } from './api.ts'
-import { buildCaptionRequest, buildDraftRequest, parseDraft, type Draft } from './ai.ts'
+import { buildCaptionRequest, buildDraftRequest, buildEditRequest, parseDraft, type Draft } from './ai.ts'
 import { draftSlides, formatKeyOf } from './plan.ts'
 import { buildBackgroundPrompt, generationRefs } from './prompt.ts'
 import { inferBeats } from './beats.ts'
@@ -21,9 +21,16 @@ export async function fetchDraft(workspace: Workspace, campaign: Campaign, piece
 export async function fetchCaption(workspace: Workspace, campaign: Campaign, piece: Piece, keyId?: string): Promise<{ caption: string; hashtags: string }> {
   const { system, prompt } = buildCaptionRequest(workspace, campaign, piece)
   const { text } = await api.generateText({ system, prompt, json: true, keyId })
-  const { caption, hashtags } = parseDraft(text)
-  if (!caption) throw new Error('AI không trả về caption. Thử lại.')
-  return { caption, hashtags }
+  const first = parseDraft(text)
+  if (!first.caption) throw new Error('AI không trả về caption. Thử lại.')
+  // Second pass: an editor checks the draft against the writing rules; if it fails, the first draft is still usable.
+  try {
+    const edit = buildEditRequest(workspace, campaign, piece, first)
+    const reply = await api.generateText({ system: edit.system, prompt: edit.prompt, json: true, keyId })
+    const edited = parseDraft(reply.text)
+    if (edited.caption.length > 40) return { caption: edited.caption, hashtags: edited.hashtags || first.hashtags }
+  } catch { /* keep the first draft */ }
+  return first
 }
 
 /** Writes a draft into the campaign's slides for the piece, creating the slides if there are none. */

@@ -358,3 +358,10 @@ textarea { resize: vertical; }
 .docs-chip.warn { color: #b36b00; border-color: #d98a00; }
 .docs-chip.ok { color: #187a43; }
 .docs-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Docs panel */
+.docs-panel .error-text { color: var(--danger); font-size: .8rem; }
+.docs-advanced { font-size: .85rem; }
+.docs-advanced summary { cursor: pointer; }
+.docs-advanced .row { margin: 8px 0; }
+.flag.ok { background: color-mix(in srgb, #1f9d55 18%, transparent); color: #187a43; }

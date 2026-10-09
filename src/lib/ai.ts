@@ -1,6 +1,7 @@
 import type { Campaign, Piece, Workspace } from './types.ts'
 import { inferBeats } from './beats.ts'
 import { foundationBrief } from './foundation.ts'
+import { COPY_CRAFT, EDITOR_SYSTEM, lintCopy } from './copyCraft.ts'
 import { splitSlides } from './text.ts'
 
 export type DraftSlide = { eyebrow: string; headline: string; accent: string; subtitle: string; cta: string }
@@ -15,7 +16,9 @@ Quy tắc bắt buộc:
 - Tuyệt đối không viết những điều trong danh sách "Không được nói", và không hứa chắc kết quả đậu/visa/học bổng.
 - Chữ trên ảnh phải ngắn: eyebrow tối đa 40 ký tự; headline tối đa 8 từ và là một ý trọn vẹn; accent (dòng nhấn, tùy chọn, có thể rỗng) tối đa 5 từ, là một cụm nhấn riêng, KHÔNG phải phần đuôi của câu trong headline (không tách một câu thành headline + accent); subtitle tối đa 22 từ; cta tối đa 5 từ và chỉ ở slide cuối hoặc khi bài chỉ có một ảnh.
 - Số liệu, điều kiện, mốc thời gian chỉ lấy từ kế hoạch hoặc nguồn đã cho; không tự suy ra.
-- Slide đầu là hook. Slide cuối chốt bằng CTA. Mỗi slide chỉ một ý.`
+- Slide đầu là hook. Slide cuối chốt bằng CTA. Mỗi slide chỉ một ý.
+
+${COPY_CRAFT}`
 
 /** Builds the system and user prompts for drafting a piece's slide copy and caption. */
 export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piece: Piece, slideCount: number): { system: string; prompt: string } {
@@ -51,9 +54,22 @@ export function buildCaptionRequest(workspace: Workspace, campaign: Campaign, pi
     base.prompt,
     piece.caption.trim() && `CAPTION HIỆN CÓ (chỉ để tham khảo ý và dữ kiện, hãy viết lại cho tự nhiên, không chép nguyên văn):\n${piece.caption}`,
     values && `GIÁ TRỊ CÁC BIẾN (để chọn cách diễn đạt cho khớp, nhưng trong caption vẫn viết placeholder dạng [TÊN BIẾN], ứng dụng sẽ tự thay):\n${values}`,
-    'YÊU CẦU RIÊNG: chỉ cần caption và hashtag; trong JSON, "slides" có thể để mảng rỗng. Caption 80-150 từ, chia đoạn rõ ràng, kết bằng CTA có placeholder đường dẫn/hotline nếu kế hoạch có.',
+    'YÊU CẦU RIÊNG: chỉ cần caption và hashtag; trong JSON, "slides" có thể để mảng rỗng. Caption 70-130 từ. Dòng đầu là câu giữ chân (khoảng 100 ký tự, nêu điều người đọc quan tâm nhất), không mở bằng tên công ty. Chia đoạn ngắn, danh sách từ 3 ý trở lên thì mỗi ý một dòng. Một câu điều kiện ở cuối. Kết bằng một việc cụ thể kèm placeholder đường dẫn/hotline nếu kế hoạch có.',
   ].filter(Boolean).join('\n\n')
   return { system: base.system, prompt }
+}
+
+/** Second pass: an editor reads the draft against the writing rules and the rule-based findings, and rewrites it. */
+export function buildEditRequest(workspace: Workspace, campaign: Campaign, piece: Piece, draft: { caption: string; hashtags: string }): { system: string; prompt: string } {
+  const findings = lintCopy(draft.caption, { caption: true })
+  const base = buildDraftRequest(workspace, campaign, { ...piece, caption: '' }, 1).prompt
+  const prompt = [
+    base.split('\n\n').filter((block) => /^(THƯƠNG HIỆU|NỀN TẢNG|CHIẾN LƯỢC|KHÔNG ĐƯỢC NÓI|BÀI CẦN SOẠN|Mục tiêu|Hook|CTA|Đối tượng bài)/.test(block)).join('\n\n'),
+    `BẢN NHÁP CẦN BIÊN TẬP:\n${draft.caption}`,
+    findings.length > 0 && `LỖI ĐÃ PHÁT HIỆN BẰNG QUY TẮC:\n${findings.map((hit) => `- ${hit.rule}${hit.excerpt ? ` ("${hit.excerpt}")` : ''}`).join('\n')}`,
+    'Tự rà theo từng nguyên tắc ở trên. Trả về JSON dạng {"caption":"bản đã viết lại","hashtags":"3-5 hashtag cách nhau bằng dấu cách","changes":"một câu nói đã sửa gì chính"}.',
+  ].filter(Boolean).join('\n\n')
+  return { system: EDITOR_SYSTEM, prompt }
 }
 
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
