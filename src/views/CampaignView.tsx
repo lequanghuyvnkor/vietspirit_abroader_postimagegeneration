@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { formatOf, newId, newPost, now } from '../lib/types.ts'
-import type { Campaign, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
+import type { Campaign, CampaignTemplate, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate, type CampaignTab } from '../lib/route.ts'
 import { safeColor } from '../lib/render.ts'
@@ -12,6 +12,7 @@ import { useBatch } from '../lib/batch.ts'
 import { Moodboard } from './Moodboard.tsx'
 import { FoundationTab } from './FoundationTab.tsx'
 import { DocumentTab } from './DocumentTab.tsx'
+import { MeasureTab } from './MeasureTab.tsx'
 import { hasFoundation } from '../lib/foundation.ts'
 
 type Props = {
@@ -126,9 +127,11 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     { key: 'production', label: '④ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
     { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch tháng, bảng ngày, zip ảnh' },
     { key: 'document', label: '⑥ Tài liệu', hint: 'PDF, Word, bản duyệt, Google Docs' },
+    { key: 'measure', label: '⑦ Đăng & đo', hint: 'Đã đăng, số liệu, xem lại, mẫu' },
   ]
   const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : hasFoundation(campaign) ? 'moodboard' : 'foundation')
-  const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch }
+  const saveTemplate = (template: CampaignTemplate) => update((draft) => { const owner = draft.workspaces.find((entry) => entry.id === workspace.id); if (owner) owner.templates = [...(owner.templates ?? []), template] })
+  const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch, onSaveTemplate: saveTemplate }
 
   const loosePosts = showLoose && <Section title="Bài đăng lẻ (ngoài kế hoạch)" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
     {loose.length === 0
@@ -234,6 +237,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {tab === 'production' && <><ProductionTab {...tabProps} />{loosePosts}</>}
     {tab === 'schedule' && <ScheduleTab {...tabProps} />}
     {tab === 'document' && <DocumentTab {...tabProps} />}
+    {tab === 'measure' && <MeasureTab {...tabProps} />}
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}

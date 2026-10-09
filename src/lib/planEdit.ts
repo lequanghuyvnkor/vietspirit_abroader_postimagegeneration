@@ -55,6 +55,8 @@ export function duplicatePiece(campaign: Campaign, id: string): Piece | null {
   delete copy.approval
   delete copy.reviewNote
   delete copy.history
+  delete copy.published
+  delete copy.metrics
   addPiece(campaign, copy, id)
   return copy
 }

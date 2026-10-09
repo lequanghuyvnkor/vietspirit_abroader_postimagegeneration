@@ -1,7 +1,7 @@
-export type CampaignTab = 'foundation' | 'moodboard' | 'plan' | 'production' | 'schedule' | 'document'
+export type CampaignTab = 'foundation' | 'moodboard' | 'plan' | 'production' | 'schedule' | 'document' | 'measure'
 export type Route = { workspace?: string; campaign?: string; post?: string; piece?: string; tab?: CampaignTab }
 
-const TABS: CampaignTab[] = ['foundation', 'moodboard', 'plan', 'production', 'schedule', 'document']
+const TABS: CampaignTab[] = ['foundation', 'moodboard', 'plan', 'production', 'schedule', 'document', 'measure']
 
 export function parseRoute(hash: string): Route {
   const [, w, workspace, c, campaign, kind, id] = hash.replace(/^#/, '').split('/')

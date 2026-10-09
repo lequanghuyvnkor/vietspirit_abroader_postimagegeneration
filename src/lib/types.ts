@@ -156,6 +156,36 @@ export type PieceVersion = { id: string; at: string; event: PieceVersionEvent; n
 /** The brand approval of a piece: when, and the content fingerprint that was approved (any later edit breaks it). */
 export type Approval = { at: string; fingerprint: string; note: string }
 
+/** The real publication of a piece: when it actually went out and where. */
+export type Published = { at: string; url: string; note: string }
+
+/** Results typed in by hand from the platform's insights. `null` = not entered. */
+export type Metrics = { reach: number | null; engagement: number | null; clicks: number | null; leads: number | null; updatedAt: string }
+
+/** One piece of a reusable template: the plan without dates, captions, pictures or results. */
+export type TemplatePiece = { title: string; kind: PieceKind; plan: PiecePlan; visual: VisualBrief; production: Production; productionNote: string; checks: { text: string; owner: string }[]; /** Days after the campaign start. */ dayOffset: number | null }
+
+export type CampaignTemplate = {
+  id: string
+  name: string
+  at: string
+  strategy: string
+  foundation: Foundation
+  /** Look of the key visual without any picture (pictures stay with the campaign they belong to). */
+  style: Pick<KeyVisual, 'concept' | 'subject' | 'palette' | 'accentColor' | 'textTone' | 'displayFont' | 'bodyFont' | 'avoid'>
+  guardrailNotes: string[]
+  guardrails: string[]
+  /** Variable names only: the values belong to each campaign. */
+  variableKeys: string[]
+  lead?: Lead
+  pieces: TemplatePiece[]
+}
+
+/** The weekly look back: what worked, what did not, what to do next. `weekStart` is the Monday (YYYY-MM-DD). */
+export type WeeklyReview = { weekStart: string; wins: string; problems: string; actions: string; updatedAt: string }
+
+export type Retro = { worked: string; didnt: string; next: string; updatedAt: string }
+
 /** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
 export type Piece = {
   id: string
@@ -176,6 +206,8 @@ export type Piece = {
   /** What the Sheet said at the last pull for the fields both sides edit; tells a Sheet change from an app change. */
   sheetBase?: { caption: string; hashtags: string; date: string; time: string; linked?: boolean; assets?: string[] }
   approval?: Approval
+  published?: Published
+  metrics?: Metrics
   /** Why the reviewer sent it back (shown until the next submission). */
   reviewNote?: string
   history?: PieceVersion[]
@@ -269,6 +301,8 @@ export type Campaign = {
   sheetSync?: SheetSync
   lead?: Lead
   docVersions?: DocVersion[]
+  weeklyReviews?: WeeklyReview[]
+  retro?: Retro
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */
@@ -283,6 +317,7 @@ export type Workspace = {
   name: string
   company: Company
   campaigns: Campaign[]
+  templates?: CampaignTemplate[]
   updatedAt: string
 }
 

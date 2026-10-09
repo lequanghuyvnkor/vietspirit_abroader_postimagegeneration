@@ -5,6 +5,7 @@ import { navigate } from '../lib/route.ts'
 import { ConfirmDialog, Field, ImageSlot, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { api } from '../lib/api.ts'
+import { TemplateSection } from './TemplateSection.tsx'
 
 type Props = { store: Store; update: (change: (draft: Store) => void) => void; workspace: Workspace; onError: (message: string) => void }
 
@@ -82,6 +83,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
         <Field label={`Kích thước logo: ${company.logoHeight ?? 64}px`} hint="Chiều cao logo trên bài 1080px. Áp dụng cho mọi bài đăng."><input type="range" min={24} max={200} step={4} value={company.logoHeight ?? 64} onChange={(event) => setCompany('logoHeight', Number(event.target.value))} /></Field>
       </Section>
     </div>
+    <TemplateSection workspace={workspace} onCreate={(campaign) => edit((draft) => { draft.campaigns.push(campaign) })} onRemove={(id) => edit((draft) => { draft.templates = (draft.templates ?? []).filter((item) => item.id !== id) })} />
     {dialog === 'create' && <NameDialog title="Tạo chiến dịch" confirm="Tạo" onSubmit={createCampaign} onClose={() => setDialog(null)} />}
     {dialog === 'import' && <ImportPdf confirmLabel="Tạo chiến dịch" onApply={importCampaign} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa chiến dịch" message={`Xóa "${target.name}" cùng toàn bộ bài đăng và ảnh nền?`} confirm="Xóa" onConfirm={() => removeCampaign(target.id)} onClose={() => setDialog(null)} />}
