@@ -1,29 +1,62 @@
+/* Design tokens. Quiet SaaS: neutral surfaces, hairline borders, one indigo accent, semantic colors only for status. */
 :root {
-  --bg: #f6f7f9;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --ink: #171a21;
-  --muted: #5d6573;
-  --line: #e2e5ea;
-  --primary: #2b4bd6;
+  --surface-2: #f4f4f5;
+  --ink: #1a1a1a;
+  --muted: #6b6b76;
+  --line: #e7e7ea;
+  --line-strong: #d4d4d8;
+  --primary: #4f46e5;
   --primary-ink: #ffffff;
-  --danger: #b3261e;
-  --radius: 10px;
-  font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  --primary-soft: #eef0ff;
+  --primary-hover: #4338ca;
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --success-ink: #166534;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --warning-ink: #92400e;
+  --info: #2563eb;
+  --info-soft: #dbeafe;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --focus: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+  --shadow-pop: 0 8px 28px rgba(16, 16, 24, .14), 0 1px 3px rgba(16, 16, 24, .08);
+  font-family: 'Inter', 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #12141a;
-    --surface: #1b1e26;
-    --ink: #eceef3;
-    --muted: #a1a8b6;
-    --line: #2d313c;
-    --primary: #7b93ff;
-    --primary-ink: #0d1020;
-    --danger: #ff8a80;
+    --bg: #111114;
+    --surface: #18181c;
+    --surface-2: #202026;
+    --ink: #ececf1;
+    --muted: #a1a1ad;
+    --line: #2a2a31;
+    --line-strong: #3a3a44;
+    --primary: #8b85ff;
+    --primary-ink: #0f0f18;
+    --primary-soft: #23223a;
+    --primary-hover: #a19cff;
+    --success: #4ade80;
+    --success-soft: #14301f;
+    --success-ink: #86efac;
+    --warning: #fbbf24;
+    --warning-soft: #3a2a0c;
+    --warning-ink: #fcd34d;
+    --info: #60a5fa;
+    --info-soft: #14243f;
+    --danger: #f87171;
+    --danger-soft: #3b1618;
+    --shadow-pop: 0 8px 28px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
   }
 }
 
@@ -31,4 +64,4 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--ink); }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
