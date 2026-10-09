@@ -59,7 +59,7 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
             {workspace.campaigns.map((campaign) => <div className="list-row" key={campaign.id}>
               <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>
                 <strong>{campaign.name}</strong>
-                <small>{campaign.posts.length} bài đăng · {campaign.backgrounds.length} nền · cập nhật {new Date(campaign.updatedAt).toLocaleDateString('vi-VN')}</small>
+                <small>{campaign.pieces.length ? `${campaign.pieces.length} bài · ${campaign.pieces.filter((piece) => piece.status === 'ready').length} sẵn sàng · ${campaign.pieces.filter((piece) => piece.published).length} đã đăng` : `${campaign.posts.length} bài đăng lẻ`} · cập nhật {new Date(campaign.updatedAt).toLocaleDateString('vi-VN')}</small>
               </button>
               <button className="btn small ghost" onClick={() => setDialog({ delete: campaign.id })}>Xóa</button>
             </div>)}

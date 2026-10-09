@@ -15,6 +15,9 @@ import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
 import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
 import { DocsChip } from './views/DocsChip.tsx'
 import { ApprovalGuard } from './views/ApprovalGuard.tsx'
+import { SearchDialog } from './views/SearchDialog.tsx'
+import { ReviewInbox } from './views/ReviewInbox.tsx'
+import { reviewQueue } from './lib/review.ts'
 import './App.css'
 
 function useRoute(): Route {
@@ -53,10 +56,16 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState('')
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [keysOpen, setKeysOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [backupsOpen, setBackupsOpen] = useState(false)
   const [keys, setKeys] = useState<ApiKey[]>([])
   useEffect(() => { api.listKeys().then(setKeys).catch(() => setKeys([])) }, [])
   const reportError = useCallback((message: string) => setError(message), [])
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true) } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   if (loadError) return <main className="auth-page"><p className="notice error">{loadError}</p></main>
   if (!store) return <main className="auth-page"><p className="muted">Đang tải…</p></main>
@@ -67,7 +76,8 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   const piece = campaign?.pieces.find((item) => item.id === route.piece)
 
   let view
-  if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
+  if (route.view === 'review') view = <ReviewInbox store={store} update={update} />
+  else if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace && campaign) view = <CampaignView key={campaign.id} tab={route.tab} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace) view = <WorkspaceView key={workspace.id} store={store} update={update} workspace={workspace} onError={reportError} />
@@ -89,6 +99,8 @@ function Studio({ onLogout }: { onLogout: () => void }) {
           : <button className="link" onClick={() => navigate(crumb.route)}>{crumb.label}</button>}</span>)}
       </nav>
       <div className="topbar-actions">
+        <button className="btn small ghost" onClick={() => setSearchOpen(true)} title="Tìm trong toàn bộ app (Ctrl+K)">Tìm</button>
+        <button className="btn small ghost" onClick={() => navigate({ view: 'review' })} title="Các bài đang chờ duyệt">Duyệt nhanh{reviewQueue(store).length ? ` (${reviewQueue(store).length})` : ''}</button>
         {campaign && <DocsChip campaign={campaign} workspaceId={workspace!.id} />}
         <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : 'Đã lưu'}</span>
         <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
@@ -99,6 +111,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     </header>
     {error && <div className="toast" role="alert"><span>{error}</span><button aria-label="Đóng thông báo" onClick={() => setError('')}>×</button></div>}
     <main>{view}</main>
+    {searchOpen && <SearchDialog store={store} onClose={() => setSearchOpen(false)} />}
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {backupsOpen && <BackupsDialog freeze={freeze} onClose={() => setBackupsOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}

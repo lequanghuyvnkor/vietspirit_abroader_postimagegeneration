@@ -20,10 +20,21 @@ export function SlideThumb({ post, campaign, workspace, width = 180, actions }: 
   const canvas = useRef<HTMLCanvasElement>(null)
   const [full, setFull] = useState<{ url: string; blob: Blob } | null>(null)
   const [busy, setBusy] = useState(false)
+  // Slides far off screen are not drawn until they scroll near, so a long plan stays light.
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined')
   const format = formatOf(post.format)
   const height = Math.round((width * format.height) / format.width)
 
   useEffect(() => {
+    const node = canvas.current
+    if (seen || !node) return
+    const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) { setSeen(true); observer.disconnect() } }, { rootMargin: '400px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [seen])
+
+  useEffect(() => {
+    if (!seen) return
     let cancelled = false
     const timer = window.setTimeout(async () => {
       const source = document.createElement('canvas')
@@ -35,7 +46,7 @@ export function SlideThumb({ post, campaign, workspace, width = 180, actions }: 
       target.getContext('2d')!.drawImage(source, 0, 0, target.width, target.height)
     }, 250)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [post, campaign, workspace, width, height])
+  }, [post, campaign, workspace, width, height, seen])
 
   async function open() {
     setBusy(true)

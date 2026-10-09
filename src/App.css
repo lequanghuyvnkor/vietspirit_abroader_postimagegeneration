@@ -451,3 +451,33 @@ textarea { resize: vertical; }
 .stat strong { font-size: 1.25rem; }
 .stat span { font-size: .78rem; color: var(--muted); }
 .week > summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+
+/* Search, quick review, small screens */
+.search-backdrop { align-items: flex-start; padding-top: 10vh; }
+.search-dialog { display: grid; gap: 10px; max-height: 78vh; grid-template-rows: auto auto minmax(0, 1fr); }
+.search-results { display: grid; gap: 4px; overflow-y: auto; }
+.search-hit { display: flex; gap: 10px; text-align: left; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; }
+.search-hit.on { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); border-color: var(--primary); }
+.search-kind { flex: none; width: 74px; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 3px; }
+.search-main { display: grid; gap: 2px; min-width: 0; }
+.search-main small { color: var(--muted); }
+.search-main .excerpt { font-size: .82rem; overflow-wrap: anywhere; }
+.review-list { display: grid; gap: 16px; max-width: 720px; }
+.review-card header { display: grid; gap: 2px; }
+.review-card h2 { margin: 0; font-size: 1.05rem; }
+.swipe { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.swipe > * { flex: none; scroll-snap-align: start; }
+.caption-clip { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; margin: 0; white-space: pre-wrap; }
+.caption-full { margin: 0; white-space: pre-wrap; }
+.review-actions .btn { min-height: 44px; }
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; gap: 8px; }
+  .topbar-actions { flex-wrap: wrap; gap: 6px; }
+  .page { padding: 16px 12px 48px; }
+  .page-head { flex-wrap: wrap; gap: 10px; }
+  .modal { width: calc(100vw - 24px); max-width: none; }
+  .brief-grid, .coverage { grid-template-columns: 1fr; }
+  .cal-cell { min-height: 64px; }
+  .cal-chip, .cal-due { font-size: .62rem; }
+  .stat { min-width: 96px; }
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node dev.mjs",
+    "start": "node dev.mjs --prod",
     "dev:web": "vite --host 127.0.0.1",
     "server": "node server.mjs",
     "build": "tsc -b && vite build",

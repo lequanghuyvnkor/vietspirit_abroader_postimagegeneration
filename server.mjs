@@ -26,7 +26,7 @@ const KEYS_FILE = join(DATA_DIR, 'keys.json')
 mkdirSync(ASSET_DIR, { recursive: true })
 const backups = createBackups({ dataDir: DATA_DIR, assetDir: ASSET_DIR, storeFile: STORE_FILE })
 
-const MAX_STORE_BYTES = 8 * 1024 * 1024
+const MAX_STORE_BYTES = 64 * 1024 * 1024
 const MAX_ASSET_BYTES = 16 * 1024 * 1024
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000
 const COOKIE = 'cs_session'

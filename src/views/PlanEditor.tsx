@@ -6,6 +6,7 @@ import { FUNNELS, addPiece, codeIsTaken, duplicatePiece, emptyPiece, movePiece, 
 import { formatFor, funnelMix, suggestSkeleton, type Idea } from '../lib/planAi.ts'
 import { navigate } from '../lib/route.ts'
 import type { Campaign, Piece, PieceKind, Workspace } from '../lib/types.ts'
+import { LazyInput } from './LazyInput.tsx'
 import { ConfirmDialog, Modal } from './ui.tsx'
 
 type Props = {
@@ -125,22 +126,22 @@ export function PlanGrid({ workspace, campaign, edit, keys, onManageKeys, locked
             const warn = pieceIssues(campaign, piece).filter((issue) => issue.level === 'warn').length
             const clash = codeIsTaken(campaign, piece)
             return <tr key={piece.id}>
-              <td><input disabled={locked} className={clash ? 'code invalid' : 'code'} aria-label={`Mã bài ${piece.code}`} aria-invalid={clash} title={clash ? 'Mã trống hoặc trùng với bài khác' : undefined} value={piece.code} onChange={(event) => patch(piece.id, (item) => { item.code = event.target.value.trim() })} /></td>
-              <td><input disabled={locked} aria-label={`Tên bài ${piece.code}`} value={piece.title} placeholder="Tên bài" onChange={(event) => patch(piece.id, (item) => { item.title = event.target.value })} /></td>
+              <td><LazyInput disabled={locked} className={clash ? 'code invalid' : 'code'} aria-label={`Mã bài ${piece.code}`} aria-invalid={clash} title={clash ? 'Mã trống hoặc trùng với bài khác' : undefined} value={piece.code} onCommit={(text) => patch(piece.id, (item) => { item.code = text.trim() })} /></td>
+              <td><LazyInput disabled={locked} aria-label={`Tên bài ${piece.code}`} value={piece.title} placeholder="Tên bài" onCommit={(text) => patch(piece.id, (item) => { item.title = text })} /></td>
               <td>
                 <select disabled={locked} aria-label={`Loại bài ${piece.code}`} value={piece.kind} onChange={(event) => patch(piece.id, (item) => setKind(item, event.target.value as PieceKind))}>{KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                 {piece.kind === 'reel' && <small className="block muted">{kindLabel(piece).replace('Reel · ', '')}</small>}
               </td>
               <td><input disabled={locked} type="date" aria-label={`Ngày đăng ${piece.code}`} value={piece.date} onChange={(event) => patch(piece.id, (item) => { item.date = event.target.value })} /></td>
-              <td><input disabled={locked} className="time" aria-label={`Giờ đăng ${piece.code}`} value={piece.plan.time} placeholder="20:30" onChange={(event) => patch(piece.id, (item) => { item.plan.time = event.target.value })} /></td>
+              <td><LazyInput disabled={locked} className="time" aria-label={`Giờ đăng ${piece.code}`} value={piece.plan.time} placeholder="20:30" onCommit={(text) => patch(piece.id, (item) => { item.plan.time = text })} /></td>
               <td><select disabled={locked} aria-label={`Phễu ${piece.code}`} value={piece.plan.funnel} onChange={(event) => patch(piece.id, (item) => { item.plan.funnel = event.target.value })}>
                 <option value="">—</option>
                 {piece.plan.funnel && !funnels.has(piece.plan.funnel) && <option value={piece.plan.funnel}>{piece.plan.funnel}</option>}
                 {FUNNELS.map((funnel) => <option key={funnel} value={funnel}>{funnel}</option>)}
               </select></td>
-              <td><input disabled={locked} aria-label={`Trụ cột ${piece.code}`} list={pillarNames.length ? listId : undefined} value={piece.plan.pillar} placeholder="Trụ cột" onChange={(event) => patch(piece.id, (item) => { item.plan.pillar = event.target.value })} /></td>
-              <td><input disabled={locked} aria-label={`Hook ${piece.code}`} value={piece.plan.hook} placeholder="Câu mở bài" onChange={(event) => patch(piece.id, (item) => { item.plan.hook = event.target.value })} /></td>
-              <td><input disabled={locked} aria-label={`CTA ${piece.code}`} value={piece.plan.cta} placeholder="Kêu gọi" onChange={(event) => patch(piece.id, (item) => { item.plan.cta = event.target.value })} /></td>
+              <td><LazyInput disabled={locked} aria-label={`Trụ cột ${piece.code}`} list={pillarNames.length ? listId : undefined} value={piece.plan.pillar} placeholder="Trụ cột" onCommit={(text) => patch(piece.id, (item) => { item.plan.pillar = text })} /></td>
+              <td><LazyInput disabled={locked} aria-label={`Hook ${piece.code}`} value={piece.plan.hook} placeholder="Câu mở bài" onCommit={(text) => patch(piece.id, (item) => { item.plan.hook = text })} /></td>
+              <td><LazyInput disabled={locked} aria-label={`CTA ${piece.code}`} value={piece.plan.cta} placeholder="Kêu gọi" onCommit={(text) => patch(piece.id, (item) => { item.plan.cta = text })} /></td>
               <td className="plan-actions">
                 <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>Mở{warn ? ` · ${warn}!` : ''}</button>
                 <button className="btn small ghost" aria-label={`Lên ${piece.code}`} disabled={locked || index === 0} onClick={() => edit((draft) => movePiece(draft, piece.id, -1))}>↑</button>

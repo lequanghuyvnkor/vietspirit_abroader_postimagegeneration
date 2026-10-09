@@ -1,9 +1,10 @@
 export type CampaignTab = 'foundation' | 'moodboard' | 'plan' | 'production' | 'schedule' | 'document' | 'measure'
-export type Route = { workspace?: string; campaign?: string; post?: string; piece?: string; tab?: CampaignTab }
+export type Route = { view?: 'review'; workspace?: string; campaign?: string; post?: string; piece?: string; tab?: CampaignTab }
 
 const TABS: CampaignTab[] = ['foundation', 'moodboard', 'plan', 'production', 'schedule', 'document', 'measure']
 
 export function parseRoute(hash: string): Route {
+  if (hash.replace(/^#/, '').replace(/\/$/, '') === '/review') return { view: 'review' }
   const [, w, workspace, c, campaign, kind, id] = hash.replace(/^#/, '').split('/')
   const inCampaign = w === 'w' && c === 'c'
   return {
@@ -16,6 +17,7 @@ export function parseRoute(hash: string): Route {
 }
 
 export function routeHash(route: Route): string {
+  if (route.view === 'review') return '#/review'
   if (!route.workspace) return '#/'
   let hash = `#/w/${route.workspace}`
   if (route.campaign) hash += `/c/${route.campaign}`

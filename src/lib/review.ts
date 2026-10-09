@@ -6,9 +6,9 @@ import { pieceIssues } from './planCheck.ts'
 import { fingerprint } from './document.ts'
 import { applyVars, lintText, unresolvedIn } from './text.ts'
 import { newId, now } from './types.ts'
-import type { Campaign, Piece, PieceSnapshot, PieceVersion, PieceVersionEvent } from './types.ts'
+import type { Campaign, Piece, PieceSnapshot, PieceVersion, PieceVersionEvent, Store, Workspace } from './types.ts'
 
-const MAX_VERSIONS = 30
+const MAX_VERSIONS = 20
 
 /** Everything a reviewer approves (text, dates, slide content and pictures), but not status or ticks: editing any of it voids an approval. */
 export function contentFingerprint(campaign: Campaign, piece: Piece): string {
@@ -27,7 +27,8 @@ function figuresIn(text: string): string[] {
   const clean = text.replace(DATE, ' ').replace(/\d{1,2}\s*[:h]\s*\d{2}/g, ' ')
   return [...new Set([...clean.matchAll(NUMBER)].map((match) => match[0]).filter((token) => {
     const value = digits(token)
-    if (value.length < 2) return false
+    // Slide counters like "01" and "02" are not figures.
+    if (value.length < 2 || (value.length === 2 && value.startsWith('0'))) return false
     return !(value.length === 4 && /^20[2-3]\d$/.test(value))
   }))]
 }
@@ -86,7 +87,11 @@ export function snapshotOf(campaign: Campaign, piece: Piece): PieceSnapshot {
 
 /** Keeps the current state of the piece in its history. */
 export function recordVersion(campaign: Campaign, piece: Piece, event: PieceVersionEvent, note = ''): void {
-  const version: PieceVersion = { id: newId(), at: now(), event, note, snapshot: snapshotOf(campaign, piece) }
+  const snapshot = snapshotOf(campaign, piece)
+  const last = piece.history?.at(-1)
+  // Pressing the same button twice without a change adds nothing to the history.
+  if (last && last.event === event && last.note === note && JSON.stringify(last.snapshot) === JSON.stringify(snapshot)) return
+  const version: PieceVersion = { id: newId(), at: now(), event, note, snapshot }
   piece.history = [...(piece.history ?? []), version].slice(-MAX_VERSIONS)
 }
 
@@ -169,3 +174,10 @@ export function diffSummary(campaign: Campaign, piece: Piece, snap: PieceSnapsho
   })
   return out
 }
+
+export type ReviewEntry = { workspace: Workspace; campaign: Campaign; piece: Piece }
+
+/** Pieces waiting for brand approval across every campaign, soonest publish date first. */
+export const reviewQueue = (store: Store): ReviewEntry[] =>
+  store.workspaces.flatMap((workspace) => workspace.campaigns.flatMap((campaign) => campaign.pieces.filter((piece) => piece.status === 'review').map((piece) => ({ workspace, campaign, piece }))))
+    .sort((a, b) => (a.piece.date || '9999').localeCompare(b.piece.date || '9999'))
