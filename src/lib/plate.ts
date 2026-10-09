@@ -23,7 +23,7 @@ export async function measureZones(workspace: Workspace, campaign: Campaign, sli
   const frac = (value: number) => Math.min(1, Math.max(0, value / height))
   const textTop = frac(Math.min(...layouts.map((layout) => layout.textTop)))
   const textBottom = frac(Math.max(...layouts.map((layout) => layout.textBottom)))
-  const lowers = layouts.flatMap((layout) => [layout.ctaTop, layout.footerTop]).filter((value): value is number => value !== null)
+  const lowers = layouts.flatMap((layout) => [layout.ctaTop, layout.footerTop, layout.heroTop]).filter((value): value is number => value !== null && value !== undefined)
   const lower = lowers.length > 0 ? frac(Math.min(...lowers)) : 0.95
   const logoBottom = frac(Math.max(...layouts.map((layout) => layout.logoBottom)))
   const from = Math.min(0.9, textBottom + MARGIN_FRACTION)
@@ -81,7 +81,10 @@ export type PlateResult = { assetId: string; format: FormatKey; label: string; w
  */
 export async function generatePlate(workspace: Workspace, campaign: Campaign, piece: Piece, keyId?: string, onlyPostId?: string): Promise<PlateResult> {
   const all = slidesOf(campaign, piece)
-  const slides = onlyPostId ? all.filter((post) => post.id === onlyPostId) : all
+  const picked = onlyPostId ? all.filter((post) => post.id === onlyPostId) : all
+  // Slides whose photo fills the whole frame have no use for a generated background.
+  const slides = picked.filter((post) => post.hero?.layout !== 'full')
+  if (picked.length > 0 && slides.length === 0) throw new Error('Các slide này dùng ảnh chủ đạo toàn khung nên không cần nền AI.')
   if (slides.length === 0) throw new Error('Bài này chưa có slide. Tạo slide (bước 1 hoặc "Tạo lại từ kế hoạch") rồi mới tạo ảnh.')
   if (!campaign.keyVisual.concept.trim()) throw new Error('Chưa có "Mô tả không khí". Điền ở tab Moodboard (hoặc bấm "AI đọc moodboard").')
   const format = slides[0].format ?? formatKeyOf(piece.visual.format)

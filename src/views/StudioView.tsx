@@ -11,6 +11,7 @@ import { unresolvedIn } from '../lib/text.ts'
 import { Field, Lightbox, Section } from './ui.tsx'
 import { ReviseTool } from './ReviseTool.tsx'
 import { LogoPanel } from './LogoPanel.tsx'
+import { HeroPanel } from './HeroPanel.tsx'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -206,6 +207,7 @@ export function StudioView({ update, workspace, campaign, post, keys, onManageKe
           <Field label="Câu dẫn"><textarea rows={3} value={post.subtitle} onChange={(event) => set('subtitle', event.target.value)} /></Field>
           <Field label="Nút kêu gọi (CTA)"><input value={post.cta} onChange={(event) => set('cta', event.target.value)} /></Field>
           <Field label="Chân bài" hint="Nhiều dòng được (Enter để xuống dòng)."><textarea rows={2} value={post.footer} onChange={(event) => set('footer', event.target.value)} /></Field>
+          {post.pieceId && <HeroPanel campaign={campaign} post={post} edit={edit} />}
           <LogoPanel workspace={workspace} campaign={campaign} post={post} keys={keys} edit={edit} onError={onError} applyToAll={applyLogoToAll} />
           <label className="check"><input type="checkbox" checked={post.scrim} onChange={(event) => set('scrim', event.target.checked)} /> Làm tối/sáng nhẹ mép trên và dưới để chữ dễ đọc</label>
           <label className="check"><input type="checkbox" checked={post.panel === true} onChange={(event) => set('panel', event.target.checked)} /> Tấm kính mờ sau chữ (dùng khi nền không có chỗ êm cho chữ)</label>

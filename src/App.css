@@ -372,3 +372,5 @@ textarea { resize: vertical; }
 .piece-pick { margin: 2px 0 0; flex: 0 0 auto; width: 18px; height: 18px; }
 .piece-body { flex: 1 1 auto; min-width: 0; }
 .piece-actions { display: grid; gap: 6px; align-content: start; flex: 0 0 auto; }
+
+.ref.picked { outline: 3px solid var(--primary); outline-offset: 1px; }

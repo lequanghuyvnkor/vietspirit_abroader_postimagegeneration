@@ -159,7 +159,7 @@ type Ctx = CanvasRenderingContext2D & { letterSpacing: string }
 export type RenderPart = 'plate' | 'text' | 'cta'
 
 /** Where the text of a post sits, in canvas pixels: used to ask the image model for a background that leaves that room free. */
-export type LayoutInfo = { width: number; height: number; logoBottom: number; textTop: number; textBottom: number; ctaTop: number | null; footerTop: number | null }
+export type LayoutInfo = { width: number; height: number; logoBottom: number; textTop: number; textBottom: number; ctaTop: number | null; footerTop: number | null; heroTop: number | null }
 
 /** Draws a post at its native size. Single source of truth for preview and export. */
 export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null; parts?: RenderPart[]; layoutOut?: Partial<LayoutInfo> } = {}): Promise<void> {
@@ -186,6 +186,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const logoId = placement.hidden ? null : onDarkBackground && workspace.company.logoDarkId ? workspace.company.logoDarkId : workspace.company.logoId
 
   const layerImages = await Promise.all(post.layers.map((layer) => loadImage(campaign.components.find((item) => item.id === layer.componentId)?.assetId ?? null)))
+  const heroImage = post.hero ? await loadImage(post.hero.assetId) : null
   const [bgImage, logo] = await Promise.all([
     loadImage(background?.assetId ?? null),
     loadLogo(logoId),
@@ -201,7 +202,16 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   if (parts.has('plate')) {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
-    if (bgImage) drawCover(ctx, bgImage, width, height, post.bgView)
+    if (post.hero?.layout === 'full' && heroImage) {
+      drawFocused(ctx, heroImage, { x: 0, y: 0, w: width, h: height }, post.hero.focusY ?? 0.3)
+      // The photo is bright and busy: the lower part is darkened smoothly so the text can sit on it.
+      const veil = ctx.createLinearGradient(0, height * 0.28, 0, height)
+      veil.addColorStop(0, 'rgba(6,12,32,0)')
+      veil.addColorStop(0.55, 'rgba(6,12,32,0.62)')
+      veil.addColorStop(1, 'rgba(6,12,32,0.88)')
+      ctx.fillStyle = veil
+      ctx.fillRect(0, height * 0.28, width, height * 0.72)
+    } else if (bgImage) drawCover(ctx, bgImage, width, height, post.bgView)
   }
 
   // Legibility scrims at top and bottom, where text sits.
@@ -250,7 +260,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const left = MARGIN
   const top = MARGIN + safe
   const bottom = height - MARGIN - safe
-  const textWidth = isCover ? width * 0.55 : width - MARGIN * 2
+  let textWidth = isCover ? width * 0.55 : width - MARGIN * 2
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = 'left'
   ctx.letterSpacing = '0px'
@@ -271,7 +281,24 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   const ctaTop = isCover ? 0 : footerY - 44 - 40 - ctaHeight
   const logoHeight = Math.min(260, Math.max(20, (workspace.company.logoHeight ?? 64) * Math.min(2, Math.max(0.5, placement.scale ?? 1))))
   const areaTop = top + (placement.hidden ? 70 : Math.max(70, logoHeight + 30))
-  const areaBottom = post.cta && !isCover ? ctaTop - 30 : post.footer ? footerY - 44 - 30 : bottom
+  let areaBottom = post.cta && !isCover ? ctaTop - 30 : post.footer ? footerY - 44 - 30 : bottom
+  // A photo beside or under the text takes its room first; the text is fitted into what is left.
+  let heroBox: { x: number; y: number; w: number; h: number } | null = null
+  const hero = post.hero && post.hero.layout !== 'full' && heroImage && !isCover ? post.hero : null
+  if (hero) {
+    const lowerLimit = post.cta ? ctaTop - 24 : post.footer ? footerY - 44 - 24 : bottom
+    if (hero.layout === 'bottom') {
+      const h = Math.max(240, Math.min(height * 0.4, lowerLimit - areaTop - 220))
+      const w = hero.shape === 'circle' ? h : Math.min(width * 0.62, h * 0.95)
+      heroBox = { x: (width - w) / 2, y: lowerLimit - h, w, h }
+      areaBottom = Math.min(areaBottom, heroBox.y - 28)
+    } else {
+      const w = Math.min(width * 0.4, 440)
+      const h = hero.shape === 'circle' ? w : w * 1.25
+      heroBox = { x: width - MARGIN - w, y: Math.max(areaTop + 30, Math.min(lowerLimit - h, areaTop + 120)), w, h }
+      textWidth = width - MARGIN * 2 - w - 40
+    }
+  }
   const maxBlock = Math.max(200, (areaBottom - areaTop) * 0.62)
 
   const layout = (size: number) => {
@@ -304,7 +331,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
 
   // ---- Local legibility shade: darken (or lighten) behind the text only where the background is busy or bright.
   const blockBox = { x: left - 28, y: blockTop - 22, w: textWidth + 56, h: block.height + 44 }
-  if (options.layoutOut) Object.assign(options.layoutOut, { width, height, logoBottom: top + (placement.hidden ? 0 : logoHeight), textTop: blockTop, textBottom: blockTop + block.height, ctaTop: post.cta && !isCover ? ctaTop : null, footerTop: post.footer ? footerY - 44 : null })
+  if (options.layoutOut) Object.assign(options.layoutOut, { width, height, logoBottom: top + (placement.hidden ? 0 : logoHeight), textTop: blockTop, textBottom: blockTop + block.height, ctaTop: post.cta && !isCover ? ctaTop : null, footerTop: post.footer ? footerY - 44 : null, heroTop: heroBox && hero?.layout === 'bottom' ? heroBox.y : null })
+  if (heroBox && hero && heroImage && parts.has('plate')) drawHero(ctx, heroImage, heroBox, hero, fill(hero.caption ?? ''), display, body)
   let backgroundLuma = 0
   if (parts.has('plate')) {
   const lum = regionLuminance(ctx, blockBox)
@@ -542,4 +570,69 @@ export async function exportPost(post: Post, campaign: Campaign, workspace: Work
   link.href = URL.createObjectURL(blob)
   link.click()
   setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+}
+
+/** Cover-fits an image into a box; `focusY` (0 top .. 1 bottom) decides which part is kept when the image is taller than the box. */
+function drawFocused(ctx: CanvasRenderingContext2D, image: HTMLImageElement, box: { x: number; y: number; w: number; h: number }, focusY: number): void {
+  const scale = Math.max(box.w / image.naturalWidth, box.h / image.naturalHeight)
+  const w = image.naturalWidth * scale
+  const h = image.naturalHeight * scale
+  ctx.drawImage(image, box.x + (box.w - w) / 2, box.y + (box.h - h) * Math.min(1, Math.max(0, focusY)), w, h)
+}
+
+/** A real photo as a rounded card, a round portrait or a cut-out, with an optional name plate. */
+function drawHero(ctx: CanvasRenderingContext2D, image: HTMLImageElement, box: { x: number; y: number; w: number; h: number }, hero: NonNullable<Post['hero']>, caption: string, display: string, body: string): void {
+  ctx.save()
+  if (hero.shape === 'cutout') {
+    const scale = Math.min(box.w / image.naturalWidth, box.h / image.naturalHeight)
+    const w = image.naturalWidth * scale
+    const h = image.naturalHeight * scale
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+    ctx.shadowBlur = 36
+    ctx.shadowOffsetY = 12
+    ctx.drawImage(image, box.x + (box.w - w) / 2, box.y + box.h - h, w, h)
+  } else {
+    const path = () => { ctx.beginPath(); if (hero.shape === 'circle') ctx.arc(box.x + box.w / 2, box.y + box.h / 2, Math.min(box.w, box.h) / 2, 0, Math.PI * 2); else ctx.roundRect(box.x, box.y, box.w, box.h, 40) }
+    // The shadow comes from a filled shape; the photo is then clipped inside it.
+    path()
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'
+    ctx.shadowBlur = 40
+    ctx.shadowOffsetY = 14
+    ctx.fillStyle = '#0b1230'
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+    path()
+    ctx.clip()
+    drawFocused(ctx, image, box, hero.focusY ?? 0.3)
+    ctx.restore()
+    ctx.save()
+    path()
+    ctx.lineWidth = 3
+    ctx.strokeStyle = 'rgba(255,255,255,0.40)'
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  const lines = caption.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 3)
+  if (lines.length === 0) return
+  const plateHeight = 26 + 38 + (lines.length - 1) * 30
+  const plateWidth = Math.min(box.w - 24, box.w * 0.94)
+  const plate = { x: box.x + (box.w - plateWidth) / 2, y: box.y + box.h - plateHeight - 14, w: plateWidth, h: plateHeight }
+  ctx.save()
+  ctx.beginPath()
+  ctx.roundRect(plate.x, plate.y, plate.w, plate.h, 22)
+  ctx.fillStyle = 'rgba(8,16,44,0.78)'
+  ctx.fill()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)'
+  ctx.stroke()
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `700 28px ${display}`
+  ctx.fillText(lines[0], plate.x + 20, plate.y + 20 + 28, plate.w - 40)
+  ctx.font = `400 21px ${body}`
+  ctx.globalAlpha = 0.9
+  lines.slice(1).forEach((line, index) => ctx.fillText(line, plate.x + 20, plate.y + 20 + 28 + 6 + 24 * (index + 1), plate.w - 40))
+  ctx.restore()
 }

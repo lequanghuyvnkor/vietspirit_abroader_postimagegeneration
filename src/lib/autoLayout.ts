@@ -77,6 +77,8 @@ export async function planLayouts(workspace: Workspace, campaign: Campaign, slid
   const canvas = document.createElement('canvas')
 
   for (const [index, slide] of slides.entries()) {
+    // A full-frame photo is darkened from below, so the text goes at the bottom, full size.
+    if (slide.hero?.layout === 'full') { patches.set(slide.id, { textAnchor: 'bottom', textScale: 1, bgView: slide.bgView, panel: false }); continue }
     const assetId = campaign.backgrounds.find((item) => item.id === slide.backgroundId)?.assetId
     if (!assetId) continue
     const view = shared ? viewFor(index, slides.length) : slide.bgView

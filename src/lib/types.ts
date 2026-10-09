@@ -52,6 +52,19 @@ export type LogoPlacement = {
   hidden?: boolean
 }
 
+/** A real photo that leads a slide (a mentor's portrait). Never drawn by AI: the app only places and frames it. */
+export type HeroPhoto = {
+  assetId: string
+  /** bottom: a card under the text; right: a card at the right with the text in a column on the left; full: the photo fills the slide. */
+  layout: 'bottom' | 'right' | 'full'
+  /** rounded: a rounded card; circle: a round portrait; cutout: a background-removed photo standing on the slide. */
+  shape: 'rounded' | 'circle' | 'cutout'
+  /** Vertical focus of the crop, 0 = top, 1 = bottom (faces sit in the upper part, so the default is 0.3). */
+  focusY?: number
+  /** Name plate over the photo: first line in bold (the name), the rest smaller (school, verified achievement). [VARIABLES] are filled. */
+  caption?: string
+}
+
 export type Post = {
   id: string
   name: string
@@ -75,6 +88,7 @@ export type Post = {
   logo?: LogoPlacement
   /** Which part of the background shows: a zoom and a shift (-1..1 of the spare room), so slides sharing one picture look like a pan. */
   bgView?: { zoom: number; x: number; y: number }
+  hero?: HeroPhoto
   /** A frosted panel behind the text, for backgrounds with no calm place for it. */
   panel?: boolean
   /** Carousel page dots and the swipe arrow (default on for slides of a carousel). */
