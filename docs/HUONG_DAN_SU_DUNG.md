@@ -63,13 +63,21 @@ Nơi duy nhất ghi **mục tiêu, thời gian, KPI, đối tượng (insight, r
 
 Chọn ảnh theo vai trò: **chủ thể** (biểu tượng chính, gửi cho AI làm tham chiếu đầu tiên), **không khí** (màu, ánh sáng), **mẫu bài hoàn chỉnh** (chỉ để xem, không gửi AI). Chỉnh bảng màu, màu nhấn, màu chữ, font, điều cần tránh. Có thêm **thành phần đồ họa** cắt từ PDF/ảnh để đặt lên bài.
 
-### ③ Kế hoạch
-- **Bảng soạn nhanh:** mỗi dòng một bài (mã, tên, loại, ngày, giờ, phễu, trụ cột, hook, CTA). Có **+ Thêm bài**, **Nhân bản**, **Xóa** (hỏi lại), **↑ ↓**, **Sắp theo ngày**.
-- **AI gợi ý khung bài:** nhập số bài, AI đọc phần Nền tảng và các bài đang có, đề xuất khung cân giữa phễu (TOFU/MOFU/BOFU) và các trụ cột. Bạn tick bài nào giữ.
-- **Mở** một bài để sửa chi tiết (brief, visual brief, mục duyệt).
-- **Tạo slide nháp** cho các bài chưa có slide (một lần cho cả danh sách).
-- **Google Sheet / Excel** chỉ để nhập một lần. Khi Sheet còn nối, bảng ở chế độ xem. Bấm **Đóng băng Sheet và soạn trong app** để chuyển hẳn sang soạn trong app (hai nơi không thể lệch nhau).
-- Dưới bảng là **bảng phủ phễu và trụ cột** kèm cảnh báo thiếu (ví dụ chưa có bài BOFU ở cuối kỳ).
+### ③ Kế hoạch (bảng tính nhiều sheet)
+Giao diện như Google Sheet của dự án: **6 sheet ở thanh dưới**, mọi ô sửa trực tiếp, cùng một nguồn dữ liệu.
+
+| Sheet | Nội dung |
+|---|---|
+| **01 Chiến lược** | Mục tiêu, thời gian, ý tưởng lớn, thông điệp, giọng điệu; bảng KPI, Đối tượng, Trụ cột; điều Nên nói / Không được nói (cùng dữ liệu với tab ① Nền tảng) |
+| **02 Lịch nội dung** | Mỗi dòng một bài: ID, tên, loại, ngày, giờ, funnel, pillar, hook, format, mục tiêu, cấu trúc, CTA, đối tượng, KPI, paid, điều kiện, story. Cột cuối: Mở, ↑ ↓, Nhân bản, Xóa |
+| **03 Caption** | Caption, hashtag, ghi chú compliance của từng bài |
+| **04 Visual Brief** | Khổ ảnh, hero visual, bố cục, typography, palette (tham khảo), chữ trên ảnh, motion, tài nguyên, điều cần tránh |
+| **05 Checklist duyệt** | Ma trận mục kiểm tra × bài: tick ô để mục đó bắt buộc với bài |
+| **06 Tổng quan** | Bảng phủ phễu và trụ cột, danh sách bài còn điểm cần xem lại |
+
+Thao tác như bảng tính: **mũi tên ↑ ↓ hoặc Enter** chuyển dòng, cột ID và Tên bài được ghim khi cuộn ngang, ô nhiều dòng giãn ra khi bấm vào (**Alt+Enter** xuống dòng). Bảng dài (hơn 60 dòng) chỉ vẽ phần đang nhìn thấy nên vẫn mượt.
+- **AI gợi ý khung bài**, **Sắp theo ngày**, **Tạo slide nháp** nằm ở thanh công cụ.
+- **Google Sheet / Excel** chỉ để nhập một lần, ở khung "Kết nối Google Sheet" phía trên. Khi Sheet còn nối, các sheet chỉ để xem; bấm **Đóng băng Sheet và soạn trong app** để chuyển hẳn sang soạn trong app.
 
 ### ④ Sản xuất
 Mọi bài xếp theo trạng thái: **Brief → Copy → Visual → Chờ duyệt → Sẵn sàng**. Mỗi thẻ có nút **Tạo ảnh** riêng. Muốn làm cả nhóm: tick thẻ rồi dùng **Soạn chữ** / **Tạo ảnh** ở trên (không tick thì hai nút không chạy, để tránh tốn tiền AI ngoài ý muốn). Khung đỏ **"việc quá hạn theo lịch lùi"** hiện ở đây.
@@ -79,12 +87,14 @@ Mọi bài xếp theo trạng thái: **Brief → Copy → Visual → Chờ duy�
 - **Lịch lùi:** từ ngày đăng, app tính hạn *chữ xong* (mặc định 5 ngày trước), *hình xong* (3 ngày), *duyệt xong* (1 ngày). Đổi số ngày ngay dưới lịch.
 - **Bảng theo ngày** (đổi ngày, giờ, trạng thái, bên sản xuất; xuất CSV) và **Xuất ảnh hoàn chỉnh** (zip, mỗi bài một thư mục).
 
-### ⑥ Tài liệu
-Tài liệu tự ghép gồm: bìa, chiến lược, lịch đăng, từng bài (ảnh, caption, mục duyệt), và **Kết quả** khi đã có bài đăng.
+### ⑥ Tài liệu (trang như Google Docs)
+Ba chế độ xem ở đầu tab:
 
-- **Xem**, **PDF** (mở hộp thoại in, chọn *Lưu thành PDF*), **Word**, **Markdown**.
-- **Chốt bản duyệt (v1, v2…)**: lưu nguyên chữ và ảnh tại thời điểm gửi người khác duyệt. Sau này sửa bài thì bản đã chốt không đổi; app báo "Từ v1 đến nay: N bài đã đổi".
-- **Đẩy sang Google Docs** vẫn còn, ở cuối tab, là tùy chọn.
+1. **Trang bài:** thanh bên trái liệt kê **Tổng quan** và từng bài như các tab của Google Docs (chấm màu theo trạng thái, kèm ngày đăng); bấm để mở trang. Trang bài là tờ giấy có thể sửa trực tiếp: tên, ngày, giờ, loại, funnel, hook, mục tiêu, cấu trúc, CTA, caption, hashtag, tick mục duyệt, kèm ảnh các slide. **+ Trang bài mới** thêm một bài. Trang Tổng quan có chiến lược và bảng lịch (bấm một dòng để mở bài đó).
+2. **Xuất & bản duyệt:** Xem, PDF (hộp thoại in), Word, Markdown; **Chốt bản duyệt (v1, v2…)** giữ nguyên chữ và ảnh tại thời điểm chốt; app báo "Từ v1 đến nay: N bài đã đổi".
+3. **Google Docs (tùy chọn):** đẩy sang Google Docs khi cần.
+
+Dữ liệu ở Trang bài, Kế hoạch (bảng tính), trang từng bài và tab ① Nền tảng là **một**; sửa ở đâu cũng thấy ở các nơi còn lại.
 
 ### ⑦ Đăng & đo
 1. **Đăng bài:** danh sách chờ đăng, khung nhắc "cần đăng ngay / việc đăng hôm nay" (tùy chọn nhắc bằng thông báo trình duyệt, chỉ chạy khi app đang mở). Đăng xong bấm **Đã đăng…** để ghi giờ thật, link bài, ghi chú.

@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
-import { kindLabel } from '../lib/plan.ts'
-import { pieceIssues } from '../lib/planCheck.ts'
-import { FUNNELS, addPiece, codeIsTaken, duplicatePiece, emptyPiece, movePiece, nextCode, removePiece, setKind, sortByDate } from '../lib/planEdit.ts'
+import { FUNNELS, addPiece, emptyPiece, nextCode } from '../lib/planEdit.ts'
 import { formatFor, funnelMix, suggestSkeleton, type Idea } from '../lib/planAi.ts'
-import { navigate } from '../lib/route.ts'
-import type { Campaign, Piece, PieceKind, Workspace } from '../lib/types.ts'
-import { LazyInput } from './LazyInput.tsx'
-import { ConfirmDialog, Modal } from './ui.tsx'
+import type { Campaign, PieceKind, Workspace } from '../lib/types.ts'
+import { Modal } from './ui.tsx'
 
 type Props = {
-  /** True while the Google Sheet still owns the plan: the grid is shown but cannot be edited. */
-  locked?: boolean
   workspace: Workspace
   campaign: Campaign
   edit: (change: (draft: Campaign) => void) => void
@@ -95,66 +89,4 @@ export function SkeletonDialog({ workspace, campaign, edit, keys, onManageKeys, 
       {ideas && <button className="btn primary" disabled={keep.size === 0} onClick={add}>Thêm {keep.size} bài vào kế hoạch</button>}
     </div>
   </Modal>
-}
-
-/** The plan as an editable grid: one row per piece, with add, duplicate, delete and reorder. */
-export function PlanGrid({ workspace, campaign, edit, keys, onManageKeys, locked = false }: Props) {
-  const [removing, setRemoving] = useState<Piece | null>(null)
-  const [skeleton, setSkeleton] = useState(false)
-  const funnels = new Set(FUNNELS)
-  const pillarNames = campaign.foundation.pillars.map((pillar) => pillar.name).filter(Boolean)
-  const patch = (id: string, change: (piece: Piece) => void) => edit((draft) => { const piece = draft.pieces.find((item) => item.id === id); if (piece) change(piece) })
-
-  function add() {
-    edit((draft) => { addPiece(draft, emptyPiece(nextCode(draft.pieces))) })
-  }
-
-  const listId = `pillars-${campaign.id}`
-  return <div className="stack">
-    <div className="row wrap">
-      <button className="btn primary" disabled={locked} onClick={add}>+ Thêm bài</button>
-      <button className="btn" disabled={locked} onClick={() => setSkeleton(true)}>AI gợi ý khung bài</button>
-      <button className="btn small ghost" disabled={locked || campaign.pieces.length < 2} title="Xếp lại theo ngày và giờ đăng; bài chưa có ngày xuống cuối" onClick={() => edit(sortByDate)}>Sắp theo ngày</button>
-    </div>
-    {pillarNames.length > 0 && <datalist id={listId}>{pillarNames.map((name) => <option key={name} value={name} />)}</datalist>}
-    {campaign.pieces.length === 0
-      ? <p className="muted">Chưa có bài nào. Bấm "+ Thêm bài", để AI gợi ý khung, hoặc nhập từ Excel/Google Sheet.</p>
-      : <div className="table-wrap"><table className="plan-grid">
-        <thead><tr><th>Mã</th><th>Tên bài</th><th>Loại</th><th>Ngày</th><th>Giờ</th><th>Phễu</th><th>Trụ cột</th><th>Hook</th><th>CTA</th><th /></tr></thead>
-        <tbody>
-          {campaign.pieces.map((piece, index) => {
-            const warn = pieceIssues(campaign, piece).filter((issue) => issue.level === 'warn').length
-            const clash = codeIsTaken(campaign, piece)
-            return <tr key={piece.id}>
-              <td><LazyInput disabled={locked} className={clash ? 'code invalid' : 'code'} aria-label={`Mã bài ${piece.code}`} aria-invalid={clash} title={clash ? 'Mã trống hoặc trùng với bài khác' : undefined} value={piece.code} onCommit={(text) => patch(piece.id, (item) => { item.code = text.trim() })} /></td>
-              <td><LazyInput disabled={locked} aria-label={`Tên bài ${piece.code}`} value={piece.title} placeholder="Tên bài" onCommit={(text) => patch(piece.id, (item) => { item.title = text })} /></td>
-              <td>
-                <select disabled={locked} aria-label={`Loại bài ${piece.code}`} value={piece.kind} onChange={(event) => patch(piece.id, (item) => setKind(item, event.target.value as PieceKind))}>{KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-                {piece.kind === 'reel' && <small className="block muted">{kindLabel(piece).replace('Reel · ', '')}</small>}
-              </td>
-              <td><input disabled={locked} type="date" aria-label={`Ngày đăng ${piece.code}`} value={piece.date} onChange={(event) => patch(piece.id, (item) => { item.date = event.target.value })} /></td>
-              <td><LazyInput disabled={locked} className="time" aria-label={`Giờ đăng ${piece.code}`} value={piece.plan.time} placeholder="20:30" onCommit={(text) => patch(piece.id, (item) => { item.plan.time = text })} /></td>
-              <td><select disabled={locked} aria-label={`Phễu ${piece.code}`} value={piece.plan.funnel} onChange={(event) => patch(piece.id, (item) => { item.plan.funnel = event.target.value })}>
-                <option value="">—</option>
-                {piece.plan.funnel && !funnels.has(piece.plan.funnel) && <option value={piece.plan.funnel}>{piece.plan.funnel}</option>}
-                {FUNNELS.map((funnel) => <option key={funnel} value={funnel}>{funnel}</option>)}
-              </select></td>
-              <td><LazyInput disabled={locked} aria-label={`Trụ cột ${piece.code}`} list={pillarNames.length ? listId : undefined} value={piece.plan.pillar} placeholder="Trụ cột" onCommit={(text) => patch(piece.id, (item) => { item.plan.pillar = text })} /></td>
-              <td><LazyInput disabled={locked} aria-label={`Hook ${piece.code}`} value={piece.plan.hook} placeholder="Câu mở bài" onCommit={(text) => patch(piece.id, (item) => { item.plan.hook = text })} /></td>
-              <td><LazyInput disabled={locked} aria-label={`CTA ${piece.code}`} value={piece.plan.cta} placeholder="Kêu gọi" onCommit={(text) => patch(piece.id, (item) => { item.plan.cta = text })} /></td>
-              <td className="plan-actions">
-                {piece.sheetBase?.linked && <span className="flag info" title="Bài này được kéo về từ Google Sheet">Sheet</span>}
-                <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>Mở{warn ? ` · ${warn}!` : ''}</button>
-                <button className="btn small ghost" aria-label={`Lên ${piece.code}`} disabled={locked || index === 0} onClick={() => edit((draft) => movePiece(draft, piece.id, -1))}>↑</button>
-                <button className="btn small ghost" aria-label={`Xuống ${piece.code}`} disabled={locked || index === campaign.pieces.length - 1} onClick={() => edit((draft) => movePiece(draft, piece.id, 1))}>↓</button>
-                <button className="btn small ghost" disabled={locked} onClick={() => edit((draft) => { duplicatePiece(draft, piece.id) })}>Nhân bản</button>
-                <button className="btn small ghost" disabled={locked} onClick={() => setRemoving(piece)}>Xóa</button>
-              </td>
-            </tr>
-          })}
-        </tbody>
-      </table></div>}
-    {removing && <ConfirmDialog title={`Xóa bài ${removing.code}`} message={`Xóa "${removing.title || removing.plan.hook || removing.code}" cùng các slide và bản chỉnh của bài này? Có thể khôi phục bằng nút Sao lưu ở thanh trên.`} confirm="Xóa bài" onConfirm={() => edit((draft) => removePiece(draft, removing.id))} onClose={() => setRemoving(null)} />}
-    {skeleton && <SkeletonDialog workspace={workspace} campaign={campaign} edit={edit} keys={keys} onManageKeys={onManageKeys} onClose={() => setSkeleton(false)} />}
-  </div>
 }

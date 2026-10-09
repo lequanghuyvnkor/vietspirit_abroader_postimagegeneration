@@ -11,8 +11,8 @@ import { readXlsx } from '../lib/xlsx.ts'
 import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { SheetPanel } from './SheetPanel.tsx'
-import { PlanGrid } from './PlanEditor.tsx'
 import { CalendarPanel, CoveragePanel, LateAlerts } from './CalendarPanel.tsx'
+import { PlanSheets } from './PlanSheets.tsx'
 import { draftMissingSlides } from '../lib/planEdit.ts'
 import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 import { ScheduleTable } from './ScheduleTable.tsx'
@@ -98,12 +98,10 @@ function KeyPicker({ batch, keys }: { batch: Batch; keys: ApiKey[] }) {
   return <select aria-label="API dùng cho AI" value={batch.activeKey?.id ?? ''} onChange={(event) => batch.setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>
 }
 
-/** ③ Kế hoạch: the pieces, written and edited here (the Google Sheet and Excel are optional ways in), with a check of each before production starts. */
+/** ③ Kế hoạch: one workbook with the same sheets as the content-plan Google Sheet, edited here; the Sheet and Excel are optional ways in. */
 export function PlanTab(props: Props & { batch: Batch }) {
   const { workspace, campaign, edit, batch } = props
   const [importing, setImporting] = useState(false)
-  const issues = campaign.pieces.map((piece) => ({ piece, issues: pieceIssues(campaign, piece) }))
-  const withIssues = issues.filter((entry) => entry.issues.length > 0)
   const sheetOwns = sheetOwnsPlan(campaign.sheetSync)
   const needSlides = campaign.pieces.filter((piece) => madeInApp(piece) && !campaign.posts.some((post) => post.pieceId === piece.id)).length
 
@@ -115,19 +113,18 @@ export function PlanTab(props: Props & { batch: Batch }) {
   }
 
   return <>
-    <SheetPanel workspace={workspace} campaign={campaign} edit={edit} />
-    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<button className="btn small ghost" disabled={sheetOwns} title={sheetOwns ? 'Google Sheet đang là nguồn của kế hoạch. Đóng băng Sheet để nhập Excel.' : 'Nhập kế hoạch từ file Excel: thay kế hoạch hiện có (một lần, khi chuyển từ Sheet/Excel sang soạn trong app).'} onClick={() => setImporting(true)}>Nhập từ Excel</button>}>
+    <details className="sheet-link" open={Boolean(campaign.sheetSync)}>
+      <summary><strong>Kết nối Google Sheet</strong> <span className="muted">tùy chọn: chỉ để nhập kế hoạch có sẵn một lần, sau đó soạn ngay tại đây</span></summary>
+      <SheetPanel workspace={workspace} campaign={campaign} edit={edit} />
+    </details>
+    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<span className="row"><button className="btn small ghost" disabled={sheetOwns} title={sheetOwns ? 'Google Sheet đang là nguồn của kế hoạch. Đóng băng Sheet để nhập Excel.' : 'Nhập kế hoạch từ file Excel: thay kế hoạch hiện có (một lần, khi chuyển từ Sheet/Excel sang soạn trong app).'} onClick={() => setImporting(true)}>Nhập từ Excel</button></span>}>
       <JobStatus job={batch.job} />
       {sheetOwns && <div className="notice">
-        <p><b>Google Sheet đang là nguồn của kế hoạch</b>, nên bảng bên dưới chỉ để xem: mỗi lần Sheet đổi, chữ trong Sheet sẽ ghi đè chữ sửa ở đây. Muốn soạn ngay trong app thì đóng băng Sheet (app ngừng đọc Sheet, kế hoạch hiện có được giữ nguyên).</p>
+        <p><b>Google Sheet đang là nguồn của kế hoạch</b>, nên các sheet bên dưới chỉ để xem: mỗi lần Sheet đổi, chữ trong Sheet sẽ ghi đè chữ sửa ở đây. Muốn soạn ngay trong app thì đóng băng Sheet (app ngừng đọc Sheet, kế hoạch hiện có được giữ nguyên).</p>
         <button className="btn small primary" onClick={() => edit((draft) => { if (draft.sheetSync) draft.sheetSync.frozen = true })}>Đóng băng Sheet và soạn trong app</button>
       </div>}
-      <PlanGrid {...props} locked={sheetOwns} />
-      <CoveragePanel campaign={campaign} />
-      {campaign.pieces.length > 0 && <div className="row wrap">
-        {needSlides > 0 && <button className="btn small" disabled={sheetOwns} onClick={() => edit((draft) => { draftMissingSlides(draft, workspace.company) })}>Tạo slide nháp cho {needSlides} bài chưa có</button>}
-        <span className={withIssues.length ? 'notice' : 'muted'}>{withIssues.length ? `${withIssues.length}/${campaign.pieces.length} bài còn điểm cần xem lại trước khi sản xuất (bấm Mở để xem chi tiết).` : 'Kế hoạch ổn, chuyển sang tab Sản xuất.'}</span>
-      </div>}
+      <PlanSheets workspace={workspace} campaign={campaign} edit={edit} locked={sheetOwns} keys={props.keys} onManageKeys={props.onManageKeys} />
+      {needSlides > 0 && <div className="row wrap"><button className="btn small" disabled={sheetOwns} onClick={() => edit((draft) => { draftMissingSlides(draft, workspace.company) })}>Tạo slide nháp cho {needSlides} bài chưa có</button></div>}
     </Section>
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
   </>

@@ -7,6 +7,8 @@ import { newId, now } from '../lib/types.ts'
 import type { Campaign, DocModel, DocVersion, Workspace } from '../lib/types.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { DocsPanel } from './DocsPanel.tsx'
+import { DocPages } from './DocPages.tsx'
+import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 
 type Props = {
   workspace: Workspace
@@ -31,6 +33,7 @@ export function DocumentTab({ workspace, campaign, edit, onError }: Props) {
   const [note, setNote] = useState('')
   const [removing, setRemoving] = useState<DocVersion | null>(null)
   const previewUrls = useRef<string[]>([])
+  const [view, setView] = useState<'pages' | 'export' | 'docs'>('pages')
 
   const versions = [...(campaign.docVersions ?? [])].sort((a, b) => b.at.localeCompare(a.at))
   const latest = versions[0]
@@ -101,12 +104,15 @@ export function DocumentTab({ workspace, campaign, edit, onError }: Props) {
     </>
   }
 
-  if (campaign.pieces.length === 0) return <>
-    <Section title="Tài liệu"><p className="muted">Chưa có bài nào để ghép tài liệu. Soạn kế hoạch ở tab Kế hoạch trước.</p></Section>
-    <Section title="Đẩy sang Google Docs (tùy chọn)"><DocsPanel workspace={workspace} campaign={campaign} edit={edit} /></Section>
-  </>
+  const views = [{ key: 'pages', label: 'Trang bài' }, { key: 'export', label: `Xuất & bản duyệt${versions.length ? ` (${versions.length})` : ''}` }, { key: 'docs', label: 'Google Docs (tùy chọn)' }] as const
 
   return <>
+    <div className="docs-views" role="tablist" aria-label="Cách xem tài liệu">
+      {views.map((item) => <button key={item.key} role="tab" aria-selected={view === item.key} className={view === item.key ? 'on' : ''} onClick={() => setView(item.key)}>{item.label}</button>)}
+    </div>
+    {view === 'pages' && <DocPages workspace={workspace} campaign={campaign} edit={edit} locked={sheetOwnsPlan(campaign.sheetSync)} />}
+    {view === 'export' && campaign.pieces.length === 0 && <Section title="Xuất tài liệu"><p className="muted">Chưa có bài nào để ghép tài liệu. Thêm trang bài ở "Trang bài" hoặc soạn kế hoạch ở tab Kế hoạch.</p></Section>}
+    {view === 'export' && campaign.pieces.length > 0 && <>
     <Section title="Tài liệu chiến dịch" aside={<span className="muted">tự ghép từ Nền tảng, Kế hoạch và các bài</span>}>
       <p className="muted">Một tài liệu gồm: chiến lược, lịch đăng, rồi từng bài với caption, ảnh, mục cần duyệt. Luôn lấy dữ liệu mới nhất trong app; muốn gửi người khác một bản cố định thì <b>chốt bản duyệt</b>.</p>
       <div className="row wrap">
@@ -142,10 +148,11 @@ export function DocumentTab({ workspace, campaign, edit, onError }: Props) {
       </div>
     </Section>
 
-    <Section title="Đẩy sang Google Docs (tùy chọn)">
+    </>}
+    {view === 'docs' && <Section title="Đẩy sang Google Docs (tùy chọn)">
       <p className="muted">Không bắt buộc: tài liệu đã nằm trong app. Dùng khi cần một bản trên Google Docs cho người khác cùng xem.</p>
       <DocsPanel workspace={workspace} campaign={campaign} edit={edit} />
-    </Section>
+    </Section>}
 
     {approving && <Modal title={`Chốt bản duyệt ${nextLabel}`} onClose={() => setApproving(false)}>
       <p>App lưu lại chữ và ảnh của {pieces.length} bài như hiện tại{withImages ? '' : ' (không kèm ảnh)'}. Sau này sửa bài thì bản này không đổi.</p>
