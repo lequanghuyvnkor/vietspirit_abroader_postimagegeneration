@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ApiKey } from './api.ts'
-import { applyDraft, attachBackground, fetchDraft, generatePieceBackground } from './draft.ts'
+import { applyDraft, fetchDraft } from './draft.ts'
+import { attachPlate, generatePlate } from './plate.ts'
 import type { Campaign, Piece, Workspace } from './types.ts'
 
 export type Job = { label: string; done: number; total: number; failures: string[] }
@@ -27,9 +28,10 @@ export function useBatch(workspace: Workspace, campaign: Campaign, edit: (change
     edit((draftCampaign) => applyDraft(draftCampaign, piece.id, draft, workspace.company))
   })
 
-  const backgroundsAll = (pieces: Piece[]) => run('Tạo nền', pieces, async (piece) => {
-    const result = await generatePieceBackground(workspace, campaign, piece, activeKey?.id)
-    edit((draftCampaign) => attachBackground(draftCampaign, piece.id, result))
+  const backgroundsAll = (pieces: Piece[]) => run('Tạo ảnh (nền theo chữ)', pieces, async (piece) => {
+    const result = await generatePlate(workspace, campaign, piece, activeKey?.id)
+    edit((draftCampaign) => attachPlate(draftCampaign, piece.id, result))
+    if (result.warning) throw new Error(result.warning)
   })
 
   return { job, setJob, running, activeKey, setKeyId, draftAll, backgroundsAll }

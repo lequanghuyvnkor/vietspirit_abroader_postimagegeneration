@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ApiKey } from '../lib/api.ts'
-import { applyDraft, attachBackground, fetchCaption, fetchDraft, generatePieceBackground } from '../lib/draft.ts'
+import { applyDraft, fetchCaption, fetchDraft } from '../lib/draft.ts'
+import { attachPlate, generatePlate } from '../lib/plate.ts'
 import { buildHandoff } from '../lib/handoff.ts'
 import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { buildStoryboard } from '../lib/storyboard.ts'
@@ -31,6 +32,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   const [keyId, setKeyId] = useState('')
   const [busy, setBusy] = useState<'' | 'ai' | 'cap' | 'bg' | 'zip' | 'sb' | 'mp4'>('')
   const [confirmReplace, setConfirmReplace] = useState(false)
+  const [plateNote, setPlateNote] = useState('')
   const slides = slidesOf(campaign, piece)
   const filledCaption = applyVars(piece.caption, campaign.variables)
   const everySlide = allSlidesOf(campaign, piece)
@@ -95,9 +97,13 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
     edit((_, item) => { item.caption = result.caption; if (result.hashtags) item.hashtags = result.hashtags })
   }
 
-  async function makeBackground() {
-    const result = await generatePieceBackground(workspace, campaign, piece, activeKey?.id)
-    edit((c, item) => attachBackground(c, item.id, result))
+  /** One background for the piece, or just for one slide whose text needs its own picture. */
+  async function makeBackground(onlyPostId?: string) {
+    setPlateNote('')
+    const result = await generatePlate(workspace, campaign, piece, activeKey?.id, onlyPostId)
+    edit((c, item) => attachPlate(c, item.id, result, onlyPostId))
+    const free = Math.round((result.zones.freeTo - result.zones.freeFrom) * 100)
+    setPlateNote([result.warning, free < 20 ? `Chữ chiếm gần hết ảnh: chỉ còn ${free}% chiều cao cho hình. Rút ngắn câu dẫn thì nền đẹp hơn.` : ''].filter(Boolean).join(' '))
   }
 
   async function exportStoryboard() {
@@ -202,9 +208,10 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
 
         {!parked && <Section title={`2 · Hình (${slides.length} ${isReel ? 'cảnh' : 'ảnh'}${everySlide.length > slides.length ? ` đang xuất / ${everySlide.length} bản` : ''})${isReel ? ` · ${Math.round(totalSeconds * 10) / 10}s` : ''}`} aside={<div className="row"><button className="btn small" onClick={addSlide}>+ {isReel ? 'Cảnh' : 'Slide'}</button><button className="btn small ghost" onClick={() => (slides.length ? setConfirmReplace(true) : createSlides())}>Tạo lại từ kế hoạch</button></div>}>
           <div className="row wrap">
-            <button className="btn primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('bg', makeBackground) }}>{busy === 'bg' ? 'Đang tạo nền (1–2 phút)…' : 'Tạo nền theo brief'}</button>
-            <small className="muted">Nền dùng moodboard của chiến dịch cộng hình chủ đạo trong brief, rồi gắn vào mọi {isReel ? 'cảnh' : 'slide'} cùng khổ.</small>
+            <button className="btn primary" disabled={busy !== '' || keys.length === 0 || baseSlides.length === 0} onClick={() => { void guard('bg', () => makeBackground()) }}>{busy === 'bg' ? 'Đang tạo ảnh (1–3 phút)…' : 'Tạo ảnh'}</button>
+            <small className="muted">App đo chỗ đặt chữ của các {isReel ? 'cảnh' : 'slide'}, rồi AI vẽ nền chỉ đặt hình ở phần còn trống và tự kiểm tra vùng chữ. Mỗi lần tạo là 1–2 ảnh AI.</small>
           </div>
+          {plateNote && <p className="notice" role="status">{plateNote}</p>}
           {baseSlides.length === 0 && <p className="muted">Chưa có {isReel ? 'cảnh' : 'slide'}. Bấm "Tạo lại từ kế hoạch" hoặc "Soạn nháp bằng AI" ở bước 1.</p>}
           <div className="slide-cards">
             {everySlide.map((post) => <figure className={post.excluded ? 'slide-card muted-card' : 'slide-card'} key={post.id}>
@@ -216,6 +223,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
                 {(post.variantOf || post.excluded) && <small className="flag info">{post.variantOf ? 'Bản chỉnh' : 'Bản gốc'} · {post.excluded ? 'không xuất' : 'đang xuất'}</small>}
                 <span className="row wrap">
                   <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>Chỉnh</button>
+                  {!post.excluded && <button className="btn small ghost" disabled={busy !== '' || keys.length === 0} title="Vẽ lại nền riêng cho slide này theo đúng chỗ đặt chữ của nó" onClick={() => { void guard('bg', () => makeBackground(post.id)) }}>Nền riêng</button>}
                   {post.excluded && <button className="btn small" onClick={() => edit((draft) => chooseVersion(draft, post.id))}>Dùng bản này</button>}
                   <button className="btn small ghost" onClick={() => removeSlide(post.id)}>Xóa</button>
                 </span>

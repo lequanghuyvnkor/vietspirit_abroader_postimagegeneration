@@ -1,9 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { FORMATS, formatOf, newId, newPost, now } from '../lib/types.ts'
+import { formatOf, newId, newPost, now } from '../lib/types.ts'
 import type { Campaign, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate, type CampaignTab } from '../lib/route.ts'
-import { buildBackgroundPrompt, generationRefs } from '../lib/prompt.ts'
 import { safeColor } from '../lib/render.ts'
 import { ConfirmDialog, Field, Lightbox, NameDialog, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
@@ -27,13 +26,7 @@ type Props = {
 export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
   const kv = campaign.keyVisual
   const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | { delete: string } | null>(null)
-  const [genFormat, setGenFormat] = useState<FormatKey>('feed')
-  const [variation, setVariation] = useState('')
-  const [generating, setGenerating] = useState(false)
   const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
-  const [keyId, setKeyId] = useState('')
-  const aiReady = keys.length > 0
-  const activeKey = keys.find((entry) => entry.id === keyId) ?? keys.find((entry) => entry.isDefault) ?? keys[0]
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
   const loose = campaign.posts.filter((post) => !post.pieceId)
@@ -69,24 +62,10 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     edit((draft) => { draft.backgrounds.push({ id: newId(), assetId, format, label }) })
   }
 
-  async function generate() {
-    setGenerating(true)
-    try {
-      const [width, height] = formatOf(genFormat).generate
-      const assetId = await api.generate({
-        prompt: buildBackgroundPrompt(workspace, campaign, genFormat, variation.trim()),
-        width, height, quality: 'high', referenceIds: generationRefs(kv), keyId: activeKey?.id,
-      })
-      addBackground(assetId, genFormat, variation.trim() || `Nền ${campaign.backgrounds.length + 1}`)
-      setVariation('')
-    } catch (error) { onError(error instanceof Error ? error.message : 'Không tạo được ảnh.') }
-    finally { setGenerating(false) }
-  }
-
   function uploadBackground(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (file) void guard(async () => addBackground(await uploadImage(file, 2400), genFormat, file.name))
+    if (file) void guard(async () => addBackground(await uploadImage(file, 2400), 'feed', file.name))
   }
 
   function removeBackground(id: string) {
@@ -204,29 +183,19 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     <p className="muted">Logo, chân bài và kích thước logo nằm ở trang workspace.</p>
   </Section>
 
-  const backgrounds = <Section title="Thư viện nền" aside={<span className="muted">{campaign.backgrounds.length} nền</span>}>
-    <p className="muted">Nền chung cho chiến dịch. Mỗi bài cũng có nút "Tạo nền theo brief" riêng ở trang bài.</p>
-    <div className="row wrap end">
-      <Field label="Khổ ảnh">
-        <select value={genFormat} onChange={(event) => setGenFormat(event.target.value as FormatKey)}>{FORMATS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
-      </Field>
-      <Field label="Biến thể (không bắt buộc)"><input value={variation} placeholder="Ví dụ: ánh sáng bình minh ấm hơn" onChange={(event) => setVariation(event.target.value)} /></Field>
-    </div>
-    {aiReady && keys.length > 1 && <Field label="Dùng API"><select value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.model}</option>)}</select></Field>}
+  const backgrounds = <details className="card collapsible">
+    <summary><h2>Nền đã có ({campaign.backgrounds.length})</h2><span className="muted">Nền được tạo ở bước "Hình" của từng bài. Ở đây chỉ để xem, tải nền có sẵn hoặc xóa.</span></summary>
     <div className="row wrap">
-      <button className="btn primary" disabled={generating || !aiReady || !kv.concept.trim()} onClick={() => { void generate() }}>{generating ? 'Đang tạo (có thể mất 1–2 phút)…' : 'Tạo nền bằng AI'}</button>
-      <button className="btn" onClick={() => backgroundInput.current?.click()}>Tải nền có sẵn</button>
+      <button className="btn small" onClick={() => backgroundInput.current?.click()}>Tải nền có sẵn</button>
       <input ref={backgroundInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={uploadBackground} />
     </div>
-    {!aiReady && <p className="notice">Chưa có API key. <button className="link" onClick={onManageKeys}>Thêm API key</button> để tạo nền bằng AI, hoặc tải nền có sẵn.</p>}
-    {aiReady && !kv.concept.trim() && <p className="notice">Điền "Mô tả không khí" ở Moodboard (hoặc bấm "AI đọc moodboard") để tạo nền.</p>}
     {campaign.backgrounds.length > 0 && <div className="bg-grid">
       {campaign.backgrounds.map((background) => <figure key={background.id}>
         <button className="zoom" onClick={() => setViewer({ src: assetUrl(background.assetId), title: `${background.label} · ${formatOf(background.format).label}` })} aria-label={`Xem lớn ${background.label}`}><img src={assetUrl(background.assetId)} alt={background.label} /></button>
         <figcaption><span>{background.label}<small>{formatOf(background.format).label}</small></span><button className="btn small ghost" onClick={() => removeBackground(background.id)}>Xóa</button></figcaption>
       </figure>)}
     </div>}
-  </Section>
+  </details>
 
   const components = <details className="card collapsible">
     <summary><h2>Thành phần đồ họa ({campaign.components.length})</h2><span className="muted">Sao, đường bay, thẻ kính… cắt từ PDF để đặt lên bài</span></summary>

@@ -158,7 +158,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       <div className="row wrap">
         <KeyPicker batch={batch} keys={keys} />
         <button className="btn" disabled={batch.running || keys.length === 0 || visual.length === 0} onClick={() => setConfirm('copy')}>Soạn chữ tất cả bằng AI ({visual.length} bài)</button>
-        <button className="btn" disabled={batch.running || keys.length === 0 || visual.length === 0} onClick={() => setConfirm('backgrounds')}>Tạo nền cho tất cả ({visual.length} ảnh)</button>
+        <button className="btn" disabled={batch.running || keys.length === 0 || visual.length === 0} onClick={() => setConfirm('backgrounds')}>Tạo ảnh cho tất cả ({visual.length} bài)</button>
         {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
       </div>
       <JobStatus job={batch.job} />
@@ -178,7 +178,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       </div>}
     </Section>
     {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${visual.length} bài (carousel, ảnh, reel làm trong app), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void batch.draftAll(visual) }} onClose={() => setConfirm(null)} />}
-    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo nền cho tất cả bài" message={`Sẽ tạo ${visual.length} ảnh nền bằng AI, mỗi ảnh tính phí theo tài khoản của bạn, và gán vào slide của bài tương ứng. Tiếp tục?`} confirm="Tạo nền" onConfirm={() => { void batch.backgroundsAll(visual) }} onClose={() => setConfirm(null)} />}
+    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo ảnh cho tất cả bài" message={`App đo chỗ đặt chữ của từng bài, rồi nhờ AI vẽ ${visual.length} nền chỉ đặt hình ở phần còn trống và kiểm tra vùng chữ. Mỗi nền tính phí theo tài khoản của bạn (nền nào vùng chữ chưa đạt sẽ được vẽ lại một lần, tối đa ${visual.length * 2} lượt). Tiếp tục?`} confirm="Tạo ảnh" onConfirm={() => { void batch.backgroundsAll(visual) }} onClose={() => setConfirm(null)} />}
   </>
 }
 

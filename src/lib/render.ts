@@ -131,8 +131,11 @@ type Ctx = CanvasRenderingContext2D & { letterSpacing: string }
 /** Which layers of a slide to draw: the background with components and shade, the text block, the CTA button. */
 export type RenderPart = 'plate' | 'text' | 'cta'
 
+/** Where the text of a post sits, in canvas pixels: used to ask the image model for a background that leaves that room free. */
+export type LayoutInfo = { width: number; height: number; logoBottom: number; textTop: number; textBottom: number; ctaTop: number | null; footerTop: number | null }
+
 /** Draws a post at its native size. Single source of truth for preview and export. */
-export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null; parts?: RenderPart[] } = {}): Promise<void> {
+export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null; parts?: RenderPart[]; layoutOut?: Partial<LayoutInfo> } = {}): Promise<void> {
   const format = formatOf(post.format)
   const { width, height } = format
   const kv = campaign.keyVisual
@@ -269,6 +272,7 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
 
   // ---- Local legibility shade: darken (or lighten) behind the text only where the background is busy or bright.
   const blockBox = { x: left - 28, y: blockTop - 22, w: textWidth + 56, h: block.height + 44 }
+  if (options.layoutOut) Object.assign(options.layoutOut, { width, height, logoBottom: top + (placement.hidden ? 0 : logoHeight), textTop: blockTop, textBottom: blockTop + block.height, ctaTop: post.cta && !isCover ? ctaTop : null, footerTop: post.footer ? footerY - 44 : null })
   if (parts.has('plate')) {
   const lum = regionLuminance(ctx, blockBox)
   const need = dark ? Math.max(0, 0.72 - lum * 0.9) : Math.max(0, (lum - 0.2) * 2.1)
