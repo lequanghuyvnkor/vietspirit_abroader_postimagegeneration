@@ -128,6 +128,22 @@ export type PieceAsset = { id: string; label: string; assetId: string | null; do
 
 export type Check = { id: string; text: string; owner: string; done: boolean }
 
+/** A text that differs between the content-plan Sheet and this app, so the Sheet's version was not applied. */
+export type SheetConflict = { code: string; field: 'caption' | 'hashtags' | 'date' | 'time'; sheetValue: string }
+
+/** Link to the private content-plan Google Sheet (through an Apps Script web app). */
+export type SheetSync = {
+  url: string
+  /** The secret set in the Sheet's script; the plan is only returned when it matches. */
+  token: string
+  /** Check the Sheet every minute while the app is open, and pull when it changed. */
+  auto: boolean
+  /** Fingerprint of the Sheet at the last pull. */
+  hash: string
+  pulledAt: string
+  conflicts: SheetConflict[]
+}
+
 /** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
 export type Piece = {
   id: string
@@ -145,6 +161,8 @@ export type Piece = {
   checks: Check[]
   assets: PieceAsset[]
   production: Production
+  /** What the Sheet said at the last pull for the fields both sides edit; tells a Sheet change from an app change. */
+  sheetBase?: { caption: string; hashtags: string; date: string; time: string; linked?: boolean; assets?: string[] }
   /** Hand-off note for whoever produces it (shown in the plan and in the hand-off brief). */
   productionNote: string
 }
@@ -200,6 +218,7 @@ export type Campaign = {
   variables: Record<string, string>
   foundation: Foundation
   docsSync?: DocsSync
+  sheetSync?: SheetSync
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */

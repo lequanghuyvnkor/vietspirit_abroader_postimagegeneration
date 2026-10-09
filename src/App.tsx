@@ -11,6 +11,7 @@ import { PieceView } from './views/PieceView.tsx'
 import { Modal } from './views/ui.tsx'
 import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
 import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
+import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
 import { DocsChip } from './views/DocsChip.tsx'
 import './App.css'
 
@@ -76,7 +77,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     ...(workspace && campaign && piece ? [{ label: piece.code, route: { workspace: workspace.id, campaign: campaign.id, piece: piece.id } }] : []),
   ]
 
-  return <DocsSyncProvider store={store} update={update}><div className="shell">
+  return <DocsSyncProvider store={store} update={update}><SheetSyncProvider store={store} update={update}><div className="shell">
     <header className="topbar">
       <nav aria-label="Vị trí hiện tại" className="crumbs">
         {crumbs.map((crumb, index) => <span key={index}>{index > 0 && <i>/</i>}{index === crumbs.length - 1 && !post
@@ -95,7 +96,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     <main>{view}</main>
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
-  </div></DocsSyncProvider>
+  </div></SheetSyncProvider></DocsSyncProvider>
 }
 
 export default function App() {

@@ -11,6 +11,7 @@ import { readXlsx } from '../lib/xlsx.ts'
 import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { DocsPanel } from './DocsPanel.tsx'
+import { SheetPanel } from './SheetPanel.tsx'
 import { ScheduleTable } from './ScheduleTable.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 
@@ -96,7 +97,7 @@ function KeyPicker({ batch, keys }: { batch: Batch; keys: ApiKey[] }) {
 
 /** ③ Kế hoạch: the pieces, imported or written here, with a check of each before production starts. */
 export function PlanTab(props: Props & { batch: Batch }) {
-  const { workspace, campaign, batch } = props
+  const { workspace, campaign, edit, batch } = props
   const [importing, setImporting] = useState(false)
   const issues = campaign.pieces.map((piece) => ({ piece, issues: pieceIssues(campaign, piece) }))
   const withIssues = issues.filter((entry) => entry.issues.length > 0)
@@ -109,10 +110,11 @@ export function PlanTab(props: Props & { batch: Batch }) {
   }
 
   return <>
-    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<button className="btn small primary" onClick={() => setImporting(true)}>{campaign.pieces.length ? 'Nhập lại kế hoạch (Excel)' : 'Nhập kế hoạch (Excel)'}</button>}>
+    <SheetPanel workspace={workspace} campaign={campaign} edit={edit} />
+    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<button className="btn small ghost" title="Dùng khi chưa kết nối Google Sheet. Nhập lại từ Excel thay kế hoạch hiện có, khác với Cập nhật từ Sheet là hợp nhất." onClick={() => setImporting(true)}>{campaign.pieces.length ? 'Nhập lại từ file Excel' : 'Hoặc nhập từ file Excel'}</button>}>
       <JobStatus job={batch.job} />
       {campaign.pieces.length === 0
-        ? <p className="muted">Chưa có kế hoạch. Nhập file Excel kế hoạch (sheet Strategy, Calendar, Captions, Visual Brief) để tạo sẵn từng bài với caption, checklist, visual brief và slide nháp.</p>
+        ? <p className="muted">Chưa có kế hoạch. Kết nối Google Sheet ở trên (hoặc nhập file Excel) để tạo sẵn từng bài với caption, checklist, visual brief và slide nháp.</p>
         : <div className="list">
           {issues.map(({ piece, issues: list }) => <div className="list-row plan-row" key={piece.id}>
             <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>
