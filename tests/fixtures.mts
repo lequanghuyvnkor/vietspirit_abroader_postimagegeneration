@@ -37,7 +37,3 @@ export function makeWorkspace(name: string, campaigns: Campaign[] = []): Workspa
 }
 
 export const makeStore = (...workspaces: Workspace[]): Store => ({ workspaces })
-
-export const SHEET_URL_A = 'https://script.google.com/macros/s/AKfycbAAAAAAAAAAAAAAAAAA/exec'
-export const SHEET_URL_B = 'https://script.google.com/macros/s/AKfycbBBBBBBBBBBBBBBBBBB/exec'
-export const sheetOf = (url: string) => ({ url, token: 'secret-token-123', auto: true, hash: '', pulledAt: '', conflicts: [] })

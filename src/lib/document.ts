@@ -15,7 +15,6 @@ export type DocOptions = {
 }
 
 export const POST_REF = 'post:'
-export const ASSET_REF = 'asset:'
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 const weekday = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'long' })
@@ -32,12 +31,6 @@ export const sortedPieces = (campaign: Campaign): Piece[] =>
 
 export function documentPieces(campaign: Campaign, options: DocOptions): Piece[] {
   return sortedPieces(campaign).filter((piece) => !options.readyOnly || piece.status === 'ready')
-}
-
-/** What a piece contributes to the document, including what its slides say and when they last changed. */
-export function pieceFingerprint(campaign: Campaign, piece: Piece): string {
-  const slides = slidesOf(campaign, piece).map((post) => [post.eyebrow, post.headline, post.accent, post.subtitle, post.cta, post.backgroundId, post.updatedAt])
-  return fingerprint(JSON.stringify([piece.title, piece.date, piece.status, piece.plan, piece.caption, piece.hashtags, piece.checks.map((check) => [check.text, check.done]), slides]))
 }
 
 function strategyBlocks(campaign: Campaign): DocBlock[] {
@@ -59,7 +52,7 @@ function strategyBlocks(campaign: Campaign): DocBlock[] {
   if (foundation.audiences.length > 0) blocks.push({ t: 'h', level: 3, text: 'Đối tượng' }, { t: 'table', head: ['Nhóm', 'Insight', 'Rào cản'], rows: foundation.audiences.map((item) => [item.name, item.insight, item.barrier]) })
   if (foundation.pillars.length > 0) blocks.push({ t: 'h', level: 3, text: 'Trụ cột nội dung' }, { t: 'table', head: ['Trụ cột', 'Thông điệp', 'Bằng chứng'], rows: foundation.pillars.map((item) => [item.name, item.message, item.proof]) })
   if (foundation.dos.length > 0) blocks.push({ t: 'h', level: 3, text: 'Nên nói' }, { t: 'list', items: foundation.dos })
-  const donts = [...campaign.guardrailNotes, ...campaign.guardrails].filter((line) => line.trim())
+  const donts = campaign.guardrailNotes.filter((line) => line.trim())
   if (donts.length > 0) blocks.push({ t: 'h', level: 3, text: 'Không được nói' }, { t: 'list', items: donts })
   const facts = Object.entries(campaign.variables).filter(([, value]) => value.trim())
   if (facts.length > 0) blocks.push({ t: 'h', level: 3, text: 'Dữ kiện đã xác nhận' }, { t: 'table', head: ['Biến', 'Giá trị'], rows: facts.map(([key, value]) => [`[${key}]`, value.trim()]) })
@@ -88,7 +81,6 @@ function pieceBlocks(campaign: Campaign, piece: Piece, options: DocOptions): Doc
     ['Caption', fill(piece.caption)],
     ['Hashtag', piece.hashtags],
     ['Bên sản xuất', piece.kind === 'reel' && piece.production === 'external' ? `Bên ngoài. ${piece.productionNote}`.trim() : ''],
-    ['Điều kiện trước đăng', fill(piece.plan.conditions)],
     ['Đã đăng', piece.published ? `${new Date(piece.published.at).toLocaleString('vi-VN')}${piece.published.url ? ` · ${piece.published.url}` : ''}` : ''],
   ]
   const blocks: DocBlock[] = [{ t: 'break' }, { t: 'h', level: 3, text: `${piece.code} · ${piece.title || piece.plan.hook}` }, { t: 'kv', rows: rows.filter(([, value]) => value.trim()) }]
@@ -117,13 +109,6 @@ function resultsBlocks(campaign: Campaign): DocBlock[] {
     blocks.push({ t: 'h', level: 3, text: title }, { t: 'table', head: [title.replace('Theo ', '').replace(/^./, (letter) => letter.toUpperCase()), 'Kế hoạch', 'Đã đăng', 'Tiếp cận', 'Tỷ lệ tương tác', 'Lead'], rows: groupTotals(campaign, by).map((row) => [row.label, String(row.planned), String(row.published), count(row.reach), percent(row.er), count(row.leads)]) })
   }
   blocks.push({ t: 'h', level: 3, text: 'Từng bài' }, { t: 'table', head: ['Bài', 'Đăng lúc', 'Tiếp cận', 'Tương tác', 'Tỷ lệ', 'Nhấp', 'Lead'], rows: published.map((piece) => [`${piece.code} · ${piece.title}`, new Date(piece.published!.at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), piece.metrics?.reach?.toString() ?? '', piece.metrics?.engagement?.toString() ?? '', percent(engagementRate(piece.metrics)), piece.metrics?.clicks?.toString() ?? '', piece.metrics?.leads?.toString() ?? '']) })
-  const reviews = (campaign.weeklyReviews ?? []).filter((item) => item.wins || item.problems || item.actions).sort((a, b) => a.weekStart.localeCompare(b.weekStart))
-  if (reviews.length > 0) {
-    blocks.push({ t: 'h', level: 3, text: 'Xem lại hằng tuần' })
-    for (const review of reviews) blocks.push({ t: 'kv', rows: [[`Tuần ${dmy(review.weekStart).slice(0, 5)}`, ''], ['Điều làm tốt', review.wins], ['Điều chưa tốt', review.problems], ['Việc tuần tới', review.actions]].filter(([, value], index) => index === 0 || value) as [string, string][] })
-  }
-  const retro = campaign.retro
-  if (retro && (retro.worked || retro.didnt || retro.next)) blocks.push({ t: 'h', level: 3, text: 'Tổng kết' }, { t: 'kv', rows: ([['Điều hiệu quả', retro.worked], ['Điều không hiệu quả', retro.didnt], ['Làm khác đi lần sau', retro.next]] as [string, string][]).filter(([, value]) => value) })
   return blocks
 }
 

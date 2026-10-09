@@ -90,7 +90,7 @@ export function FoundationTab({ workspace, campaign, edit, keys, onManageKeys, o
         <Section title="Giọng điệu và giới hạn">
           <Field label="Giọng điệu" hint={workspace.company.tone ? `Mặc định của thương hiệu: ${workspace.company.tone}` : undefined}><input value={f.tone} placeholder={workspace.company.tone} onChange={(event) => setF((draft) => { draft.tone = event.target.value })} /></Field>
           <Field label="Nên nói (mỗi dòng một ý)"><textarea rows={3} value={dosText} onChange={(event) => setDosText(event.target.value)} onBlur={() => setF((draft) => { draft.dos = lines(dosText) })} /></Field>
-          <Field label="Không được nói (mỗi dòng một ý)" hint="AI soạn chữ tránh các ý này, và app cảnh báo khi chúng xuất hiện."><textarea rows={4} value={dontsText} onChange={(event) => setDontsText(event.target.value)} onBlur={() => edit((draft) => { draft.guardrailNotes = lines(dontsText) })} /></Field>
+          <Field label="Không được nói (mỗi dòng một ý)" hint="AI soạn chữ tránh các ý này. App cảnh báo khi một cụm đặt trong ngoặc kép (hoặc cả dòng, nếu ngắn) xuất hiện nguyên văn trong caption hay slide."><textarea rows={4} value={dontsText} onChange={(event) => setDontsText(event.target.value)} onBlur={() => edit((draft) => { draft.guardrailNotes = lines(dontsText) })} /></Field>
         </Section>
       </div>
 

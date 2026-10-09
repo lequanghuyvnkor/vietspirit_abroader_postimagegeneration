@@ -3,7 +3,6 @@ import type { ApiKey } from '../lib/api.ts'
 import { applyDraft, fetchCaption, fetchDraft } from '../lib/draft.ts'
 import { applyLayouts, attachPlate, generatePlate, layoutWithPlate } from '../lib/plate.ts'
 import { planLayouts } from '../lib/autoLayout.ts'
-import { buildHandoff } from '../lib/handoff.ts'
 import { defaultProductionNote, draftSlides, kindLabel, pieceTexts } from '../lib/plan.ts'
 import { buildStoryboard } from '../lib/storyboard.ts'
 import { exportReelMp4, reelSeconds, sceneDuration } from '../lib/video.ts'
@@ -19,7 +18,6 @@ import { SlideThumb } from './SlideThumb.tsx'
 import { PieceAssets } from './PieceAssets.tsx'
 import { PieceBriefEditor } from './PieceBriefEditor.tsx'
 import { ReviewPanel } from './ReviewPanel.tsx'
-import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -51,9 +49,9 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
 
   const missing = [...new Set(pieceTexts(campaign, piece).flatMap((text) => unresolvedIn(text, campaign.variables)))]
   const openChecks = piece.checks.filter((check) => !check.done).length
-  const lint = lintText(applyVars(piece.caption, campaign.variables) + '\n' + slides.map((post) => [post.headline, post.accent, post.subtitle].join(' ')).join('\n'), campaign.guardrails)
+  const lint = lintText(applyVars(piece.caption, campaign.variables) + '\n' + slides.map((post) => [post.headline, post.accent, post.subtitle].join(' ')).join('\n'), [])
   const craft = lintCopy(filledCaption, { caption: true })
-  const blockers = [...(missing.length ? [`${missing.length} biến chưa điền`] : []), ...(openChecks ? [`${openChecks} mục duyệt chưa xong`] : [])]
+  const blockers = [...(missing.length ? [`${missing.length} biến chưa điền`] : []), ...(openChecks ? [`${openChecks} mục kiểm tra chưa xong`] : [])]
 
   function edit(change: (draft: Campaign, item: Piece) => void) {
     update((draft) => {
@@ -135,7 +133,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
     downloadBlob(await buildPack(workspace, campaign, [piece], false), `${piece.code}.zip`)
   }
 
-  const setStatus = (status: PieceStatus) => edit((_, item) => { item.status = status; if (status !== 'ready') delete item.approval })
+  const setStatus = (status: PieceStatus) => edit((_, item) => { item.status = status })
   const aiButton = <div className="row wrap">
     {keys.length > 0 && <select aria-label="API dùng để soạn" value={activeKey?.id ?? ''} onChange={(event) => setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.textModel}</option>)}</select>}
     <button className="btn primary" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('ai', aiDraft) }}>{busy === 'ai' ? 'AI đang soạn…' : 'Soạn nháp bằng AI'}</button>
@@ -153,30 +151,17 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
         <label className="field"><span className="field-label">Ngày đăng</span><input type="date" value={piece.date} onChange={(event) => edit((_, item) => { item.date = event.target.value })} /></label>
         <label className="field"><span className="field-label">Trạng thái</span>
           <select value={piece.status} onChange={(event) => setStatus(event.target.value as PieceStatus)}>
-            {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && piece.status !== 'ready'}>{STATUS_LABELS[status]}{status === 'ready' && piece.status !== 'ready' ? ' (qua bước Duyệt)' : ''}</option>)}
+            {(Object.keys(STATUS_LABELS) as PieceStatus[]).map((status) => <option key={status} value={status} disabled={status === 'ready' && blockers.length > 0}>{STATUS_LABELS[status]}{status === 'ready' && blockers.length > 0 ? ' (còn việc chưa xong)' : ''}</option>)}
           </select>
         </label>
       </div>
     </div>
     {isReel && !parked && <p className="notice">Reel không có người, làm trong app: mỗi cảnh là một khung hình dọc 1080×1920 có thời lượng riêng. Tổng hiện tại <strong>{Math.round(totalSeconds * 10) / 10}s</strong>{planSeconds > 0 && Math.abs(totalSeconds - planSeconds) > 0.5 ? ` (plan ghi ${planSeconds}s: chỉnh thời lượng các cảnh cho khớp)` : planSeconds > 0 ? ` (khớp plan ${planSeconds}s)` : ''}. Xuất storyboard (zip) để duyệt, xuất MP4 để đăng; nhạc và giọng đọc thêm ở app dựng video.</p>}
-    {parked && <p className="notice">{piece.production === 'external' ? 'Reel có người thật: bên khác sản xuất. App theo dõi caption, checklist, tài nguyên và xuất phiếu bàn giao; không làm hình ở đây.' : 'Reel không có người: sẽ làm trong app (storyboard và chuyển động). Hiện chỉ theo dõi caption, checklist và visual brief.'}</p>}
+    {parked && <p className="notice">{piece.production === 'external' ? 'Reel có người thật: bên khác sản xuất. App theo dõi caption, checklist và tài nguyên; không làm hình ở đây.' : 'Reel không có người: sẽ làm trong app (storyboard và chuyển động). Hiện chỉ theo dõi caption, checklist và visual brief.'}</p>}
 
     <div className="piece-flow">
-      <aside className="card piece-brief">
-        <h2>Brief</h2>
-        <dl className="facts">
-          {([['Mục tiêu', piece.plan.goal], ['Hook', piece.plan.hook], ['Cấu trúc', piece.plan.structure], ['CTA', piece.plan.cta], ['Đối tượng', piece.plan.audience], ['Hình chủ đạo', piece.visual.hero], ['Bố cục', piece.visual.layout], ['Chữ trên ảnh', piece.visual.onImage], ['Tránh', piece.visual.avoid]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-        </dl>
-        {[piece.plan.kpi, piece.plan.paid, piece.plan.story, piece.visual.typography, piece.visual.palette, piece.visual.motion, piece.visual.assets].some(Boolean) && <details>
-          <summary className="muted">Thêm (KPI, quảng cáo, typography…)</summary>
-          <dl className="facts">
-            {([['KPI', piece.plan.kpi], ['Paid', piece.plan.paid], ['Story hỗ trợ', piece.plan.story], ['Typography', piece.visual.typography], ['Palette', piece.visual.palette], ['Motion', piece.visual.motion], ['Asset cần chuẩn bị', piece.visual.assets]] as const).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-          </dl>
-        </details>}
-      </aside>
-
       <div className="stack">
-        <PieceBriefEditor piece={piece} locked={sheetOwnsPlan(campaign.sheetSync)} edit={edit} />
+        <PieceBriefEditor piece={piece} edit={edit} />
         {parked && <Section title="Bàn giao cho bên sản xuất">
           <Field label="Ai thực hiện">
             <select value={piece.production} onChange={(event) => edit((_, item) => { const next = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production)) item.productionNote = defaultProductionNote(next); item.production = next })}>
@@ -184,10 +169,9 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
               <option value="external">Bên ngoài: Reel có người, bên khác xử lý</option>
             </select>
           </Field>
-          <Field label="Ghi chú sản xuất / bàn giao" hint="Hiện trong bảng theo ngày, xuất CSV và phiếu bàn giao.">
+          <Field label="Ghi chú sản xuất / bàn giao" hint="Ai làm, hẹn khi nào, cần gì từ bên mình.">
             <textarea rows={3} value={piece.productionNote} onChange={(event) => edit((_, item) => { item.productionNote = event.target.value })} />
           </Field>
-          <div className="row"><button className="btn" onClick={() => downloadBlob(new Blob([buildHandoff(campaign, piece)], { type: 'text/markdown;charset=utf-8' }), `${piece.code}-phieu-ban-giao.md`)}>Tải phiếu bàn giao (.md)</button></div>
         </Section>}
 
         <Section title={parked ? 'Caption' : '1 · Chữ'} aside={!parked && <span className="muted">Chữ trên {isReel ? 'các cảnh' : 'ảnh'} và caption</span>}>
@@ -199,7 +183,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
             <button className="btn small" disabled={busy !== '' || keys.length === 0} onClick={() => { void guard('cap', aiCaption) }}>{busy === 'cap' ? 'AI đang viết…' : 'AI viết lại caption'}</button>
             {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
           </div>
-          <Field label="Caption" hint="Chỗ soạn: giữ nguyên dạng [TÊN BIẾN]. Biến được thay bằng giá trị đã điền khi xuất ảnh, zip và Google Docs; xem bản đã thay ngay bên dưới."><textarea rows={10} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
+          <Field label="Caption" hint="Chỗ soạn: giữ nguyên dạng [TÊN BIẾN]. Biến được thay bằng giá trị đã điền khi xuất ảnh, zip và tài liệu; xem bản đã thay ngay bên dưới."><textarea rows={10} value={piece.caption} onChange={(event) => edit((_, item) => { item.caption = event.target.value })} /></Field>
           {filledCaption !== piece.caption && <details className="field">
             <summary className="field-label">Xem bản đã điền biến (bản được xuất)</summary>
             <div className="notice" style={{ whiteSpace: 'pre-wrap' }}>{filledCaption}</div>

@@ -34,7 +34,7 @@ In a campaign, **Nhập kế hoạch (Excel)** reads a content-plan workbook (sh
 - **Legibility**: the renderer fits the headline to three lines, balances line breaks, gives Vietnamese diacritics extra line height and darkens locally behind text where the background is bright or busy. Generated backgrounds are asked to keep the upper 55% calm and the focal point low.
 - **Reels made in the app** (no people): the plan's timed beats become *scenes* (one 1080×1920 frame each, with its own duration); they use the same editor, AI draft, backgrounds, components and comment-edits as slides. *Xuất storyboard (zip)* gives a PNG per scene, a contact sheet and a script table; *Xuất MP4* renders an H.264 1080×1920 30 fps file in the browser (WebCodecs, Chrome/Edge): slow push-in on the background, text rising in and out per scene, the CTA popping in, and a route line with a travelling star along the bottom. No audio: add music and voice-over in a video editor.
 - **Pack**: exports the slide PNGs plus `caption.txt` as one zip.
-- **Schedule table**: switch the plan list to *Bảng theo ngày* to set each piece's date and time, change its status, and see warnings (missing variables, open checks, due soon, outside the campaign window, same-day clashes). *Gợi ý lịch* spreads undated pieces evenly across the window found in the strategy, and the table exports to CSV.
+- **Calendar**: the month calendar in ⑤ moves a piece by dragging, shows backward-schedule deadlines (text, images, ready), late alerts, and funnel/pillar coverage.
 
 The AI only produces the background; it is told never to render text. Text, logo and CTA are drawn by one renderer (`src/lib/render.ts`) shared by the preview and the export.
 
@@ -50,4 +50,4 @@ Everything lives in `data/` (ignored by Git): `store.json` (workspaces, campaign
 
 ## Tests
 
-`npm test` runs 65 automatic tests (data separation, plan editing, Sheet merge, review and approval lock, schedule, results, templates, search, documents, and the local server: auth, store revision check, backups, assets). `npm run validate` checks `data/store.json` for orphaned slides, duplicate ids and impossible values.
+`npm test` runs the automatic tests (plan editing, Excel import, automatic checks, version history, schedule, results, templates, search, documents, theme colors, and the local server: auth, store revision check, backups, assets). `npm run validate` checks `data/store.json` for orphaned slides, duplicate ids and impossible values.

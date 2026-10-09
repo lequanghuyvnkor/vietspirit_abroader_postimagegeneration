@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildDocument, fingerprint, documentPieces } from '../src/lib/document.ts'
-import { toDocx, toHtml, toMarkdown } from '../src/lib/docExport.ts'
+import { buildDocument, documentPieces } from '../src/lib/document.ts'
+import { toDocx, toHtml } from '../src/lib/docExport.ts'
 import { funnelMix, parseIdeas } from '../src/lib/planAi.ts'
-import { autoChecks, approvePiece, blockersOf, contentFingerprint, diffSummary, recordVersion, reopenPiece, requestChanges, restoreVersion, revokeStaleApprovals, submitForReview } from '../src/lib/review.ts'
-import { buildTemplate, campaignFromTemplate, engagementRate, groupTotals, reminders, topPieces, totalsOf, weekStarts, weekStats } from '../src/lib/results.ts'
+import { autoChecks, bannedPhrases, blockersOf, diffSummary, recordVersion, restoreVersion } from '../src/lib/review.ts'
+import { buildTemplate, campaignFromTemplate, engagementRate, groupTotals, reminders, topPieces, totalsOf } from '../src/lib/results.ts'
 import { addDays, coverage, daysBetween, milestonesOf, openTasks, pillarsOf, todayIso, weeksOf } from '../src/lib/schedule.ts'
 import { fold, searchStore } from '../src/lib/search.ts'
 import { makeCampaign, makeStore, makeWorkspace, withSlides } from './fixtures.mts'
@@ -24,10 +24,10 @@ test('auto check blocks unresolved variables, banned phrases and an empty captio
   const { c } = scene()
   const p = c.pieces[0]
   p.caption = 'Giảm ngay [GIÁ ƯU ĐÃI] cho bạn. Cam kết đậu 100%.'
-  c.guardrails = ['cam kết đậu']
+  c.guardrailNotes = ['Không dùng cụm "cam kết đậu"']
   const blockers = blockersOf(autoChecks(c, p))
   assert.ok(blockers.some((check) => /biến chưa điền/.test(check.text)))
-  assert.ok(blockers.some((check) => /cấm|Cụm/i.test(check.text)))
+  assert.ok(autoChecks(c, p).some((check) => check.level === 'warn' && /Không được nói/.test(check.text) && /cam kết đậu/.test(check.text)))
   p.caption = ''
   assert.ok(blockersOf(autoChecks(c, p)).some((check) => /caption/i.test(check.text)))
 })
@@ -48,50 +48,6 @@ test('a figure that appears in the plan or the confirmed variables is accepted',
   c.variables['HỌC BỔNG'] = '50% học phí'
   p.caption = 'Học bổng 50% học phí cho 10 suất.'
   assert.ok(!autoChecks(c, p).some((check) => /Số liệu/.test(check.text)))
-})
-
-test('approval locks content: any edit sends the piece back to review, with history', () => {
-  const { c } = scene()
-  const p = c.pieces[1]
-  submitForReview(c, p)
-  assert.equal(p.status, 'review')
-  approvePiece(c, p, 'ok')
-  assert.equal(p.status, 'ready')
-  assert.equal(p.approval?.fingerprint, contentFingerprint(c, p))
-  assert.deepEqual(revokeStaleApprovals(c), [], 'nothing changed yet')
-  p.caption += ' thêm'
-  assert.deepEqual(revokeStaleApprovals(c), [p.code])
-  assert.equal(p.status, 'review')
-  assert.equal(p.approval, undefined)
-  assert.equal(p.history!.at(-1)!.event, 'edited')
-})
-
-test('changing only the status, ticks or notes does not void an approval', () => {
-  const { c } = scene()
-  const p = c.pieces[0]
-  p.checks = [{ id: 'k', text: 'Compliance', owner: 'x', done: true }]
-  approvePiece(c, p, '')
-  p.checks[0].done = false
-  p.reviewNote = 'ghi chú'
-  assert.deepEqual(revokeStaleApprovals(c), [])
-})
-
-test('editing a slide (text or background) voids the approval', () => {
-  const { c } = scene()
-  const p = c.pieces[0]
-  approvePiece(c, p, '')
-  c.posts.find((post) => post.pieceId === p.id)!.headline = 'Tiêu đề mới'
-  assert.deepEqual(revokeStaleApprovals(c), [p.code])
-})
-
-test('request changes and reopen clear the approval and move the piece back to Copy', () => {
-  const { c } = scene()
-  const p = c.pieces[0]
-  approvePiece(c, p, '')
-  requestChanges(c, p, 'Sửa hook')
-  assert.equal(p.status, 'copy'); assert.equal(p.reviewNote, 'Sửa hook'); assert.equal(p.approval, undefined)
-  approvePiece(c, p, ''); reopenPiece(c, p)
-  assert.equal(p.status, 'copy'); assert.equal(p.approval, undefined)
 })
 
 test('history is capped and identical consecutive entries are not duplicated', () => {
@@ -253,15 +209,6 @@ test('reminders: overdue by date, due today, and within the hour', () => {
   assert.ok(!('P01' in at(0)))
 })
 
-test('weeks run Monday to Sunday across the campaign and count late pieces', () => {
-  const { c } = scene()
-  c.pieces[0].date = '2026-10-08'; c.pieces[1].date = '2026-10-14'
-  const weeks = weekStarts(c)
-  assert.deepEqual(weeks, ['2026-10-05', '2026-10-12', '2026-10-19'])
-  assert.equal(weekStats(c, '2026-10-05', '2026-10-10').late.length, 1)
-  assert.equal(weekStats(c, '2026-10-12', '2026-10-10').late.length, 0)
-})
-
 test('templates keep the plan but none of the work', () => {
   const { c } = scene(); published(c)
   c.pieces[0].date = '2026-10-07'; c.pieces[1].date = '2026-10-10'; c.pieces[2].date = ''
@@ -270,10 +217,11 @@ test('templates keep the plan but none of the work', () => {
   assert.deepEqual(template.pieces.map((piece) => piece.dayOffset), [0, 3, null])
   assert.ok(!JSON.stringify(template).includes('Caption của'))
   assert.deepEqual(template.variableKeys, ['SỐ SUẤT'])
+  assert.ok(!('guardrails' in template))
   const next = campaignFromTemplate(template, 'Mới', '2026-11-02')
   assert.deepEqual(next.pieces.map((piece) => piece.date), ['2026-11-02', '2026-11-05', ''])
   assert.deepEqual(next.pieces.map((piece) => piece.code), ['P01', 'P02', 'P03'])
-  assert.ok(next.pieces.every((piece) => piece.caption === '' && piece.status === 'brief' && !piece.published && !piece.approval))
+  assert.ok(next.pieces.every((piece) => piece.caption === '' && piece.status === 'brief' && !piece.published))
   assert.equal(next.variables['SỐ SUẤT'], '')
   assert.equal(next.posts.length, 0)
   assert.equal(next.foundation.start, '2026-11-02')
@@ -319,12 +267,10 @@ test('readyOnly keeps only ready pieces', () => {
   assert.deepEqual(documentPieces(c, { readyOnly: true, images: false }).map((piece) => piece.code), ['P02'])
 })
 
-test('markdown escapes table pipes, html escapes tags, docx is a valid zip of well-formed parts', () => {
+test('html escapes tags, docx is a valid zip of well-formed parts', () => {
   const { ws, c } = scene()
   c.pieces[0].caption = 'a | b <script>alert(1)</script> "q" & co'
   const model = buildDocument(ws, c, { readyOnly: false, images: true })
-  const markdown = toMarkdown(model, null)
-  assert.ok(markdown.includes('a \\| b'))
   const html = toHtml(model, new Map())
   assert.ok(!html.includes('<script>alert') && html.includes('&lt;script&gt;'))
   const jpg = Uint8Array.from(Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64'))
@@ -340,7 +286,27 @@ test('markdown escapes table pipes, html escapes tags, docx is a valid zip of we
   assert.ok((document.match(/<w:tbl>/g) ?? []).length === (document.match(/<\/w:tbl>/g) ?? []).length)
 })
 
-test('fingerprint is stable and sensitive', () => {
-  assert.equal(fingerprint('abc'), fingerprint('abc'))
-  assert.notEqual(fingerprint('abc'), fingerprint('abd'))
+
+test('banned phrases come from quotes, or from short "Không được nói" lines, never from long descriptions', () => {
+  assert.deepEqual(bannedPhrases(['Đừng nói "đậu chắc chắn" hay "bao đậu"']), ['đậu chắc chắn', 'bao đậu'])
+  assert.deepEqual(bannedPhrases(['Lớp thông điệp: cam kết visa']), ['cam kết visa'])
+  assert.deepEqual(bannedPhrases(['Không hứa chắc kết quả đậu hay học bổng cho bất kỳ học sinh nào trong chiến dịch này vì còn nhiều yếu tố']), [])
+})
+
+test('"Không được nói" phrases are matched without accents and ignore case', () => {
+  const { c } = scene()
+  c.guardrailNotes = ['Tránh: "BAO ĐẬU"']
+  c.pieces[0].caption = 'Chương trình bao dau 100% cho bạn.'
+  assert.ok(autoChecks(c, c.pieces[0]).some((check) => /Không được nói/.test(check.text)))
+  c.pieces[0].caption = 'Chương trình hỗ trợ hồ sơ.'
+  assert.ok(!autoChecks(c, c.pieces[0]).some((check) => /Không được nói/.test(check.text)))
+})
+
+test('a piece reaches "ready" only through the status field: restoring a version sends it back to copy', () => {
+  const { c } = scene()
+  const p = c.pieces[0]
+  p.caption = 'bản tốt'; recordVersion(c, p, 'manual')
+  p.status = 'ready'; p.caption = 'bản sửa'
+  assert.ok(restoreVersion(c, p, p.history![0].id))
+  assert.equal(p.status, 'copy'); assert.equal(p.caption, 'bản tốt')
 })

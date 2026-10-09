@@ -10,9 +10,9 @@ export const DEFAULT_FORMAT: Record<PieceKind, string> = { static: 'Ảnh đơn 
 export function emptyPiece(code: string, kind: PieceKind = 'static'): Piece {
   return {
     id: newId(), code, title: '', kind, date: '', status: 'brief',
-    plan: { funnel: '', pillar: '', format: DEFAULT_FORMAT[kind], goal: '', hook: '', structure: '', cta: '', audience: '', kpi: '', paid: '', conditions: '', story: '', time: '' },
+    plan: { funnel: '', pillar: '', format: DEFAULT_FORMAT[kind], goal: '', hook: '', structure: '', cta: '', audience: '', time: '' },
     visual: { format: '', hero: '', layout: '', typography: '', palette: '', onImage: '', motion: '', assets: '', avoid: '' },
-    caption: '', hashtags: '', compliance: '', checks: [], assets: [], production: 'internal', productionNote: '',
+    caption: '', hashtags: '', checks: [], assets: [], production: 'internal', productionNote: '',
   }
 }
 
@@ -25,7 +25,7 @@ export function nextCode(pieces: Piece[], taken: string[] = []): string {
 export const codeIsTaken = (campaign: Campaign, piece: Piece): boolean =>
   !piece.code.trim() || campaign.pieces.some((other) => other.id !== piece.id && other.code.trim().toLowerCase() === piece.code.trim().toLowerCase())
 
-/** Switches kind and fixes the format line so the plan and the kind agree (the kind is read from that line when a Sheet is pulled). */
+/** Switches kind and fixes the format line so the plan and the kind agree (the kind is read from that line when an Excel plan is imported). */
 export function setKind(piece: Piece, kind: PieceKind): void {
   piece.kind = kind
   piece.plan.format = DEFAULT_FORMAT[kind]
@@ -51,9 +51,6 @@ export function duplicatePiece(campaign: Campaign, id: string): Piece | null {
   copy.status = 'brief'
   copy.checks = copy.checks.map((check) => ({ ...check, id: newId(), done: false }))
   copy.assets = copy.assets.map((asset) => ({ ...asset, id: newId(), assetId: null, done: false }))
-  delete copy.sheetBase
-  delete copy.approval
-  delete copy.reviewNote
   delete copy.history
   delete copy.published
   delete copy.metrics

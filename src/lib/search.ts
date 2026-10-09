@@ -80,7 +80,6 @@ export function searchStore(store: Store, query: string, limit = 40): Hit[] {
           { label: 'Phễu', text: piece.plan.funnel, weight: 3 },
           { label: 'Visual brief', text: Object.values(piece.visual).join(' · '), weight: 3 },
           { label: 'Mục duyệt', text: piece.checks.map((check) => check.text).join(' · '), weight: 3 },
-          { label: 'Ghi chú duyệt', text: `${piece.compliance} ${piece.reviewNote ?? ''}`, weight: 2 },
           { label: 'Link bài đăng', text: `${piece.published?.url ?? ''} ${piece.published?.note ?? ''}`, weight: 2 },
         ], needles)
         if (match) hits.push({ ...base, kind: 'piece', pieceId: piece.id, title: `${piece.code} · ${piece.title || piece.plan.hook}`, where, field: match.field.label, excerpt: around(match.field.text, match.at), score: match.score + 5 })

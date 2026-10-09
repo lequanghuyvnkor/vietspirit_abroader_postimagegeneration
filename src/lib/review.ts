@@ -3,22 +3,16 @@ import { campaignWindow, foundationBrief } from './foundation.ts'
 import { allSlidesOf, slidesOf } from './pack.ts'
 import { madeInApp, pieceTexts } from './plan.ts'
 import { pieceIssues } from './planCheck.ts'
-import { fingerprint } from './document.ts'
+import { fold } from './search.ts'
 import { applyVars, lintText, unresolvedIn } from './text.ts'
 import { newId, now } from './types.ts'
-import type { Campaign, Piece, PieceSnapshot, PieceVersion, PieceVersionEvent, Store, Workspace } from './types.ts'
+import type { Campaign, Piece, PieceSnapshot, PieceVersion, PieceVersionEvent } from './types.ts'
 
 const MAX_VERSIONS = 20
 
-/** Everything a reviewer approves (text, dates, slide content and pictures), but not status or ticks: editing any of it voids an approval. */
-export function contentFingerprint(campaign: Campaign, piece: Piece): string {
-  const posts = allSlidesOf(campaign, piece).map((post) => { const { updatedAt: _unused, ...rest } = post; return rest })
-  return fingerprint(JSON.stringify([piece.title, piece.date, piece.plan, piece.visual, piece.caption, piece.hashtags, piece.compliance, piece.checks.map((check) => check.text), posts]))
-}
-
 export type AutoCheck = { text: string; level: 'block' | 'warn' | 'info' | 'ok' }
 
-const NUMBER = /\d[\d.,]*\d|\d/g
+const NUMBER = /\d[\d.,]*\d%?|\d%?/g
 const DATE = /(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{4}))?/g
 const digits = (text: string) => text.replace(/[^\d]/g, '')
 
@@ -33,7 +27,22 @@ function figuresIn(text: string): string[] {
   }))]
 }
 
-/** Fact check without AI: variables, forbidden phrases, dates outside the campaign, and figures that appear nowhere in the plan. */
+/**
+ * Phrases to look for in the copy from the "Không được nói" lines: whatever sits in quotes, else the short sentence itself.
+ * Long descriptive lines ("Không hứa chắc kết quả…") cannot be matched word for word, so they are left to the AI instructions.
+ */
+export function bannedPhrases(notes: string[]): string[] {
+  const out: string[] = []
+  for (const note of notes) {
+    const quoted = [...note.matchAll(/["“”«]([^"“”«»]{3,60})["“”»]/g)].map((match) => match[1].trim())
+    if (quoted.length) { out.push(...quoted); continue }
+    const tail = note.includes(':') ? note.slice(note.lastIndexOf(':') + 1).trim() : note.trim()
+    if (tail.length >= 4 && tail.length <= 50) out.push(tail)
+  }
+  return [...new Set(out)]
+}
+
+/** Fact check without AI: variables, forbidden phrases, "do not say" lines, dates outside the campaign, and figures that appear nowhere in the plan. */
 export function autoChecks(campaign: Campaign, piece: Piece): AutoCheck[] {
   const out: AutoCheck[] = []
   const texts = pieceTexts(campaign, piece)
@@ -42,8 +51,11 @@ export function autoChecks(campaign: Campaign, piece: Piece): AutoCheck[] {
 
   const missing = [...new Set(texts.flatMap((text) => unresolvedIn(text, campaign.variables)))]
   if (missing.length) out.push({ level: 'block', text: `Còn ${missing.length} biến chưa điền: ${missing.map((key) => `[${key}]`).join(', ')}.` })
-  const banned = lintText(whole, campaign.guardrails)
-  for (const hit of banned) out.push({ level: 'block', text: `Cụm không được dùng: ${hit.rule}${hit.excerpt ? ` (…${hit.excerpt}…)` : ''}.` })
+  for (const hit of lintText(whole, [])) out.push({ level: 'block', text: `Cụm không được dùng: ${hit.rule}${hit.excerpt ? ` (…${hit.excerpt}…)` : ''}.` })
+  const folded = fold(whole)
+  for (const phrase of bannedPhrases(campaign.guardrailNotes)) {
+    if (folded.includes(fold(phrase))) out.push({ level: 'warn', text: `Chữ đang nói điều thuộc mục "Không được nói": «${phrase}».` })
+  }
   if (!piece.caption.trim()) out.push({ level: 'block', text: 'Chưa có caption.' })
   if (!piece.plan.hook.trim()) out.push({ level: 'warn', text: 'Thiếu hook trong kế hoạch.' })
   if (!piece.plan.cta.trim()) out.push({ level: 'info', text: 'Thiếu CTA trong kế hoạch.' })
@@ -62,7 +74,7 @@ export function autoChecks(campaign: Campaign, piece: Piece): AutoCheck[] {
     ...Object.values(campaign.variables), ...campaign.guardrailNotes,
   ].join('\n')).map(digits))
   const unknown = figuresIn(whole).filter((token) => !known.has(digits(token)))
-  if (unknown.length) out.push({ level: 'warn', text: `Số liệu chưa thấy trong kế hoạch hoặc dữ kiện đã xác nhận: ${unknown.slice(0, 6).join(', ')}. Kiểm tra nguồn trước khi duyệt.` })
+  if (unknown.length) out.push({ level: 'warn', text: `Số liệu chưa thấy trong kế hoạch hoặc dữ kiện đã xác nhận: ${unknown.slice(0, 6).join(', ')}. Kiểm tra nguồn trước khi đăng.` })
 
   const style = lintCopy(applyVars(piece.caption, campaign.variables), { caption: true }).filter((hit) => hit.level === 'warn')
   const slideText = slidesOf(campaign, piece).flatMap((post) => lintCopy(applyVars([post.eyebrow, post.headline, post.accent, post.subtitle].filter(Boolean).join('. '), campaign.variables)).filter((hit) => hit.level === 'warn'))
@@ -81,21 +93,20 @@ export const blockersOf = (checks: AutoCheck[]) => checks.filter((check) => chec
 export function snapshotOf(campaign: Campaign, piece: Piece): PieceSnapshot {
   return structuredClone({
     title: piece.title, date: piece.date, plan: piece.plan, visual: piece.visual, caption: piece.caption, hashtags: piece.hashtags,
-    compliance: piece.compliance, checks: piece.checks, posts: allSlidesOf(campaign, piece),
+    checks: piece.checks, posts: allSlidesOf(campaign, piece),
   })
 }
 
-/** Keeps the current state of the piece in its history. */
+/** Keeps the current state of the piece in its history (the same state twice in a row is not added again). */
 export function recordVersion(campaign: Campaign, piece: Piece, event: PieceVersionEvent, note = ''): void {
   const snapshot = snapshotOf(campaign, piece)
   const last = piece.history?.at(-1)
-  // Pressing the same button twice without a change adds nothing to the history.
   if (last && last.event === event && last.note === note && JSON.stringify(last.snapshot) === JSON.stringify(snapshot)) return
   const version: PieceVersion = { id: newId(), at: now(), event, note, snapshot }
   piece.history = [...(piece.history ?? []), version].slice(-MAX_VERSIONS)
 }
 
-/** Puts a saved version back (the current state is saved first); the piece goes back to "copy" for a new review. */
+/** Puts a saved version back (the current state is saved first); the piece goes back to "copy". */
 export function restoreVersion(campaign: Campaign, piece: Piece, versionId: string): boolean {
   const version = piece.history?.find((item) => item.id === versionId)
   if (!version) return false
@@ -107,52 +118,10 @@ export function restoreVersion(campaign: Campaign, piece: Piece, versionId: stri
   piece.visual = snap.visual
   piece.caption = snap.caption
   piece.hashtags = snap.hashtags
-  piece.compliance = snap.compliance
   piece.checks = snap.checks
   campaign.posts = [...campaign.posts.filter((post) => post.pieceId !== piece.id), ...snap.posts]
   piece.status = 'copy'
-  delete piece.approval
   return true
-}
-
-export function submitForReview(campaign: Campaign, piece: Piece): void {
-  piece.status = 'review'
-  delete piece.reviewNote
-  recordVersion(campaign, piece, 'submitted')
-}
-
-export function approvePiece(campaign: Campaign, piece: Piece, note: string): void {
-  piece.status = 'ready'
-  piece.approval = { at: now(), fingerprint: contentFingerprint(campaign, piece), note }
-  delete piece.reviewNote
-  recordVersion(campaign, piece, 'approved', note)
-}
-
-export function requestChanges(campaign: Campaign, piece: Piece, note: string): void {
-  piece.status = 'copy'
-  piece.reviewNote = note
-  delete piece.approval
-  recordVersion(campaign, piece, 'changes', note)
-}
-
-export function reopenPiece(campaign: Campaign, piece: Piece): void {
-  piece.status = 'copy'
-  delete piece.approval
-  recordVersion(campaign, piece, 'reopened')
-}
-
-/** An approved piece whose content changed no longer matches what was approved: back to review, with the change kept in history. */
-export function revokeStaleApprovals(campaign: Campaign): string[] {
-  const revoked: string[] = []
-  for (const piece of campaign.pieces) {
-    if (piece.status !== 'ready' || !piece.approval || piece.approval.fingerprint === contentFingerprint(campaign, piece)) continue
-    piece.status = 'review'
-    delete piece.approval
-    piece.reviewNote = 'Đã sửa sau khi được duyệt: cần duyệt lại.'
-    recordVersion(campaign, piece, 'edited', 'Sửa sau khi đã duyệt')
-    revoked.push(piece.code)
-  }
-  return revoked
 }
 
 /** What differs between a saved version and the piece now, in a few words each. */
@@ -165,19 +134,12 @@ export function diffSummary(campaign: Campaign, piece: Piece, snap: PieceSnapsho
   if (!same(snap.visual, piece.visual)) out.push('visual brief')
   if (snap.caption !== piece.caption) out.push('caption')
   if (snap.hashtags !== piece.hashtags) out.push('hashtag')
-  const now = allSlidesOf(campaign, piece)
-  if (snap.posts.length !== now.length) out.push(`số slide (${snap.posts.length} → ${now.length})`)
+  const current = allSlidesOf(campaign, piece)
+  if (snap.posts.length !== current.length) out.push(`số slide (${snap.posts.length} → ${current.length})`)
   else snap.posts.forEach((post, index) => {
-    const current = now[index]
+    const now = current[index]
     const strip = (item: typeof post) => { const { updatedAt: _unused, ...rest } = item; return rest }
-    if (current && !same(strip(post), strip(current))) out.push(`slide ${index + 1}`)
+    if (now && !same(strip(post), strip(now))) out.push(`slide ${index + 1}`)
   })
   return out
 }
-
-export type ReviewEntry = { workspace: Workspace; campaign: Campaign; piece: Piece }
-
-/** Pieces waiting for brand approval across every campaign, soonest publish date first. */
-export const reviewQueue = (store: Store): ReviewEntry[] =>
-  store.workspaces.flatMap((workspace) => workspace.campaigns.flatMap((campaign) => campaign.pieces.filter((piece) => piece.status === 'review').map((piece) => ({ workspace, campaign, piece }))))
-    .sort((a, b) => (a.piece.date || '9999').localeCompare(b.piece.date || '9999'))

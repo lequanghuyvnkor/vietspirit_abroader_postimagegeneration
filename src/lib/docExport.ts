@@ -1,8 +1,7 @@
 import { strToU8, zipSync, type Zippable } from 'fflate'
-import { api, assetUrl, readFileAsDataUrl } from './api.ts'
-import { ASSET_REF, POST_REF } from './document.ts'
+import { POST_REF } from './document.ts'
 import { renderBlob } from './render.ts'
-import type { Campaign, DocBlock, DocModel, Workspace } from './types.ts'
+import type { Campaign, DocModel, Workspace } from './types.ts'
 
 export type LoadedImage = { blob: Blob; bytes: Uint8Array; w: number; h: number }
 
@@ -27,51 +26,19 @@ async function shrink(blob: Blob): Promise<LoadedImage> {
 
 export const imageRefs = (model: DocModel): string[] => [...new Set(model.blocks.flatMap((block) => (block.t === 'images' ? block.items.map((item) => item.ref) : [])))]
 
-/** A stored version picture is already review-sized: only its dimensions are read. */
-async function fromAsset(id: string): Promise<LoadedImage | null> {
-  const response = await fetch(assetUrl(id))
-  if (!response.ok) return null
-  const blob = await response.blob()
-  const bitmap = await createImageBitmap(blob)
-  const size = { w: bitmap.width, h: bitmap.height }
-  bitmap.close()
-  return { blob, bytes: new Uint8Array(await blob.arrayBuffer()), ...size }
-}
-
-/** Renders the slides (or fetches the stored pictures of an approved version) that the document refers to. */
+/** Renders the slides that the document refers to. */
 export async function loadDocImages(workspace: Workspace, campaign: Campaign, model: DocModel, onProgress?: (done: number, total: number) => void): Promise<Map<string, LoadedImage>> {
   const refs = imageRefs(model)
   const out = new Map<string, LoadedImage>()
-  let done = 0
-  const tick = () => onProgress?.(++done, refs.length)
-  // Stored pictures load in parallel; slides are drawn one after another on the canvas.
-  await Promise.all(refs.filter((ref) => ref.startsWith(ASSET_REF)).map(async (ref) => {
-    try { const image = await fromAsset(ref.slice(ASSET_REF.length)); if (image) out.set(ref, image) } catch { /* Left out; the text still exports. */ }
-    tick()
-  }))
-  for (const ref of refs.filter((item) => item.startsWith(POST_REF))) {
+  for (const [index, ref] of refs.entries()) {
+    onProgress?.(index, refs.length)
     try {
       const post = campaign.posts.find((item) => item.id === ref.slice(POST_REF.length))
       if (post) out.set(ref, await shrink(await renderBlob(post, campaign, workspace)))
     } catch { /* A picture that cannot be drawn is left out; the text still exports. */ }
-    tick()
   }
+  onProgress?.(refs.length, refs.length)
   return out
-}
-
-/** Uploads the pictures so an approved version keeps showing what was approved even after the slides change. */
-export async function freezeDocument(model: DocModel, images: Map<string, LoadedImage>): Promise<DocModel> {
-  const stored = new Map<string, string>()
-  for (const [ref, image] of images) {
-    if (!ref.startsWith(POST_REF)) continue
-    stored.set(ref, `${ASSET_REF}${await api.uploadAsset('version.jpg', await readFileAsDataUrl(new File([image.blob], 'version.jpg', { type: 'image/jpeg' })))}`)
-  }
-  return {
-    ...model,
-    blocks: model.blocks.map((block): DocBlock => block.t === 'images'
-      ? { t: 'images', items: block.items.filter((item) => !item.ref.startsWith(POST_REF) || stored.has(item.ref)).map((item) => ({ ...item, ref: stored.get(item.ref) ?? item.ref })) }
-      : block),
-  }
 }
 
 const escHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -115,40 +82,6 @@ export async function printHtml(page: string): Promise<void> {
   frame.contentWindow?.focus()
   frame.contentWindow?.print()
   setTimeout(() => frame.remove(), 60_000)
-}
-
-const cell = (text: string) => text.replace(/\|/g, '\\|').replace(/\n/g, '<br>')
-
-/** Markdown text of the document; `names` maps image references to file names (null leaves the pictures out). */
-export function toMarkdown(model: DocModel, names: Map<string, string> | null): string {
-  const out: string[] = []
-  for (const block of model.blocks) {
-    if (block.t === 'h') out.push(`${'#'.repeat(block.level)} ${block.text}`)
-    else if (block.t === 'p') out.push(block.text)
-    else if (block.t === 'list') out.push(block.items.map((item) => `- ${item}`).join('\n'))
-    else if (block.t === 'table') out.push([`| ${block.head.map(cell).join(' | ')} |`, `| ${block.head.map(() => '---').join(' | ')} |`, ...block.rows.map((row) => `| ${row.map(cell).join(' | ')} |`)].join('\n'))
-    else if (block.t === 'kv') out.push(['| Mục | Nội dung |', '| --- | --- |', ...block.rows.map(([label, value]) => `| **${cell(label)}** | ${cell(value)} |`)].join('\n'))
-    else if (block.t === 'images' && names) {
-      const lines = block.items.filter((item) => names.has(item.ref)).map((item) => `![${item.caption.replace(/[[\]]/g, '')}](${names.get(item.ref)})`)
-      if (lines.length) out.push(lines.join('\n\n'))
-    } else if (block.t === 'break') out.push('---')
-  }
-  return `${out.join('\n\n')}\n`
-}
-
-/** Markdown file, or a zip with the markdown and its pictures when there are any. */
-export function markdownPackage(model: DocModel, images: Map<string, LoadedImage>, base: string): { blob: Blob; name: string } {
-  if (images.size === 0) return { blob: new Blob([toMarkdown(model, null)], { type: 'text/markdown;charset=utf-8' }), name: `${base}.md` }
-  const names = new Map<string, string>()
-  const files: Zippable = {}
-  let n = 0
-  for (const [ref, image] of images) {
-    const name = `images/${String(++n).padStart(3, '0')}.jpg`
-    names.set(ref, name)
-    files[name] = [image.bytes, { level: 0 }]
-  }
-  files[`${base}.md`] = strToU8(toMarkdown(model, names))
-  return { blob: new Blob([zipSync(files) as BlobPart], { type: 'application/zip' }), name: `${base}.zip` }
 }
 
 // ---------- Word (.docx) ----------

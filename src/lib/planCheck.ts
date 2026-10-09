@@ -29,5 +29,5 @@ export function pieceIssues(campaign: Campaign, piece: Piece): PlanIssue[] {
 /** The next thing to do for a piece, by status. */
 export function nextStep(piece: Piece): string {
   if (piece.kind === 'reel' && piece.production === 'external') return 'Theo dõi bàn giao'
-  return { brief: 'Soạn chữ', copy: 'Tạo hình', visual: 'Gửi duyệt', review: 'Duyệt và xác nhận', ready: 'Sẵn sàng đăng' }[piece.status]
+  return { brief: 'Soạn chữ', copy: 'Tạo hình', visual: 'Soát và đánh dấu sẵn sàng', ready: 'Sẵn sàng đăng' }[piece.status]
 }

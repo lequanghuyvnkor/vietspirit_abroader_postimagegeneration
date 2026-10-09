@@ -25,7 +25,7 @@ export function buildDraftRequest(workspace: Workspace, campaign: Campaign, piec
   const { company } = workspace
   const reel = piece.kind === 'reel'
   const labels = reel ? inferBeats(piece).map((beat, index) => `Cảnh ${index + 1} (${beat.start}–${beat.end}s): ${beat.label}`).join('\n') : splitSlides(piece.plan.structure).map((slide) => `S${slide.n}: ${slide.label}`).join('\n')
-  const guardrails = [...campaign.guardrailNotes, ...campaign.guardrails].map((line) => `- ${line}`).join('\n')
+  const guardrails = campaign.guardrailNotes.map((line) => `- ${line}`).join('\n')
   const prompt = [
     `THƯƠNG HIỆU: ${company.name}${company.industry ? ` (${company.industry})` : ''}. Đối tượng: ${company.audience || 'xem kế hoạch'}. Giọng điệu: ${company.tone || 'xem kế hoạch'}.`,
     foundationBrief(campaign),

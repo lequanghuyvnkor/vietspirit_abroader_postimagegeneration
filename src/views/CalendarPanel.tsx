@@ -120,7 +120,7 @@ export function CalendarPanel({ workspace, campaign, edit }: Props) {
     </div>
     <div className="row wrap lead-row">
       <span className="muted">Lịch lùi, tính từ ngày đăng:</span>
-      {([['copy', 'chữ xong trước'], ['visual', 'hình xong trước'], ['review', 'duyệt xong trước']] as const).map(([key, label]) => <label className="row" key={key}>{label} <input className="lead" type="number" min={0} max={30} aria-label={label} value={lead[key]} onChange={(event) => setLead(key, Number(event.target.value))} /> ngày</label>)}
+      {([['copy', 'chữ xong trước'], ['visual', 'hình xong trước'], ['review', 'sẵn sàng đăng trước']] as const).map(([key, label]) => <label className="row" key={key}>{label} <input className="lead" type="number" min={0} max={30} aria-label={label} value={lead[key]} onChange={(event) => setLead(key, Number(event.target.value))} /> ngày</label>)}
     </div>
     <TaskList tasks={tasks} onOpen={open} />
   </div>

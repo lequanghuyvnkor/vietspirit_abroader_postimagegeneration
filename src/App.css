@@ -339,10 +339,6 @@ textarea { resize: vertical; }
 
 /* Piece page: brief on the side, steps in order */
 .piece-flow { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
-.piece-brief { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; }
-.piece-brief details summary { cursor: pointer; }
-@media (max-width: 900px) { .piece-flow { grid-template-columns: minmax(0, 1fr); } .piece-brief { position: static; max-height: none; } }
-
 /* Foundation */
 .steps { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 @media (max-width: 900px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -354,10 +350,6 @@ textarea { resize: vertical; }
 .issues li.info::marker { color: var(--muted); }
 
 /* Docs sync chip */
-.docs-chip { font-size: .8rem; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
-.docs-chip.warn { color: var(--warning-ink); border-color: var(--warning); }
-.docs-chip.ok { color: var(--success-ink); }
-.docs-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Docs panel */
 .docs-panel .error-text { color: var(--danger); font-size: .8rem; }
@@ -450,7 +442,6 @@ textarea { resize: vertical; }
 .stat { display: grid; gap: 2px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 8px; min-width: 120px; }
 .stat strong { font-size: 1.25rem; }
 .stat span { font-size: .78rem; color: var(--muted); }
-.week > summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 
 /* Search, quick review, small screens */
 .search-backdrop { align-items: flex-start; padding-top: 10vh; }
@@ -462,14 +453,6 @@ textarea { resize: vertical; }
 .search-main { display: grid; gap: 2px; min-width: 0; }
 .search-main small { color: var(--muted); }
 .search-main .excerpt { font-size: .82rem; overflow-wrap: anywhere; }
-.review-list { display: grid; gap: 16px; max-width: 720px; }
-.review-card header { display: grid; gap: 2px; }
-.review-card h2 { margin: 0; font-size: 1.05rem; }
-.swipe { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
-.swipe > * { flex: none; scroll-snap-align: start; }
-.caption-clip { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; margin: 0; white-space: pre-wrap; }
-.caption-full { margin: 0; white-space: pre-wrap; }
-.review-actions .btn { min-height: 44px; }
 @media (max-width: 640px) {
   .topbar { flex-wrap: wrap; gap: 8px; }
   .topbar-actions { flex-wrap: wrap; gap: 6px; }
@@ -484,9 +467,6 @@ textarea { resize: vertical; }
 
 .tab-note { margin: 0; font-size: .85rem; }
 
-.integrity { border-color: var(--danger); }
-.integrity-item p { margin: 0 0 8px; }
-.integrity-item + .integrity-item { margin-top: 4px; }
 
 .secret { -webkit-text-security: disc; text-security: disc; }
 
@@ -530,10 +510,6 @@ table.sheet { border-collapse: separate; border-spacing: 0; table-layout: fixed;
 .sheet-tabs button { padding: 8px 14px; border: 0; border-top: 3px solid transparent; background: transparent; font-size: .82rem; white-space: nowrap; color: var(--muted); cursor: pointer; }
 .sheet-tabs button.on { background: var(--surface); color: var(--ink); font-weight: 600; border-top-color: var(--primary); }
 .sheet-tabs button small { margin-left: 6px; font-size: .68rem; padding: 1px 6px; border-radius: 99px; background: var(--line); }
-.sheet-link { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 14px; }
-.sheet-link > summary { cursor: pointer; }
-.sheet-link[open] > summary { margin-bottom: 10px; }
-.sheet-link .sheet-panel { border: 0; padding: 0; }
 
 /* Document as pages (Google-Docs style) */
 .docs-views { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
@@ -666,3 +642,6 @@ body { transition: background-color .2s; }
 .theme-preview { display: flex; gap: 8px; align-items: center; padding: 12px; border: 1px solid; border-radius: var(--radius); font-size: .8rem; }
 .theme-preview span { padding: 5px 10px; border: 1px solid; border-radius: var(--radius-sm); }
 .theme-preview b, .theme-preview em { font-weight: 500; font-style: normal; padding: 5px 12px; border-radius: var(--radius-sm); }
+
+/* A piece page is one column now (the read-only brief sidebar is gone) */
+.piece-flow { grid-template-columns: minmax(0, 1fr); max-width: 1000px; }

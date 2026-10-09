@@ -123,8 +123,7 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
       status: cap('Caption draft') ? 'copy' : 'brief',
       plan: {
         funnel: cal('Funnel'), pillar: cal('Pillar'), format, goal: cal('Mục tiêu'), hook: cal('Title / Hook'), structure: cal('Cấu trúc nội dung'),
-        cta: cal('CTA'), audience: cal('Target audience'), kpi: cal('KPI chính'), paid: cal('Paid role'), conditions: cal('Điều kiện trước đăng'),
-        story: cal('Story hỗ trợ'), time: cal('Giờ'),
+        cta: cal('CTA'), audience: cal('Target audience'), time: cal('Giờ'),
       },
       visual: {
         format: vis('Khổ/định dạng'), hero: vis('Hero visual'), layout: vis('Bố cục'), typography: vis('Typography'), palette: vis('Palette'),
@@ -132,7 +131,6 @@ export function parsePlan(sheets: Sheets): ParsedPlan {
       },
       caption: [cap('Caption draft'), cap('CTA line')].filter(Boolean).join('\n\n'),
       hashtags: cap('Hashtags'),
-      compliance: cap('Compliance / cần duyệt'),
       checks,
       assets: splitAssetList(vis('Asset cần chuẩn bị')).map((label) => ({ id: newId(), label, assetId: null, done: false, note: '' })),
       ...productionOf(kindOf(format), productionCell, {

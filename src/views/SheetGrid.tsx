@@ -65,8 +65,6 @@ type Props<T> = {
   rowId: (row: T) => string
   columns: Col<T>[]
   edit: (change: (draft: Campaign) => void) => void
-  /** The Google Sheet still owns this data: cells are read-only. */
-  locked?: boolean
   /** Buttons at the end of each row. */
   actions?: (row: T, index: number) => ReactNode
   actionsWidth?: number
@@ -77,7 +75,7 @@ type Props<T> = {
 }
 
 /** A spreadsheet-style grid: row numbers, lettered columns, frozen leading columns, arrow/Enter navigation, edits saved as you go. */
-export function SheetGrid<T>({ rows, rowId, columns, edit, locked = false, actions, actionsWidth = 0, name, empty, rowTitle }: Props<T>) {
+export function SheetGrid<T>({ rows, rowId, columns, edit, actions, actionsWidth = 0, name, empty, rowTitle }: Props<T>) {
   const left: number[] = []
   let sum = 44
   for (const column of columns) { left.push(sum); sum += column.frozen ? column.width : 0 }
@@ -140,7 +138,7 @@ export function SheetGrid<T>({ rows, rowId, columns, edit, locked = false, actio
               const value = column.get(row)
               const problem = column.invalid?.(row) ?? ''
               const kind: CellKind = (typeof column.kind === 'function' ? column.kind(row) : column.kind) ?? 'text'
-              const writable = Boolean(column.set) && !locked && kind !== 'static'
+              const writable = Boolean(column.set) && kind !== 'static'
               const label = `${column.label} ${name} dòng ${r + 1}`
               const common = { 'data-cell': `${r}:${c}`, 'aria-label': label, disabled: !writable, title: problem || undefined, 'aria-invalid': problem ? true : undefined }
               let content: ReactNode

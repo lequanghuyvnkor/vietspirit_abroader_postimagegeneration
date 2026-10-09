@@ -10,12 +10,9 @@ import type { Campaign, Piece, PieceStatus, Workspace } from '../lib/types.ts'
 import { readXlsx } from '../lib/xlsx.ts'
 import { buildPack, downloadBlob, slidesOf } from '../lib/pack.ts'
 import { ConfirmDialog, Modal, Section } from './ui.tsx'
-import { SheetPanel } from './SheetPanel.tsx'
 import { CalendarPanel, CoveragePanel, LateAlerts } from './CalendarPanel.tsx'
 import { PlanSheets } from './PlanSheets.tsx'
 import { draftMissingSlides } from '../lib/planEdit.ts'
-import { sheetOwnsPlan } from '../lib/sheetSync.ts'
-import { ScheduleTable } from './ScheduleTable.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 
 type Props = {
@@ -98,11 +95,10 @@ function KeyPicker({ batch, keys }: { batch: Batch; keys: ApiKey[] }) {
   return <select aria-label="API dùng cho AI" value={batch.activeKey?.id ?? ''} onChange={(event) => batch.setKeyId(event.target.value)}>{keys.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>
 }
 
-/** ③ Kế hoạch: one workbook with the same sheets as the content-plan Google Sheet, edited here; the Sheet and Excel are optional ways in. */
+/** ③ Kế hoạch: one workbook of sheets (calendar, captions, visual brief, checklist), edited here. An Excel file can be imported once to start from an existing plan. */
 export function PlanTab(props: Props & { batch: Batch }) {
   const { workspace, campaign, edit, batch } = props
   const [importing, setImporting] = useState(false)
-  const sheetOwns = sheetOwnsPlan(campaign.sheetSync)
   const needSlides = campaign.pieces.filter((piece) => madeInApp(piece) && !campaign.posts.some((post) => post.pieceId === piece.id)).length
 
   function afterImport(plan: ParsedPlan, runAi: boolean) {
@@ -113,24 +109,16 @@ export function PlanTab(props: Props & { batch: Batch }) {
   }
 
   return <>
-    <details className="sheet-link" open={Boolean(campaign.sheetSync)}>
-      <summary><strong>Kết nối Google Sheet</strong> <span className="muted">tùy chọn: chỉ để nhập kế hoạch có sẵn một lần, sau đó soạn ngay tại đây</span></summary>
-      <SheetPanel workspace={workspace} campaign={campaign} edit={edit} />
-    </details>
-    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<span className="row"><button className="btn small ghost" disabled={sheetOwns} title={sheetOwns ? 'Google Sheet đang là nguồn của kế hoạch. Đóng băng Sheet để nhập Excel.' : 'Nhập kế hoạch từ file Excel: thay kế hoạch hiện có (một lần, khi chuyển từ Sheet/Excel sang soạn trong app).'} onClick={() => setImporting(true)}>Nhập từ Excel</button></span>}>
+    <Section title={`Kế hoạch nội dung${campaign.pieces.length ? ` (${campaign.pieces.length} bài)` : ''}`} aside={<button className="btn small ghost" title="Nhập kế hoạch từ file Excel: thay kế hoạch hiện có. Dùng một lần để bắt đầu từ kế hoạch có sẵn." onClick={() => setImporting(true)}>Nhập từ Excel</button>}>
       <JobStatus job={batch.job} />
-      {sheetOwns && <div className="notice">
-        <p><b>Google Sheet đang là nguồn của kế hoạch</b>, nên các sheet bên dưới chỉ để xem: mỗi lần Sheet đổi, chữ trong Sheet sẽ ghi đè chữ sửa ở đây. Muốn soạn ngay trong app thì đóng băng Sheet (app ngừng đọc Sheet, kế hoạch hiện có được giữ nguyên).</p>
-        <button className="btn small primary" onClick={() => edit((draft) => { if (draft.sheetSync) draft.sheetSync.frozen = true })}>Đóng băng Sheet và soạn trong app</button>
-      </div>}
-      <PlanSheets workspace={workspace} campaign={campaign} edit={edit} locked={sheetOwns} keys={props.keys} onManageKeys={props.onManageKeys} />
-      {needSlides > 0 && <div className="row wrap"><button className="btn small" disabled={sheetOwns} onClick={() => edit((draft) => { draftMissingSlides(draft, workspace.company) })}>Tạo slide nháp cho {needSlides} bài chưa có</button></div>}
+      <PlanSheets workspace={workspace} campaign={campaign} edit={edit} keys={props.keys} onManageKeys={props.onManageKeys} />
+      {needSlides > 0 && <div className="row wrap"><button className="btn small" onClick={() => edit((draft) => { draftMissingSlides(draft, workspace.company) })}>Tạo slide nháp cho {needSlides} bài chưa có</button></div>}
     </Section>
     {importing && <ImportDialog {...props} onClose={() => setImporting(false)} onImported={afterImport} />}
   </>
 }
 
-const STATUS_ORDER: PieceStatus[] = ['brief', 'copy', 'visual', 'review', 'ready']
+const STATUS_ORDER: PieceStatus[] = ['brief', 'copy', 'visual', 'ready']
 
 /** ③ Sản xuất: every piece grouped by status; AI steps run on one piece, or on the pieces the user ticked, never on everything by default. */
 export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }: Props & { batch: Batch }) {
@@ -153,7 +141,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       <button className="piece-body" onClick={() => open(piece)}>
         <strong>{piece.code} · {piece.title}</strong>
         <small className="muted">{kindLabel(piece)}{slides.length > 1 ? ` · ${slides.length} ảnh` : ''}{piece.date ? ` · ${piece.date.slice(8, 10)}/${piece.date.slice(5, 7)}` : ''}</small>
-        <small>Tiếp theo: <b>{nextStep(piece)}</b>{piece.approval && piece.status === 'ready' ? <span className="flag ok">🔒 Đã duyệt</span> : null}{warn ? <span className="flag warn">{warn} cảnh báo</span> : null}</small>
+        <small>Tiếp theo: <b>{nextStep(piece)}</b>{warn ? <span className="flag warn">{warn} cảnh báo</span> : null}</small>
       </button>
       {makes && <div className="piece-actions">
         <button className="btn small" disabled={blocked || slides.length === 0} title={slides.length === 0 ? 'Bài này chưa có slide' : 'Tạo ảnh chỉ cho bài này'} onClick={() => { void batch.backgroundsAll([piece]) }}>Tạo ảnh</button>
@@ -195,7 +183,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
   </>
 }
 
-/** ④ Lịch & xuất: the day table (Docs sync, CSV) and the zip of finished images. */
+/** ⑤ Lịch & xuất: the month calendar with deadlines and coverage, and the zip of finished images. */
 export function ScheduleTab({ workspace, campaign, edit, batch }: Props & { batch: Batch }) {
   const [confirm, setConfirm] = useState(false)
   const [scope, setScope] = useState<'all' | 'ready'>('all')
@@ -215,14 +203,12 @@ export function ScheduleTab({ workspace, campaign, edit, batch }: Props & { batc
   if (campaign.pieces.length === 0) return <Section title="Lịch & xuất"><p className="muted">Chưa có bài nào. Nhập kế hoạch ở tab Kế hoạch trước.</p></Section>
 
   return <>
-    <Section title="Lịch tháng" aside={<span className="muted">kéo bài sang ngày khác để dời lịch</span>}>
+    <Section title="Lịch tháng" aside={<button className="btn small primary" disabled={withSlides.length === 0 || batch.running} onClick={() => setConfirm(true)}>Xuất ảnh hoàn chỉnh ({withSlides.length} bài)</button>}>
+      <JobStatus job={batch.job} />
+      <p className="muted">Kéo bài sang ngày khác để dời lịch.</p>
       <LateAlerts workspace={workspace} campaign={campaign} />
       <CalendarPanel workspace={workspace} campaign={campaign} edit={edit} />
       <CoveragePanel campaign={campaign} />
-    </Section>
-    <Section title="Lịch đăng" aside={<button className="btn small primary" disabled={withSlides.length === 0 || batch.running} onClick={() => setConfirm(true)}>Xuất ảnh hoàn chỉnh ({withSlides.length} bài)</button>}>
-      <JobStatus job={batch.job} />
-      <ScheduleTable workspace={workspace} campaign={campaign} edit={edit} />
     </Section>
     {confirm && <Modal title="Xuất ảnh hoàn chỉnh" onClose={() => setConfirm(false)}>
       <p>Xuất ảnh PNG của từng slide cùng caption, mỗi bài một thư mục, gộp trong một file zip. Reel xuất ở trang từng bài (storyboard, MP4).</p>

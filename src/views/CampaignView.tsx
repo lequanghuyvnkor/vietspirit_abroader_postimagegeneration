@@ -1,10 +1,10 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { formatOf, newId, newPost, now } from '../lib/types.ts'
+import { formatOf, newId, now } from '../lib/types.ts'
 import type { Campaign, CampaignTemplate, FormatKey, KeyVisual, Store, Workspace } from '../lib/types.ts'
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate, type CampaignTab } from '../lib/route.ts'
 import { safeColor } from '../lib/render.ts'
-import { ConfirmDialog, Field, Lightbox, Modal, NameDialog, Section } from './ui.tsx'
+import { Field, Lightbox, Modal, NameDialog, Section } from './ui.tsx'
 import { ThemePicker } from './ThemePicker.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
@@ -14,11 +14,9 @@ import { Moodboard } from './Moodboard.tsx'
 import { FoundationTab } from './FoundationTab.tsx'
 import { DocumentTab } from './DocumentTab.tsx'
 import { MeasureTab } from './MeasureTab.tsx'
-import { IntegrityPanel } from './IntegrityPanel.tsx'
 import { hasFoundation, moodBrief } from '../lib/foundation.ts'
 
 type Props = {
-  store: Store
   update: (change: (draft: Store) => void) => void
   workspace: Workspace
   campaign: Campaign
@@ -28,16 +26,12 @@ type Props = {
   tab?: CampaignTab
 }
 
-export function CampaignView({ store, update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
+export function CampaignView({ update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
   const kv = campaign.keyVisual
-  const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | 'theme' | { delete: string } | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | 'theme' | null>(null)
   const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
-  const loose = campaign.posts.filter((post) => !post.pieceId)
-  const hasContent = (post: (typeof loose)[number]) => Boolean(post.eyebrow || post.headline || post.accent || post.subtitle || post.cta || post.layers.length || post.backgroundId)
-  const showLoose = campaign.pieces.length === 0 || loose.some(hasContent)
-  const target = typeof dialog === 'object' && dialog ? campaign.posts.find((post) => post.id === dialog.delete) : undefined
 
   function edit(change: (draft: Campaign) => void) {
     update((draft) => {
@@ -84,15 +78,6 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
     })
   }
 
-  function createPost() {
-    const post = newPost(`Bài đăng ${campaign.posts.length + 1}`, workspace.company)
-    const last = campaign.posts[campaign.posts.length - 1]
-    if (last) post.format = last.format
-    post.backgroundId = campaign.backgrounds.find((item) => item.format === post.format)?.id ?? null
-    edit((draft) => { draft.posts.push(post) })
-    navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })
-  }
-
   function applyImport({ keyVisual, sources, components, logos }: ImportResult) {
     if (logos.light || logos.dark) update((draft) => {
       const owner = draft.workspaces.find((entry) => entry.id === workspace.id)
@@ -129,31 +114,13 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
     { key: 'moodboard', label: '② Moodboard', hint: 'TRÔNG NHƯ THẾ NÀO: ảnh, màu, font, nền' },
     { key: 'plan', label: '③ Kế hoạch', hint: 'Các bài, lịch, kiểm tra' },
     { key: 'production', label: '④ Sản xuất', hint: 'Soạn chữ, tạo hình, duyệt' },
-    { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch tháng, bảng ngày, zip ảnh' },
-    { key: 'document', label: '⑥ Tài liệu', hint: 'PDF, Word, bản duyệt, Google Docs' },
-    { key: 'measure', label: '⑦ Đăng & đo', hint: 'Đã đăng, số liệu, xem lại, mẫu' },
+    { key: 'schedule', label: '⑤ Lịch & xuất', hint: 'Lịch tháng, hạn lùi, zip ảnh' },
+    { key: 'document', label: '⑥ Tài liệu', hint: 'Xem như tài liệu, xuất Word / PDF' },
+    { key: 'measure', label: '⑦ Đăng & đo', hint: 'Đã đăng, số liệu, mẫu' },
   ]
   const tab: CampaignTab = activeTab ?? (campaign.pieces.length ? 'production' : hasFoundation(campaign) ? 'moodboard' : 'foundation')
   const saveTemplate = (template: CampaignTemplate) => update((draft) => { const owner = draft.workspaces.find((entry) => entry.id === workspace.id); if (owner) owner.templates = [...(owner.templates ?? []), template] })
   const tabProps = { workspace, campaign, edit, onError, keys, onManageKeys, batch, onSaveTemplate: saveTemplate }
-
-  const loosePosts = showLoose && <Section title="Bài đăng lẻ (ngoài kế hoạch)" aside={<button className="btn primary small" onClick={createPost}>+ Tạo bài đăng</button>}>
-    {loose.length === 0
-      ? <div className="empty small"><p>Chưa có bài đăng lẻ. Các slide của kế hoạch nằm trong từng bài ở trên.</p></div>
-      : <div className="list">
-        {loose.map((post) => {
-          const background = campaign.backgrounds.find((item) => item.id === post.backgroundId)
-          return <div className="list-row" key={post.id}>
-            <div className="thumb">{background && <img src={assetUrl(background.assetId)} alt="" />}</div>
-            <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, post: post.id })}>
-              <strong>{post.name}</strong>
-              <small>{post.headline || 'Chưa có tiêu đề'} · {formatOf(post.format).label}</small>
-            </button>
-            <button className="btn small ghost" onClick={() => setDialog({ delete: post.id })}>Xóa</button>
-          </div>
-        })}
-      </div>}
-  </Section>
 
   const identity = <Section title="Nhận diện">
     <div className="field">
@@ -224,7 +191,6 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
       <div className="row"><button className="btn ghost theme-btn" onClick={() => setDialog('theme')} title="Màu giao diện của chiến dịch này"><i className="theme-dot" style={{ background: campaign.themeColor ?? '#4f46e5' }} />Màu giao diện</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
-    <IntegrityPanel store={store} update={update} campaignId={campaign.id} />
     <nav className="steps" aria-label="Các bước của chiến dịch">
       {tabs.map((item) => <button key={item.key} className={item.key === tab ? 'on' : ''} aria-current={item.key === tab ? 'page' : undefined} onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, tab: item.key })}>
         <strong>{item.label}</strong><small>{item.hint}</small>
@@ -241,7 +207,7 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
       <div className="stack">{identity}{backgrounds}{components}</div>
     </div>}
     {tab === 'plan' && <PlanTab {...tabProps} />}
-    {tab === 'production' && <><ProductionTab {...tabProps} />{loosePosts}</>}
+    {tab === 'production' && <ProductionTab {...tabProps} />}
     {tab === 'schedule' && <ScheduleTab {...tabProps} />}
     {tab === 'document' && <DocumentTab {...tabProps} />}
     {tab === 'measure' && <MeasureTab {...tabProps} />}
@@ -254,6 +220,5 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}
     {dialog === 'import' && <ImportPdf base={kv} componentNames={campaign.components.map((item) => item.name)} confirmLabel="Cập nhật Moodboard" onApply={applyImport} onClose={() => setDialog(null)} />}
-    {target && <ConfirmDialog title="Xóa bài đăng" message={`Xóa "${target.name}"?`} confirm="Xóa" onConfirm={() => edit((draft) => { draft.posts = draft.posts.filter((item) => item.id !== target.id) })} onClose={() => setDialog(null)} />}
   </div>
 }

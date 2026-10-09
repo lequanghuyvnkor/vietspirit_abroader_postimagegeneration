@@ -109,13 +109,13 @@ export type Shade = { x: number; y: number; w: number; h: number; strength: numb
 export type PieceKind = 'static' | 'carousel' | 'reel'
 /** Who makes the piece: made in this app, or handed to another team (reels with real people). */
 export type Production = 'internal' | 'external'
-export type PieceStatus = 'brief' | 'copy' | 'visual' | 'review' | 'ready'
+export type PieceStatus = 'brief' | 'copy' | 'visual' | 'ready'
 
-export const STATUS_LABELS: Record<PieceStatus, string> = { brief: 'Brief', copy: 'Copy', visual: 'Visual', review: 'Chờ duyệt', ready: 'Sẵn sàng' }
+export const STATUS_LABELS: Record<PieceStatus, string> = { brief: 'Brief', copy: 'Copy', visual: 'Visual', ready: 'Sẵn sàng' }
 
 export type PiecePlan = {
   funnel: string; pillar: string; format: string; goal: string; hook: string; structure: string; cta: string
-  audience: string; kpi: string; paid: string; conditions: string; story: string; time: string
+  audience: string; time: string
 }
 
 export type VisualBrief = {
@@ -128,35 +128,15 @@ export type PieceAsset = { id: string; label: string; assetId: string | null; do
 
 export type Check = { id: string; text: string; owner: string; done: boolean }
 
-/** A text that differs between the content-plan Sheet and this app, so the Sheet's version was not applied. */
-export type SheetConflict = { code: string; field: 'caption' | 'hashtags' | 'date' | 'time'; sheetValue: string }
 
-/** Link to the private content-plan Google Sheet (through an Apps Script web app). */
-export type SheetSync = {
-  url: string
-  /** The secret set in the Sheet's script; the plan is only returned when it matches. */
-  token: string
-  /** Check the Sheet every minute while the app is open, and pull when it changed. */
-  auto: boolean
-  /** The plan is now edited in the app: the Sheet is no longer read, so the two cannot drift apart. */
-  frozen?: boolean
-  /** The user confirmed that another campaign reads the same Sheet on purpose. */
-  allowShared?: boolean
-  /** Fingerprint of the Sheet at the last pull. */
-  hash: string
-  pulledAt: string
-  conflicts: SheetConflict[]
-}
 
 /** What a piece looked like at one moment: enough to restore it. Pictures stay referenced by background id. */
-export type PieceSnapshot = { title: string; date: string; plan: PiecePlan; visual: VisualBrief; caption: string; hashtags: string; compliance: string; checks: Check[]; posts: Post[] }
+export type PieceSnapshot = { title: string; date: string; plan: PiecePlan; visual: VisualBrief; caption: string; hashtags: string; checks: Check[]; posts: Post[] }
 
-export type PieceVersionEvent = 'submitted' | 'approved' | 'changes' | 'edited' | 'reopened' | 'manual' | 'restore'
+export type PieceVersionEvent = 'manual' | 'restore'
 
 export type PieceVersion = { id: string; at: string; event: PieceVersionEvent; note: string; snapshot: PieceSnapshot }
 
-/** The brand approval of a piece: when, and the content fingerprint that was approved (any later edit breaks it). */
-export type Approval = { at: string; fingerprint: string; note: string }
 
 /** The real publication of a piece: when it actually went out and where. */
 export type Published = { at: string; url: string; note: string }
@@ -176,17 +156,12 @@ export type CampaignTemplate = {
   /** Look of the key visual without any picture (pictures stay with the campaign they belong to). */
   style: Pick<KeyVisual, 'concept' | 'subject' | 'palette' | 'accentColor' | 'textTone' | 'displayFont' | 'bodyFont' | 'avoid'>
   guardrailNotes: string[]
-  guardrails: string[]
   /** Variable names only: the values belong to each campaign. */
   variableKeys: string[]
   lead?: Lead
   pieces: TemplatePiece[]
 }
 
-/** The weekly look back: what worked, what did not, what to do next. `weekStart` is the Monday (YYYY-MM-DD). */
-export type WeeklyReview = { weekStart: string; wins: string; problems: string; actions: string; updatedAt: string }
-
-export type Retro = { worked: string; didnt: string; next: string; updatedAt: string }
 
 /** One planned content item (a post, carousel or reel). Carousel slides are `Post`s that point back here. */
 export type Piece = {
@@ -201,17 +176,11 @@ export type Piece = {
   visual: VisualBrief
   caption: string
   hashtags: string
-  compliance: string
   checks: Check[]
   assets: PieceAsset[]
   production: Production
-  /** What the Sheet said at the last pull for the fields both sides edit; tells a Sheet change from an app change. */
-  sheetBase?: { caption: string; hashtags: string; date: string; time: string; linked?: boolean; assets?: string[] }
-  approval?: Approval
   published?: Published
   metrics?: Metrics
-  /** Why the reviewer sent it back (shown until the next submission). */
-  reviewNote?: string
   history?: PieceVersion[]
   /** Hand-off note for whoever produces it (shown in the plan and in the hand-off brief). */
   productionNote: string
@@ -245,17 +214,6 @@ export type Foundation = {
   dos: string[]
 }
 
-/** Link to the campaign's Google Docs (through an Apps Script web app) and what was last sent to it. */
-export type DocsSync = {
-  url: string
-  doc: string
-  /** Re-send the changed pieces a few seconds after any edit. */
-  auto: boolean
-  /** The user confirmed that another campaign writes to the same Doc on purpose. */
-  allowShared?: boolean
-  /** Per piece id: fingerprint of the content and images last sent. */
-  sent: Record<string, string>
-}
 
 export type DocImage = { ref: string; caption: string; w: number; h: number }
 
@@ -274,17 +232,6 @@ export type DocModel = {
   blocks: DocBlock[]
 }
 
-/** An approved snapshot of the campaign document: the text as it was, and the pictures kept as assets. */
-export type DocVersion = {
-  id: string
-  label: string
-  at: string
-  note: string
-  readyOnly: boolean
-  model: DocModel
-  /** Per piece id: fingerprint at approval, to tell later which pieces changed. */
-  pieces: Record<string, string>
-}
 
 /** Days before the publish date by which text, images and approval must be done (the backward schedule). */
 export type Lead = { copy: number; visual: number; review: number }
@@ -301,24 +248,15 @@ export type Campaign = {
   /** Values for [PLACEHOLDER] tokens, filled once and applied everywhere. */
   variables: Record<string, string>
   foundation: Foundation
-  docsSync?: DocsSync
-  sheetSync?: SheetSync
   lead?: Lead
-  docVersions?: DocVersion[]
-  weeklyReviews?: WeeklyReview[]
-  /** Integrity warnings the user chose to ignore (their ids). */
-  ignoredIssues?: string[]
   /** Accent color of the interface while this campaign is open (the page background follows it). */
   themeColor?: string
   /** How strongly the page background takes that color, 0 to 1. */
   themeTint?: number
-  retro?: Retro
   /** Campaign strategy text given to the AI as context. */
   strategy: string
-  /** "Do not say" statements from the plan, shown as reference. */
+  /** "Do not say" lines: sent to the AI, and phrases in quotes (or short lines) are flagged when they appear in copy. */
   guardrailNotes: string[]
-  /** Extra phrases flagged when they appear in copy. */
-  guardrails: string[]
   updatedAt: string
 }
 
@@ -373,5 +311,5 @@ export function newPost(name: string, company: Company): Post {
 }
 
 export function newCampaign(name: string, keyVisual: KeyVisual = emptyKeyVisual(), sources: Source[] = []): Campaign {
-  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], pieces: [], variables: {}, foundation: { objective: '', start: '', end: '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }, strategy: '', guardrailNotes: [], guardrails: [], updatedAt: now() }
+  return { id: newId(), name, keyVisual, backgrounds: [], sources, components: [], posts: [], pieces: [], variables: {}, foundation: { objective: '', start: '', end: '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }, strategy: '', guardrailNotes: [], updatedAt: now() }
 }

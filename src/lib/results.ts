@@ -80,30 +80,6 @@ const localDate = (iso: string) => {
 }
 export const publishedDay = (piece: Piece) => (piece.published ? localDate(piece.published.at) : '')
 
-/** Mondays of every week the campaign runs (or that has dated pieces). */
-export function weekStarts(campaign: Campaign): string[] {
-  const window = campaignWindow(campaign)
-  const dates = campaign.pieces.map((piece) => piece.date).filter(Boolean).sort()
-  const first = window?.start ?? dates[0]
-  const last = window?.end ?? dates.at(-1)
-  if (!first || !last) return []
-  const monday = (iso: string) => addDays(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7))
-  const out: string[] = []
-  for (let week = monday(first); week <= last; week = addDays(week, 7)) out.push(week)
-  return out
-}
-
-export type WeekStats = { planned: Piece[]; published: Piece[]; late: Piece[]; totals: Totals; best: Piece | null }
-
-export function weekStats(campaign: Campaign, weekStart: string, today: string): WeekStats {
-  const inWeek = (date: string) => date >= weekStart && date <= addDays(weekStart, 6)
-  const planned = campaign.pieces.filter((piece) => piece.date && inWeek(piece.date))
-  const published = campaign.pieces.filter((piece) => piece.published && inWeek(publishedDay(piece)))
-  const late = planned.filter((piece) => !piece.published && piece.date < today)
-  const ranked = planned.filter((piece) => engagementRate(piece.metrics) !== null).sort((a, b) => (engagementRate(b.metrics) ?? 0) - (engagementRate(a.metrics) ?? 0))
-  return { planned, published, late, totals: totalsOf(planned), best: ranked[0] ?? null }
-}
-
 /** Pieces ranked by a result, highest first, only those that have it. */
 export function topPieces(campaign: Campaign, by: 'leads' | 'er' | 'reach', limit = 3): Piece[] {
   const value = (piece: Piece) => (by === 'er' ? engagementRate(piece.metrics) : piece.metrics?.[by]) ?? null
@@ -118,7 +94,7 @@ export function buildTemplate(campaign: Campaign, name: string): CampaignTemplat
     id: newId(), name, at: now(), strategy: campaign.strategy,
     foundation: { ...campaign.foundation, start: '', end: '' },
     style: { concept: kv.concept, subject: kv.subject, palette: kv.palette, accentColor: kv.accentColor, textTone: kv.textTone, displayFont: kv.displayFont, bodyFont: kv.bodyFont, avoid: kv.avoid },
-    guardrailNotes: campaign.guardrailNotes, guardrails: campaign.guardrails,
+    guardrailNotes: campaign.guardrailNotes,
     variableKeys: Object.keys(campaign.variables), lead: campaign.lead,
     pieces: [...campaign.pieces].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999')).map((piece): TemplatePiece => ({
       title: piece.title, kind: piece.kind, plan: { ...piece.plan }, visual: { ...piece.visual }, production: piece.production, productionNote: piece.productionNote,
@@ -133,7 +109,6 @@ export function campaignFromTemplate(template: CampaignTemplate, name: string, s
   const campaign = newCampaign(name, { ...emptyKeyVisual(), ...structuredClone(template.style) })
   campaign.strategy = template.strategy
   campaign.guardrailNotes = [...template.guardrailNotes]
-  campaign.guardrails = [...template.guardrails]
   campaign.variables = Object.fromEntries(template.variableKeys.map((key) => [key, '']))
   campaign.lead = template.lead
   const offsets = template.pieces.map((piece) => piece.dayOffset).filter((value): value is number => value !== null)

@@ -5,8 +5,7 @@ import { pieceIssues } from '../lib/planCheck.ts'
 import { FUNNELS, addPiece, codeIsTaken, duplicatePiece, emptyPiece, movePiece, nextCode, removePiece, setKind, sortByDate } from '../lib/planEdit.ts'
 import { navigate } from '../lib/route.ts'
 import { STATUS_LABELS, newId } from '../lib/types.ts'
-import type { Audience, Campaign, Check, Kpi, Piece, PieceKind, Pillar, Workspace } from '../lib/types.ts'
-import { CoveragePanel } from './CalendarPanel.tsx'
+import type { Campaign, Check, Piece, PieceKind, Workspace } from '../lib/types.ts'
 import { SkeletonDialog } from './PlanEditor.tsx'
 import { SheetGrid, type Col } from './SheetGrid.tsx'
 import { ConfirmDialog } from './ui.tsx'
@@ -15,16 +14,14 @@ type Props = {
   workspace: Workspace
   campaign: Campaign
   edit: (change: (draft: Campaign) => void) => void
-  /** The Google Sheet still owns the plan: every cell is read-only. */
-  locked: boolean
   keys: ApiKey[]
   onManageKeys: () => void
 }
 
-type SheetKey = 'strategy' | 'calendar' | 'captions' | 'visual' | 'checklist' | 'overview'
+type SheetKey = 'calendar' | 'captions' | 'visual' | 'checklist'
 const SHEETS: { key: SheetKey; label: string }[] = [
-  { key: 'strategy', label: '01 Chiến lược' }, { key: 'calendar', label: '02 Lịch nội dung' }, { key: 'captions', label: '03 Caption' },
-  { key: 'visual', label: '04 Visual Brief' }, { key: 'checklist', label: '05 Checklist duyệt' }, { key: 'overview', label: '06 Tổng quan' },
+  { key: 'calendar', label: '01 Lịch nội dung' }, { key: 'captions', label: '02 Caption' },
+  { key: 'visual', label: '03 Visual Brief' }, { key: 'checklist', label: '04 Checklist' },
 ]
 const KIND_OPTIONS: { value: PieceKind; label: string }[] = [{ value: 'static', label: 'Ảnh' }, { value: 'carousel', label: 'Carousel' }, { value: 'reel', label: 'Reel' }]
 const TAB_KEY = 'cs_plan_sheet'
@@ -45,17 +42,15 @@ export function PlanSheets(props: Props) {
   const [tab, setTab] = useState<SheetKey>(() => readTab(campaign.id))
   const choose = (next: SheetKey) => { setTab(next); try { sessionStorage.setItem(`${TAB_KEY}:${campaign.id}`, next) } catch { /* Ignore. */ } }
   const counts: Record<SheetKey, string> = {
-    strategy: '', calendar: String(campaign.pieces.length), captions: String(campaign.pieces.filter((piece) => piece.caption.trim()).length),
-    visual: String(campaign.pieces.filter((piece) => Object.values(piece.visual).some((value) => value.trim())).length), checklist: '', overview: '',
+    calendar: String(campaign.pieces.length), captions: String(campaign.pieces.filter((piece) => piece.caption.trim()).length),
+    visual: String(campaign.pieces.filter((piece) => Object.values(piece.visual).some((value) => value.trim())).length), checklist: '',
   }
   return <div className="workbook">
     <div className="sheet-body">
-      {tab === 'strategy' && <StrategySheet {...props} />}
       {tab === 'calendar' && <CalendarSheet {...props} />}
       {tab === 'captions' && <CaptionSheet {...props} />}
       {tab === 'visual' && <VisualSheet {...props} />}
       {tab === 'checklist' && <ChecklistSheet {...props} />}
-      {tab === 'overview' && <OverviewSheet {...props} />}
     </div>
     <div className="sheet-tabs" role="tablist" aria-label="Các sheet của kế hoạch">
       {SHEETS.map((sheet) => <button key={sheet.key} role="tab" aria-selected={tab === sheet.key} className={tab === sheet.key ? 'on' : ''} onClick={() => choose(sheet.key)}>{sheet.label}{counts[sheet.key] && <small>{counts[sheet.key]}</small>}</button>)}
@@ -64,7 +59,7 @@ export function PlanSheets(props: Props) {
 }
 
 // ---------- 02 Lịch nội dung ----------
-function CalendarSheet({ workspace, campaign, edit, locked, keys, onManageKeys }: Props) {
+function CalendarSheet({ workspace, campaign, edit, keys, onManageKeys }: Props) {
   const [removing, setRemoving] = useState<Piece | null>(null)
   const [skeleton, setSkeleton] = useState(false)
   const pillarNames = campaign.foundation.pillars.map((pillar) => pillar.name).filter(Boolean)
@@ -83,32 +78,27 @@ function CalendarSheet({ workspace, campaign, edit, locked, keys, onManageKeys }
     { key: 'structure', label: 'Cấu trúc nội dung', width: 280, kind: 'long', get: (p) => p.plan.structure, set: onPiece((p, v) => { p.plan.structure = v }), placeholder: 'S1: …; S2: … hoặc 0-3s: …' },
     { key: 'cta', label: 'CTA', width: 160, get: (p) => p.plan.cta, set: onPiece((p, v) => { p.plan.cta = v }), placeholder: 'Kêu gọi' },
     { key: 'audience', label: 'Target audience', width: 170, get: (p) => p.plan.audience, set: onPiece((p, v) => { p.plan.audience = v }) },
-    { key: 'kpi', label: 'KPI chính', width: 140, get: (p) => p.plan.kpi, set: onPiece((p, v) => { p.plan.kpi = v }) },
-    { key: 'paid', label: 'Paid role', width: 120, get: (p) => p.plan.paid, set: onPiece((p, v) => { p.plan.paid = v }) },
-    { key: 'conditions', label: 'Điều kiện trước đăng', width: 220, kind: 'long', get: (p) => p.plan.conditions, set: onPiece((p, v) => { p.plan.conditions = v }) },
-    { key: 'story', label: 'Story hỗ trợ', width: 200, kind: 'long', get: (p) => p.plan.story, set: onPiece((p, v) => { p.plan.story = v }) },
-    { key: 'status', label: 'Trạng thái', width: 110, kind: 'static', get: (p) => `${STATUS_LABELS[p.status]}${p.approval && p.status === 'ready' ? ' 🔒' : ''}` },
+    { key: 'status', label: 'Trạng thái', width: 110, kind: 'static', get: (p) => `${STATUS_LABELS[p.status]}` },
     { key: 'made', label: 'Loại sản xuất', width: 170, kind: 'static', get: (p) => kindLabel(p) },
   ]
   return <>
     <div className="sheet-toolbar">
-      <button className="btn small primary" disabled={locked} onClick={() => edit((draft) => { addPiece(draft, emptyPiece(nextCode(draft.pieces))) })}>+ Thêm dòng</button>
-      <button className="btn small" disabled={locked} onClick={() => setSkeleton(true)}>AI gợi ý khung bài</button>
-      <button className="btn small ghost" disabled={locked || campaign.pieces.length < 2} title="Xếp lại theo ngày và giờ đăng; bài chưa có ngày xuống cuối" onClick={() => edit(sortByDate)}>Sắp theo ngày</button>
+      <button className="btn small primary" onClick={() => edit((draft) => { addPiece(draft, emptyPiece(nextCode(draft.pieces))) })}>+ Thêm dòng</button>
+      <button className="btn small" onClick={() => setSkeleton(true)}>AI gợi ý khung bài</button>
+      <button className="btn small ghost" disabled={campaign.pieces.length < 2} title="Xếp lại theo ngày và giờ đăng; bài chưa có ngày xuống cuối" onClick={() => edit(sortByDate)}>Sắp theo ngày</button>
       <span className="muted">Mũi tên ↑ ↓ hoặc Enter để chuyển dòng. Ô nhiều dòng: Alt+Enter xuống dòng.</span>
     </div>
     {pillarNames.length > 0 && <datalist id={`pillars-${campaign.id}`}>{pillarNames.map((name) => <option key={name} value={name} />)}</datalist>}
-    <SheetGrid name="Lịch nội dung" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} locked={locked} actionsWidth={250}
+    <SheetGrid name="Lịch nội dung" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} actionsWidth={250}
       empty={<p className="muted">Chưa có dòng nào. Bấm "+ Thêm dòng", để AI gợi ý khung, hoặc nhập từ Excel/Google Sheet.</p>}
       actions={(piece, index) => {
         const warn = pieceIssues(campaign, piece).filter((issue) => issue.level === 'warn').length
         return <>
-          {piece.sheetBase?.linked && <span className="flag info" title="Bài này được kéo về từ Google Sheet">Sheet</span>}
           <button className="btn small" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>Mở{warn ? ` · ${warn}!` : ''}</button>
-          <button className="btn small ghost" aria-label={`Lên ${piece.code}`} disabled={locked || index === 0} onClick={() => edit((draft) => movePiece(draft, piece.id, -1))}>↑</button>
-          <button className="btn small ghost" aria-label={`Xuống ${piece.code}`} disabled={locked || index === campaign.pieces.length - 1} onClick={() => edit((draft) => movePiece(draft, piece.id, 1))}>↓</button>
-          <button className="btn small ghost" disabled={locked} onClick={() => edit((draft) => { duplicatePiece(draft, piece.id) })}>Nhân bản</button>
-          <button className="btn small ghost" disabled={locked} onClick={() => setRemoving(piece)}>Xóa</button>
+          <button className="btn small ghost" aria-label={`Lên ${piece.code}`} disabled={index === 0} onClick={() => edit((draft) => movePiece(draft, piece.id, -1))}>↑</button>
+          <button className="btn small ghost" aria-label={`Xuống ${piece.code}`} disabled={index === campaign.pieces.length - 1} onClick={() => edit((draft) => movePiece(draft, piece.id, 1))}>↓</button>
+          <button className="btn small ghost" onClick={() => edit((draft) => { duplicatePiece(draft, piece.id) })}>Nhân bản</button>
+          <button className="btn small ghost" onClick={() => setRemoving(piece)}>Xóa</button>
         </>
       }} />
     {removing && <ConfirmDialog title={`Xóa dòng ${removing.code}`} message={`Xóa "${removing.title || removing.plan.hook || removing.code}" cùng các slide và bản chỉnh của bài này? Có thể khôi phục bằng nút Sao lưu ở thanh trên.`} confirm="Xóa bài" onConfirm={() => edit((draft) => removePiece(draft, removing.id))} onClose={() => setRemoving(null)} />}
@@ -117,22 +107,21 @@ function CalendarSheet({ workspace, campaign, edit, locked, keys, onManageKeys }
 }
 
 // ---------- 03 Caption ----------
-function CaptionSheet({ campaign, edit, locked }: Props) {
+function CaptionSheet({ campaign, edit }: Props) {
   const columns: Col<Piece>[] = [
     { key: 'code', label: 'ID', width: 70, frozen: true, kind: 'static', get: (p) => p.code },
     { key: 'title', label: 'Tên bài', width: 220, frozen: true, kind: 'static', get: (p) => p.title },
     { key: 'caption', label: 'Caption draft', width: 520, kind: 'long', get: (p) => p.caption, set: onPiece((p, v) => { p.caption = v }), placeholder: 'Caption (giữ nguyên [TÊN BIẾN])' },
     { key: 'hashtags', label: 'Hashtags', width: 260, get: (p) => p.hashtags, set: onPiece((p, v) => { p.hashtags = v }) },
-    { key: 'compliance', label: 'Compliance / cần duyệt', width: 300, kind: 'long', get: (p) => p.compliance, set: onPiece((p, v) => { p.compliance = v }) },
   ]
   return <>
     <div className="sheet-toolbar"><span className="muted">Caption và hashtag của từng bài. Viết lại bằng AI hoặc xem bản đã điền biến ở trang từng bài (nút Mở).</span></div>
-    <SheetGrid name="Caption" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} locked={locked} empty={<p className="muted">Chưa có bài nào. Thêm dòng ở sheet 02.</p>} />
+    <SheetGrid name="Caption" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} empty={<p className="muted">Chưa có bài nào. Thêm dòng ở sheet 01.</p>} />
   </>
 }
 
 // ---------- 04 Visual Brief ----------
-function VisualSheet({ campaign, edit, locked }: Props) {
+function VisualSheet({ campaign, edit }: Props) {
   const field = (key: keyof Piece['visual'], label: string, width: number, long = false): Col<Piece> => ({ key, label, width, kind: long ? 'long' : 'text', get: (p) => p.visual[key], set: onPiece((p, v) => { p.visual[key] = v }) })
   const columns: Col<Piece>[] = [
     { key: 'code', label: 'ID', width: 70, frozen: true, kind: 'static', get: (p) => p.code },
@@ -142,12 +131,12 @@ function VisualSheet({ campaign, edit, locked }: Props) {
   ]
   return <>
     <div className="sheet-toolbar"><span className="muted">Hướng dẫn hình ảnh từng bài. Màu và font thật của ảnh luôn theo tab ② Moodboard; cột Palette chỉ để ghi chú.</span></div>
-    <SheetGrid name="Visual Brief" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} locked={locked} empty={<p className="muted">Chưa có bài nào. Thêm dòng ở sheet 02.</p>} />
+    <SheetGrid name="Visual Brief" rows={campaign.pieces} rowId={(p) => p.id} columns={columns} edit={edit} empty={<p className="muted">Chưa có bài nào. Thêm dòng ở sheet 01.</p>} />
   </>
 }
 
 // ---------- 05 Checklist duyệt (matrix: check × piece) ----------
-function ChecklistSheet({ campaign, edit, locked }: Props) {
+function ChecklistSheet({ campaign, edit }: Props) {
   const [extra, setExtra] = useState<{ text: string; owner: string }[]>([])
   const [draft, setDraft] = useState('')
   const rows = new Map<string, { text: string; owner: string }>()
@@ -165,88 +154,23 @@ function ChecklistSheet({ campaign, edit, locked }: Props) {
 
   return <>
     <div className="sheet-toolbar">
-      <input className="sheet-add" placeholder="Mục kiểm tra mới, ví dụ: Có consent của mentor" value={draft} disabled={locked} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && draft.trim()) { setExtra((current) => [...current, { text: draft.trim(), owner: 'Marketing' }]); setDraft('') } }} />
-      <button className="btn small primary" disabled={locked || !draft.trim()} onClick={() => { setExtra((current) => [...current, { text: draft.trim(), owner: 'Marketing' }]); setDraft('') }}>+ Thêm dòng</button>
-      <span className="muted">Tick một ô = mục đó bắt buộc với bài ở cột đó. Tick "đã làm" ở trang từng bài.</span>
+      <input className="sheet-add" placeholder="Mục kiểm tra mới, ví dụ: Có consent của mentor" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && draft.trim()) { setExtra((current) => [...current, { text: draft.trim(), owner: 'Marketing' }]); setDraft('') } }} />
+      <button className="btn small primary" disabled={!draft.trim()} onClick={() => { setExtra((current) => [...current, { text: draft.trim(), owner: 'Marketing' }]); setDraft('') }}>+ Thêm dòng</button>
+      <span className="muted">Tick một ô = mục đó áp dụng cho bài ở cột đó. Tick "đã làm" ở trang từng bài.</span>
     </div>
     {list.length === 0 || campaign.pieces.length === 0 ? <div className="sheet-empty"><p className="muted">Chưa có mục kiểm tra nào. Thêm một mục ở trên rồi tick các bài áp dụng.</p></div> : <div className="sheet-scroll">
-      <table className="sheet matrix" aria-label="Checklist duyệt" style={{ width: 44 + 320 + 140 + campaign.pieces.length * 64 + 120 }}>
-        <thead><tr className="sheet-labels"><th className="corner">#</th><th className="frozen" style={{ left: 44, width: 320 }}>Check</th><th style={{ width: 140 }}>Người duyệt</th>{campaign.pieces.map((piece) => <th key={piece.id} style={{ width: 64 }} title={piece.title}>{piece.code}</th>)}<th /></tr></thead>
+      <table className="sheet matrix" aria-label="Checklist" style={{ width: 44 + 320 + 140 + campaign.pieces.length * 64 + 120 }}>
+        <thead><tr className="sheet-labels"><th className="corner">#</th><th className="frozen" style={{ left: 44, width: 320 }}>Check</th><th style={{ width: 140 }}>Người kiểm tra</th>{campaign.pieces.map((piece) => <th key={piece.id} style={{ width: 64 }} title={piece.title}>{piece.code}</th>)}<th /></tr></thead>
         <tbody>
           {list.map((row, index) => <tr key={row.text}>
             <th className="rownum" scope="row">{index + 1}</th>
             <td className="frozen" style={{ left: 44 }}><span className="cell-static">{row.text}</span></td>
-            <td><input aria-label={`Người duyệt ${row.text}`} defaultValue={row.owner} disabled={locked} onBlur={(event) => { if (event.target.value !== row.owner) setOwner(row.text, event.target.value) }} /></td>
-            {campaign.pieces.map((piece) => <td key={piece.id} className="tick"><input type="checkbox" aria-label={`${row.text} cho ${piece.code}`} disabled={locked} checked={piece.checks.some((check) => check.text === row.text)} onChange={(event) => toggle(piece, row, event.target.checked)} /></td>)}
-            <td className="sheet-actions"><button className="btn small ghost" disabled={locked} onClick={() => removeRow(row.text)}>Xóa dòng</button></td>
+            <td><input aria-label={`Người kiểm tra ${row.text}`} defaultValue={row.owner} onBlur={(event) => { if (event.target.value !== row.owner) setOwner(row.text, event.target.value) }} /></td>
+            {campaign.pieces.map((piece) => <td key={piece.id} className="tick"><input type="checkbox" aria-label={`${row.text} cho ${piece.code}`} checked={piece.checks.some((check) => check.text === row.text)} onChange={(event) => toggle(piece, row, event.target.checked)} /></td>)}
+            <td className="sheet-actions"><button className="btn small ghost" onClick={() => removeRow(row.text)}>Xóa dòng</button></td>
           </tr>)}
         </tbody>
       </table>
     </div>}
   </>
-}
-
-// ---------- 01 Chiến lược ----------
-const KEY_ROWS = [
-  { id: 'objective', label: 'Mục tiêu', long: true }, { id: 'start', label: 'Bắt đầu', date: true }, { id: 'end', label: 'Kết thúc', date: true },
-  { id: 'bigIdea', label: 'Ý tưởng lớn', long: true }, { id: 'keyMessage', label: 'Thông điệp chính', long: true }, { id: 'tone', label: 'Giọng điệu', long: true },
-] as const
-
-function StrategySheet({ campaign, edit, locked }: Props) {
-  const f = campaign.foundation
-  const mini = <T extends { id: string }>(name: string, rows: T[], columns: Col<T>[], add: (draft: Campaign) => void, remove: (draft: Campaign, id: string) => void, addLabel: string) => <div className="sheet-block">
-    <div className="sheet-block-head"><h3>{name}</h3><button className="btn small" disabled={locked} onClick={() => edit(add)}>{addLabel}</button></div>
-    <SheetGrid name={name} rows={rows} rowId={(row) => row.id} columns={columns} edit={edit} locked={locked} actionsWidth={90}
-      empty={<p className="muted">Chưa có dòng nào.</p>} actions={(row) => <button className="btn small ghost" disabled={locked} onClick={() => edit((draft) => remove(draft, row.id))}>Xóa</button>} />
-  </div>
-  const setF = (change: (foundation: Campaign['foundation']) => void) => (draft: Campaign) => change(draft.foundation)
-  const keyColumns: Col<(typeof KEY_ROWS)[number]>[] = [
-    { key: 'label', label: 'Hạng mục', width: 180, frozen: true, kind: 'static', get: (row) => row.label },
-    { key: 'value', label: 'Nội dung', width: 720, kind: (row) => ('date' in row ? 'date' : 'long'), get: (row) => f[row.id as keyof typeof f] as string,
-      set: (draft, id, value) => setF((foundation) => { (foundation as unknown as Record<string, string>)[id] = value })(draft) },
-  ]
-  return <div className="stack">
-    <div className="sheet-toolbar"><span className="muted">Cùng dữ liệu với tab ① Nền tảng (xem và sửa ở đâu cũng được). Hạng mục "Ngày" nhập dạng ngày tháng.</span></div>
-    <div className="sheet-block"><div className="sheet-block-head"><h3>Hạng mục chiến lược</h3></div>
-      <SheetGrid name="Chiến lược" rows={[...KEY_ROWS]} rowId={(row) => row.id} columns={keyColumns} edit={edit} locked={locked} /></div>
-    {mini<Kpi>('KPI', f.kpis, [
-      { key: 'label', label: 'Chỉ số', width: 320, get: (row) => row.label, set: (d, id, v) => { const x = d.foundation.kpis.find((k) => k.id === id); if (x) x.label = v } },
-      { key: 'target', label: 'Mục tiêu', width: 260, get: (row) => row.target, set: (d, id, v) => { const x = d.foundation.kpis.find((k) => k.id === id); if (x) x.target = v } },
-    ], (d) => { d.foundation.kpis.push({ id: newId(), label: '', target: '' }) }, (d, id) => { d.foundation.kpis = d.foundation.kpis.filter((k) => k.id !== id) }, '+ KPI')}
-    {mini<Audience>('Đối tượng', f.audiences, [
-      { key: 'name', label: 'Nhóm', width: 220, get: (row) => row.name, set: (d, id, v) => { const x = d.foundation.audiences.find((a) => a.id === id); if (x) x.name = v } },
-      { key: 'insight', label: 'Insight', width: 360, kind: 'long', get: (row) => row.insight, set: (d, id, v) => { const x = d.foundation.audiences.find((a) => a.id === id); if (x) x.insight = v } },
-      { key: 'barrier', label: 'Rào cản', width: 360, kind: 'long', get: (row) => row.barrier, set: (d, id, v) => { const x = d.foundation.audiences.find((a) => a.id === id); if (x) x.barrier = v } },
-    ], (d) => { d.foundation.audiences.push({ id: newId(), name: '', insight: '', barrier: '' }) }, (d, id) => { d.foundation.audiences = d.foundation.audiences.filter((a) => a.id !== id) }, '+ Đối tượng')}
-    {mini<Pillar>('Trụ cột nội dung', f.pillars, [
-      { key: 'name', label: 'Trụ cột', width: 240, get: (row) => row.name, set: (d, id, v) => { const x = d.foundation.pillars.find((p) => p.id === id); if (x) x.name = v } },
-      { key: 'message', label: 'Thông điệp', width: 360, kind: 'long', get: (row) => row.message, set: (d, id, v) => { const x = d.foundation.pillars.find((p) => p.id === id); if (x) x.message = v } },
-      { key: 'proof', label: 'Bằng chứng', width: 300, kind: 'long', get: (row) => row.proof, set: (d, id, v) => { const x = d.foundation.pillars.find((p) => p.id === id); if (x) x.proof = v } },
-    ], (d) => { d.foundation.pillars.push({ id: newId(), name: '', message: '', proof: '' }) }, (d, id) => { d.foundation.pillars = d.foundation.pillars.filter((p) => p.id !== id) }, '+ Trụ cột')}
-    {mini<{ id: string; text: string }>('Nên nói', f.dos.map((text, index) => ({ id: String(index), text })), [
-      { key: 'text', label: 'Điều nên nói', width: 720, kind: 'long', get: (row) => row.text, set: (d, id, v) => { d.foundation.dos[Number(id)] = v } },
-    ], (d) => { d.foundation.dos.push('') }, (d, id) => { d.foundation.dos.splice(Number(id), 1) }, '+ Dòng')}
-    {mini<{ id: string; text: string }>('Không được nói', campaign.guardrailNotes.map((text, index) => ({ id: String(index), text })), [
-      { key: 'text', label: 'Điều không được nói', width: 720, kind: 'long', get: (row) => row.text, set: (d, id, v) => { d.guardrailNotes[Number(id)] = v } },
-    ], (d) => { d.guardrailNotes.push('') }, (d, id) => { d.guardrailNotes.splice(Number(id), 1) }, '+ Dòng')}
-  </div>
-}
-
-// ---------- 06 Tổng quan ----------
-function OverviewSheet({ workspace, campaign }: Props) {
-  const withIssues = campaign.pieces.map((piece) => ({ piece, issues: pieceIssues(campaign, piece) })).filter((entry) => entry.issues.length > 0)
-  return <div className="stack">
-    <CoveragePanel campaign={campaign} />
-    <div className="sheet-block">
-      <div className="sheet-block-head"><h3>Điểm cần xem lại trước khi sản xuất ({withIssues.length}/{campaign.pieces.length} bài)</h3></div>
-      {withIssues.length === 0 ? <p className="muted">Kế hoạch ổn, chuyển sang tab Sản xuất.</p> : <div className="list">
-        {withIssues.map(({ piece, issues }) => <div className="list-row" key={piece.id}>
-          <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })}>
-            <strong>{piece.code} · {piece.title || piece.plan.hook}</strong>
-            <span className="row wrap">{issues.map((issue) => <span key={issue.text} className={`flag ${issue.level}`}>{issue.text}</span>)}</span>
-          </button>
-        </div>)}
-      </div>}
-    </div>
-  </div>
 }

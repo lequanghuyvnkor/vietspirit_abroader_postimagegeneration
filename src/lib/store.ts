@@ -15,7 +15,6 @@ function normalize(store: Store): Store {
       campaign.variables ??= {}
       campaign.strategy ??= ''
       campaign.guardrailNotes ??= []
-      campaign.guardrails ??= []
       if (!campaign.foundation) {
         const window = scheduleWindow(campaign.strategy)
         campaign.foundation = { objective: '', start: window?.start ?? '', end: window?.end ?? '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }
@@ -30,7 +29,8 @@ function normalize(store: Store): Store {
         piece.checks ??= []
         piece.caption ??= ''
         piece.hashtags ??= ''
-        piece.compliance ??= ''
+        // The old "Chờ duyệt" step is gone: such pieces simply continue at "Visual".
+        if ((piece.status as string) === 'review') piece.status = 'visual'
         piece.title ??= ''
         piece.date ??= ''
         piece.status ??= 'brief'

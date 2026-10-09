@@ -19,18 +19,18 @@ export function todayIso(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-const ORDER: PieceStatus[] = ['brief', 'copy', 'visual', 'review', 'ready']
+const ORDER: PieceStatus[] = ['brief', 'copy', 'visual', 'ready']
 const reached = (piece: Piece, status: PieceStatus) => ORDER.indexOf(piece.status) >= ORDER.indexOf(status)
 
 export type Milestone = { key: keyof Lead; label: string; short: string; due: string; done: boolean }
 
-/** The backward schedule of a piece: when text, images and approval must be finished so it can go out on its date. */
+/** The backward schedule of a piece: when text, images and the final check must be finished so it can go out on its date. */
 export function milestonesOf(piece: Piece, lead: Lead): Milestone[] {
   if (!piece.date) return []
   return [
     { key: 'copy', label: 'Chữ xong', short: 'Chữ', due: addDays(piece.date, -lead.copy), done: reached(piece, 'copy') },
     { key: 'visual', label: 'Hình xong', short: 'Hình', due: addDays(piece.date, -lead.visual), done: reached(piece, 'visual') },
-    { key: 'review', label: 'Duyệt xong', short: 'Duyệt', due: addDays(piece.date, -lead.review), done: reached(piece, 'ready') },
+    { key: 'review', label: 'Sẵn sàng đăng', short: 'Sẵn sàng', due: addDays(piece.date, -lead.review), done: reached(piece, 'ready') },
   ]
 }
 

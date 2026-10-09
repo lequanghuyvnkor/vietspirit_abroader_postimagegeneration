@@ -12,14 +12,8 @@ import { PieceView } from './views/PieceView.tsx'
 import { Modal } from './views/ui.tsx'
 import { ApiKeysDialog } from './views/ApiKeysDialog.tsx'
 import { BackupsDialog } from './views/BackupsDialog.tsx'
-import { DocsSyncProvider } from './views/DocsSyncProvider.tsx'
-import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
-import { DocsChip } from './views/DocsChip.tsx'
-import { ApprovalGuard } from './views/ApprovalGuard.tsx'
 import { SearchDialog } from './views/SearchDialog.tsx'
 import { ErrorBoundary } from './views/ErrorBoundary.tsx'
-import { ReviewInbox } from './views/ReviewInbox.tsx'
-import { reviewQueue } from './lib/review.ts'
 import './App.css'
 
 function useRoute(): Route {
@@ -98,10 +92,9 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   const piece = campaign?.pieces.find((item) => item.id === route.piece)
 
   let view
-  if (route.view === 'review') view = <ReviewInbox store={store} update={update} />
-  else if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
+  if (workspace && campaign && piece && !post) view = <PieceView key={piece.id} update={update} workspace={workspace} campaign={campaign} piece={piece} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace && campaign && post) view = <StudioView key={post.id} update={update} workspace={workspace} campaign={campaign} post={post} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
-  else if (workspace && campaign) view = <CampaignView key={campaign.id} tab={route.tab} store={store} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
+  else if (workspace && campaign) view = <CampaignView key={campaign.id} tab={route.tab} update={update} workspace={workspace} campaign={campaign} keys={keys} onManageKeys={() => setKeysOpen(true)} onError={reportError} />
   else if (workspace) view = <WorkspaceView key={workspace.id} store={store} update={update} workspace={workspace} onError={reportError} />
   else view = <WorkspacesView store={store} update={update} />
 
@@ -112,8 +105,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     ...(workspace && campaign && piece ? [{ label: piece.code, route: { workspace: workspace.id, campaign: campaign.id, piece: piece.id } }] : []),
   ]
 
-  return <DocsSyncProvider store={store} update={update}><SheetSyncProvider store={store} update={update}><div className="shell">
-    <ApprovalGuard store={store} update={update} onNotice={reportError} />
+  return <div className="shell">
     <header className="topbar">
       <nav aria-label="Vị trí hiện tại" className="crumbs">
         {crumbs.map((crumb, index) => <span key={index}>{index > 0 && <i>/</i>}{index === crumbs.length - 1 && !post
@@ -122,8 +114,6 @@ function Studio({ onLogout }: { onLogout: () => void }) {
       </nav>
       <div className="topbar-actions">
         <button className="btn small ghost" onClick={() => setSearchOpen(true)} title="Tìm trong toàn bộ app (Ctrl+K)">Tìm</button>
-        <button className="btn small ghost" onClick={() => navigate({ view: 'review' })} title="Các bài đang chờ duyệt">Duyệt nhanh{reviewQueue(store).length ? ` (${reviewQueue(store).length})` : ''}</button>
-        {campaign && <DocsChip campaign={campaign} workspaceId={workspace!.id} />}
         <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : saveState === 'conflict' ? 'Chưa lưu: dữ liệu đã đổi ở nơi khác' : 'Đã lưu'}</span>
         <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
         <button className="btn small ghost" onClick={() => setBackupsOpen(true)}>Sao lưu</button>
@@ -138,7 +128,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {backupsOpen && <BackupsDialog freeze={freeze} onClose={() => setBackupsOpen(false)} />}
     {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
-  </div></SheetSyncProvider></DocsSyncProvider>
+  </div>
 }
 
 export default function App() {
