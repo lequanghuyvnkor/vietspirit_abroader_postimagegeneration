@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, type ApiKey, type Session } from './lib/api.ts'
 import { useStore } from './lib/store.ts'
 import { navigate, parseRoute, type Route } from './lib/route.ts'
+import { applyTheme, isHex, themeVars } from './lib/theme.ts'
 import { LoginView } from './views/LoginView.tsx'
 import { WorkspacesView } from './views/WorkspacesView.tsx'
 import { WorkspaceView } from './views/WorkspaceView.tsx'
@@ -29,6 +30,17 @@ function useRoute(): Route {
     return () => window.removeEventListener('hashchange', onChange)
   }, [])
   return route
+}
+
+function useDarkMode(): boolean {
+  const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setDark(query.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+  return dark
 }
 
 function PasswordDialog({ onClose }: { onClose: () => void }) {
@@ -62,6 +74,15 @@ function Studio({ onLogout }: { onLogout: () => void }) {
   const [keys, setKeys] = useState<ApiKey[]>([])
   useEffect(() => { api.listKeys().then(setKeys).catch(() => setKeys([])) }, [])
   const reportError = useCallback((message: string) => setError(message), [])
+  const dark = useDarkMode()
+  // The open campaign's accent and background tint; leaving the campaign restores the default look.
+  const themed = store?.workspaces.find((item) => item.id === route.workspace)?.campaigns.find((item) => item.id === route.campaign)
+  const themeColor = isHex(themed?.themeColor) ? themed.themeColor : undefined
+  const themeTint = themed?.themeTint
+  useEffect(() => {
+    applyTheme(themeColor ? themeVars(themeColor, themeTint, dark) : null)
+    return () => applyTheme(null)
+  }, [themeColor, themeTint, dark])
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true) } }
     window.addEventListener('keydown', onKey)

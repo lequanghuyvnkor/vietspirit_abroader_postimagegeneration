@@ -4,7 +4,8 @@ import type { Campaign, CampaignTemplate, FormatKey, KeyVisual, Store, Workspace
 import { api, assetUrl, readFileAsDataUrl, uploadImage, type ApiKey } from '../lib/api.ts'
 import { navigate, type CampaignTab } from '../lib/route.ts'
 import { safeColor } from '../lib/render.ts'
-import { ConfirmDialog, Field, Lightbox, NameDialog, Section } from './ui.tsx'
+import { ConfirmDialog, Field, Lightbox, Modal, NameDialog, Section } from './ui.tsx'
+import { ThemePicker } from './ThemePicker.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
@@ -29,7 +30,7 @@ type Props = {
 
 export function CampaignView({ store, update, workspace, campaign, keys, onManageKeys, onError, tab: activeTab }: Props) {
   const kv = campaign.keyVisual
-  const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | { delete: string } | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'import' | 'cut' | 'theme' | { delete: string } | null>(null)
   const [viewer, setViewer] = useState<{ src: string; title: string } | null>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const fontInput = useRef<HTMLInputElement>(null)
@@ -221,7 +222,7 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
   return <div className="page">
     <div className="page-head">
       <div><span className="eyebrow">Chiến dịch</span><h1>{campaign.name}</h1></div>
-      <div className="row"><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
+      <div className="row"><button className="btn ghost theme-btn" onClick={() => setDialog('theme')} title="Màu giao diện của chiến dịch này"><i className="theme-dot" style={{ background: campaign.themeColor ?? '#4f46e5' }} />Màu giao diện</button><button className="btn ghost" onClick={() => setDialog('rename')}>Đổi tên</button></div>
     </div>
     <IntegrityPanel store={store} update={update} campaignId={campaign.id} />
     <nav className="steps" aria-label="Các bước của chiến dịch">
@@ -244,6 +245,11 @@ export function CampaignView({ store, update, workspace, campaign, keys, onManag
     {tab === 'schedule' && <ScheduleTab {...tabProps} />}
     {tab === 'document' && <DocumentTab {...tabProps} />}
     {tab === 'measure' && <MeasureTab {...tabProps} />}
+    {dialog === 'theme' && <Modal title="Màu giao diện" onClose={() => setDialog(null)}>
+      <p className="muted">Màu nhấn của nút, tab và liên kết, cùng sắc của nền trang, chỉ áp dụng khi mở chiến dịch này. Đổi là thấy ngay.</p>
+      <ThemePicker value={{ color: campaign.themeColor, tint: campaign.themeTint }} suggestion={kv.accentColor} onChange={(next) => edit((draft) => { if (next.color) draft.themeColor = next.color; else delete draft.themeColor; if (next.tint !== undefined) draft.themeTint = next.tint })} />
+      <div className="modal-actions"><button className="btn primary" onClick={() => setDialog(null)}>Xong</button></div>
+    </Modal>}
     {dialog === 'rename' && <NameDialog title="Đổi tên chiến dịch" initial={campaign.name} confirm="Lưu" onSubmit={renameCampaign} onClose={() => setDialog(null)} />}
     {viewer && <Lightbox src={viewer.src} title={viewer.title} onClose={() => setViewer(null)} />}
     {dialog === 'cut' && <ComponentCutter sources={campaign.sources} onAddSource={(source) => edit((draft) => { draft.sources.push(source) })} onSave={(saved) => edit((draft) => { draft.components.push(...saved) })} onClose={() => setDialog(null)} />}

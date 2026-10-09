@@ -652,3 +652,17 @@ input:not([type='color']):not([type='checkbox']):focus, textarea:focus, select:f
 .docs-tabs button.on { background: var(--primary-soft); color: var(--primary); }
 .cal-today, .cal-cell.today .cal-day { background: var(--primary); }
 .sheet td input:focus, .sheet td select:focus, .sheet td textarea:focus { box-shadow: none; }
+
+/* Per-campaign interface color */
+body { transition: background-color .2s; }
+.theme-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: 0; flex: none; }
+.theme-btn { display: inline-flex; align-items: center; }
+.theme-picker { display: grid; gap: 10px; }
+.theme-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.theme-swatch { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--line-strong); border-radius: 99px; background: var(--surface); font-size: .78rem; cursor: pointer; }
+.theme-swatch i { width: 16px; height: 16px; border-radius: 50%; }
+.theme-swatch.on { border-color: var(--primary); box-shadow: var(--focus); font-weight: 500; }
+.theme-swatch.custom input { width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.theme-preview { display: flex; gap: 8px; align-items: center; padding: 12px; border: 1px solid; border-radius: var(--radius); font-size: .8rem; }
+.theme-preview span { padding: 5px 10px; border: 1px solid; border-radius: var(--radius-sm); }
+.theme-preview b, .theme-preview em { font-weight: 500; font-style: normal; padding: 5px 12px; border-radius: var(--radius-sm); }

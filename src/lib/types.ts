@@ -308,6 +308,10 @@ export type Campaign = {
   weeklyReviews?: WeeklyReview[]
   /** Integrity warnings the user chose to ignore (their ids). */
   ignoredIssues?: string[]
+  /** Accent color of the interface while this campaign is open (the page background follows it). */
+  themeColor?: string
+  /** How strongly the page background takes that color, 0 to 1. */
+  themeTint?: number
   retro?: Retro
   /** Campaign strategy text given to the AI as context. */
   strategy: string

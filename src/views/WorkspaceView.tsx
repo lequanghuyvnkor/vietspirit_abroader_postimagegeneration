@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { newCampaign, now } from '../lib/types.ts'
 import type { Company, Store, Workspace } from '../lib/types.ts'
 import { navigate } from '../lib/route.ts'
-import { ConfirmDialog, Field, ImageSlot, NameDialog, Section } from './ui.tsx'
+import { ConfirmDialog, Field, ImageSlot, Section } from './ui.tsx'
 import { ImportPdf, type ImportResult } from './ImportPdf.tsx'
 import { api } from '../lib/api.ts'
 import { TemplateSection } from './TemplateSection.tsx'
+import { CreateCampaignDialog } from './CreateCampaignDialog.tsx'
+import type { ThemeValue } from './ThemePicker.tsx'
 import { IntegrityPanel } from './IntegrityPanel.tsx'
 
 type Props = { store: Store; update: (change: (draft: Store) => void) => void; workspace: Workspace; onError: (message: string) => void }
@@ -22,8 +24,9 @@ export function WorkspaceView({ store, update, workspace, onError }: Props) {
   }
   const setCompany = <K extends keyof Company>(key: K, value: Company[K]) => edit((draft) => { draft.company[key] = value })
 
-  function createCampaign(name: string) {
+  function createCampaign(name: string, theme: ThemeValue) {
     const campaign = newCampaign(name)
+    if (theme.color) { campaign.themeColor = theme.color; if (theme.tint !== undefined) campaign.themeTint = theme.tint }
     edit((draft) => { draft.campaigns.push(campaign) })
     navigate({ workspace: workspace.id, campaign: campaign.id })
   }
@@ -60,7 +63,7 @@ export function WorkspaceView({ store, update, workspace, onError }: Props) {
           : <div className="list">
             {workspace.campaigns.map((campaign) => <div className="list-row" key={campaign.id}>
               <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>
-                <strong>{campaign.name}</strong>
+                <strong><i className="theme-dot" style={{ background: campaign.themeColor ?? '#4f46e5' }} aria-hidden="true" />{campaign.name}</strong>
                 <small>{campaign.pieces.length ? `${campaign.pieces.length} bài · ${campaign.pieces.filter((piece) => piece.status === 'ready').length} sẵn sàng · ${campaign.pieces.filter((piece) => piece.published).length} đã đăng` : `${campaign.posts.length} bài đăng lẻ`} · cập nhật {new Date(campaign.updatedAt).toLocaleDateString('vi-VN')}</small>
               </button>
               <button className="btn small ghost" onClick={() => setDialog({ delete: campaign.id })}>Xóa</button>
@@ -86,7 +89,7 @@ export function WorkspaceView({ store, update, workspace, onError }: Props) {
       </Section>
     </div>
     <TemplateSection workspace={workspace} onCreate={(campaign) => edit((draft) => { draft.campaigns.push(campaign) })} onRemove={(id) => edit((draft) => { draft.templates = (draft.templates ?? []).filter((item) => item.id !== id) })} />
-    {dialog === 'create' && <NameDialog title="Tạo chiến dịch" confirm="Tạo" onSubmit={createCampaign} onClose={() => setDialog(null)} />}
+    {dialog === 'create' && <CreateCampaignDialog onSubmit={createCampaign} onClose={() => setDialog(null)} />}
     {dialog === 'import' && <ImportPdf confirmLabel="Tạo chiến dịch" onApply={importCampaign} onClose={() => setDialog(null)} />}
     {target && <ConfirmDialog title="Xóa chiến dịch" message={`Xóa "${target.name}" cùng toàn bộ bài đăng và ảnh nền?`} confirm="Xóa" onConfirm={() => removeCampaign(target.id)} onClose={() => setDialog(null)} />}
   </div>

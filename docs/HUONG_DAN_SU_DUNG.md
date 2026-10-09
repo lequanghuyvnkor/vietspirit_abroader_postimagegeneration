@@ -45,6 +45,8 @@ Trong Workspace có ba cách:
 | **+ Chiến dịch trống** | Bắt đầu từ số không |
 | **Tạo từ mẫu** | Đã lưu mẫu từ chiến dịch cũ (xem 3.7): có sẵn nền tảng, trụ cột và danh sách bài đã xếp lịch |
 
+**Màu giao diện:** khi tạo chiến dịch bạn chọn một màu (10 màu có sẵn hoặc màu bất kỳ). Màu đó là màu nhấn của nút, tab, liên kết, và **nền trang cũng ngả theo sắc ấy**. Đổi bất cứ lúc nào bằng nút **Màu giao diện** ở đầu trang chiến dịch (đổi là thấy ngay), kèm thanh **độ đậm của màu nền**. Mỗi chiến dịch một màu, nên nhìn là biết đang ở chiến dịch nào; ra ngoài chiến dịch thì app về màu chàm mặc định. Màu tự được chỉnh để chữ luôn đọc được, ở cả chế độ sáng và tối.
+
 ---
 
 ## 3. Đi qua bảy tab của chiến dịch
