@@ -9,13 +9,15 @@ type Props = {
   keyVisual: KeyVisual
   components: Component[]
   keys: ApiKey[]
+  /** The Foundation's wording (big idea, message, tone) that the AI turns into a visual direction. */
+  brief?: string
   onChange: (change: Partial<KeyVisual>) => void
   onManageKeys: () => void
   onError: (message: string) => void
 }
 
 /** Moodboard images with a role each, the AI reading of them, and the written direction the image model follows. */
-export function Moodboard({ keyVisual: kv, components, keys, onChange, onManageKeys, onError }: Props) {
+export function Moodboard({ keyVisual: kv, components, keys, brief = '', onChange, onManageKeys, onError }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [uploadRole, setUploadRole] = useState<MoodRole>('mood')
   const [picking, setPicking] = useState(false)
@@ -44,7 +46,7 @@ export function Moodboard({ keyVisual: kv, components, keys, onChange, onManageK
 
   async function read() {
     setReading(true)
-    try { setProposal(await readMoodboard(kv, key?.id)) }
+    try { setProposal(await readMoodboard(kv, key?.id, brief)) }
     catch (error) { onError(error instanceof Error ? error.message : 'AI không đọc được moodboard.') }
     finally { setReading(false) }
   }
@@ -74,12 +76,12 @@ export function Moodboard({ keyVisual: kv, components, keys, onChange, onManageK
     </div>
 
     <div className="row wrap">
-      <button className="btn primary" disabled={reading || !key || images.length === 0} onClick={() => { void read() }}>{reading ? 'AI đang đọc moodboard…' : 'AI đọc moodboard'}</button>
+      <button className="btn primary" disabled={reading || !key || (images.length === 0 && !brief.trim())} onClick={() => { void read() }}>{reading ? 'AI đang đọc moodboard…' : images.length === 0 ? 'AI gợi ý từ Ý tưởng lớn' : 'AI đọc moodboard'}</button>
       {!key && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
-      <small className="muted">AI nhìn ảnh và đề xuất mô tả không khí, bảng màu, màu nhấn và điều cần tránh. Bạn xem trước rồi mới áp dụng.</small>
+      <small className="muted">AI nhìn ảnh và đổi <b>Ý tưởng lớn</b> ở tab Nền tảng thành hình ảnh cụ thể: mô tả không khí, bảng màu, màu nhấn, điều cần tránh. {images.length === 0 && !brief.trim() ? 'Cần ít nhất một ảnh hoặc một Ý tưởng lớn. ' : ''}Bạn xem trước rồi mới áp dụng.</small>
     </div>
 
-    <Field label="Mô tả không khí (AI dùng để vẽ nền)" hint="Bối cảnh, ánh sáng, chất liệu, góc nhìn. Đây là phần quan trọng nhất của prompt tạo nền."><textarea rows={4} value={kv.concept} onChange={(event) => onChange({ concept: event.target.value })} /></Field>
+    <Field label="Mô tả không khí (AI dùng để vẽ nền)" hint="Bối cảnh, ánh sáng, chất liệu, góc nhìn: phần HÌNH của ý tưởng. Muốn đổi ý tưởng truyền thông thì sửa Ý tưởng lớn ở tab Nền tảng rồi bấm nút AI ở trên. Đây là phần quan trọng nhất của prompt tạo nền."><textarea rows={4} value={kv.concept} onChange={(event) => onChange({ concept: event.target.value })} /></Field>
     <Field label="Biểu tượng chính (mô tả ngắn)"><input value={kv.subject} placeholder="Ví dụ: ngôi sao đỏ mọc trên đường chân trời cong" onChange={(event) => onChange({ subject: event.target.value })} /></Field>
     <Field label="Không được có trong nền"><textarea rows={2} value={kv.avoid} onChange={(event) => onChange({ avoid: event.target.value })} /></Field>
 

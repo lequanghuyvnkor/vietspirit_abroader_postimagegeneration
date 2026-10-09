@@ -96,7 +96,7 @@ export function FoundationTab({ workspace, campaign, edit, keys, onManageKeys, o
 
       <div className="stack">
         <Section title="Nhà thông điệp">
-          <Field label="Ý tưởng lớn" hint="Câu chuyện xuyên suốt chiến dịch, ví dụ: mentor như ngôi sao dẫn lối trên đường chân trời."><textarea rows={2} value={f.bigIdea} onChange={(event) => setF((draft) => { draft.bigIdea = event.target.value })} /></Field>
+          <Field label="Ý tưởng lớn" hint="Câu chuyện xuyên suốt chiến dịch, ví dụ: mentor như ngôi sao dẫn lối trên đường chân trời. Đây là phần LỜI; ở tab Moodboard, AI đổi nó thành hình ảnh (mô tả không khí)."><textarea rows={2} value={f.bigIdea} onChange={(event) => setF((draft) => { draft.bigIdea = event.target.value })} /></Field>
           <Field label="Thông điệp chính (một câu)"><textarea rows={2} value={f.keyMessage} onChange={(event) => setF((draft) => { draft.keyMessage = event.target.value })} /></Field>
           <div className="field">
             <span className="field-label">Trụ cột nội dung</span>

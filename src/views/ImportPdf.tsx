@@ -116,16 +116,16 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
     }
   }
 
-  return <Modal title="Nhập Key Visual từ PDF" onClose={onClose} wide>
+  return <Modal title="Nhập moodboard từ PDF" onClose={onClose} wide>
     <input ref={input} type="file" accept="application/pdf" hidden onChange={open} />
     {!analysis && <div className="import-start">
-      <p>Chọn file PDF key visual (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và lấy các trang bài mẫu làm ảnh tham chiếu để tạo nền.</p>
+      <p>Chọn file PDF moodboard (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và lấy các trang bài mẫu làm ảnh tham chiếu để tạo nền.</p>
       <button className="btn primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Đang đọc PDF…' : 'Chọn file PDF'}</button>
     </div>}
     {error && <p className="notice error" role="alert">{error}</p>}
     {analysis && <div className="import-review">
       <p className="muted">Đã đọc {analysis.pages.length} trang. Kiểm tra và sửa thông tin trước khi áp dụng.</p>
-      <p className="notice">Key visual chỉ cập nhật <b>Moodboard</b> (màu, font, mô tả không khí, ảnh tham chiếu, thành phần đồ họa). Không đổi <b>Nền tảng</b> (mục tiêu, thông điệp, trụ cột) và không đổi <b>Kế hoạch</b> (các bài).</p>
+      <p className="notice">Việc nhập này chỉ cập nhật <b>Moodboard</b> (màu, font, mô tả không khí, ảnh tham chiếu, thành phần đồ họa). Không đổi <b>Nền tảng</b> (mục tiêu, thông điệp, trụ cột) và không đổi <b>Kế hoạch</b> (các bài).</p>
       {!updating && <Field label="Tên chiến dịch"><input value={name} onChange={(event) => setName(event.target.value)} /></Field>}
       {updating && <div className="field">
         <span className="field-label">Áp dụng những phần nào vào chiến dịch này</span>
@@ -162,7 +162,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
             {item.logo && <select aria-label="Dùng làm logo" value={roles[item.id] ?? ''} onChange={(event) => setRoles((current) => ({ ...current, [item.id]: event.target.value as 'light' | 'dark' | '' }))}><option value="">Chỉ là thành phần</option><option value="light">Logo nền sáng</option><option value="dark">Logo nền tối</option></select>}
           </div>)}
         </div>
-        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Mục "Hình chính" là hình chủ đạo của key visual: AI dùng nó làm tham chiếu khi tạo nền. Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
+        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Mục "Hình chính" là hình chủ đạo của moodboard: AI dùng nó làm tham chiếu khi tạo nền. Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
       </div>}
 
       <div className="field">

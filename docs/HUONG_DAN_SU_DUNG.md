@@ -41,7 +41,7 @@ Trong Workspace có ba cách:
 
 | Cách | Khi dùng |
 |---|---|
-| **Nhập từ PDF Key Visual** | Đã có file key visual: app tự lấy màu, font, mô tả không khí, cắt các thành phần đồ họa (sao, đường bay, thẻ…) |
+| **Nhập moodboard từ PDF** | Đã có file moodboard: app tự lấy màu, font, mô tả không khí, cắt các thành phần đồ họa (sao, đường bay, thẻ…) |
 | **+ Chiến dịch trống** | Bắt đầu từ số không |
 | **Tạo từ mẫu** | Đã lưu mẫu từ chiến dịch cũ (xem 3.7): có sẵn nền tảng, trụ cột và danh sách bài đã xếp lịch |
 
@@ -57,7 +57,9 @@ Nơi duy nhất ghi **mục tiêu, thời gian, KPI, đối tượng (insight, r
 - Có phần **kiểm tra dữ kiện** (ngày ngoài kỳ chiến dịch, giá trị trùng/lệch, AI soát mâu thuẫn).
 
 ### ② Moodboard
-**Phần HÌNH của chiến dịch** (trái với ① là phần LỜI). Nút **Nhập key visual từ PDF** nằm ở đây và chỉ đổi Moodboard: không đụng Nền tảng, Kế hoạch hay tên chiến dịch. Nhập lại vào chiến dịch đang có thì app hỏi từng phần (màu/font/mô tả, thành phần đồ họa, ảnh moodboard, logo Workspace); ảnh moodboard và logo mặc định **được giữ nguyên**.
+**Phần HÌNH của chiến dịch** (trái với ① là phần LỜI). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard: không đụng Nền tảng, Kế hoạch hay tên chiến dịch. Nhập lại vào chiến dịch đang có thì app hỏi từng phần (màu/font/mô tả, thành phần đồ họa, ảnh moodboard, logo Workspace); ảnh moodboard và logo mặc định **được giữ nguyên**.
+
+**Mô tả không khí** (phần hình của ý tưởng) do AI đổi từ **Ý tưởng lớn** ở ① Nền tảng: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng. Vì vậy Nền tảng chỉ giữ phần lời, Moodboard chỉ giữ phần hình.
 
 Chọn ảnh theo vai trò: **chủ thể** (biểu tượng chính, gửi cho AI làm tham chiếu đầu tiên), **không khí** (màu, ánh sáng), **mẫu bài hoàn chỉnh** (chỉ để xem, không gửi AI). Chỉnh bảng màu, màu nhấn, màu chữ, font, điều cần tránh. Có thêm **thành phần đồ họa** cắt từ PDF/ảnh để đặt lên bài.
 

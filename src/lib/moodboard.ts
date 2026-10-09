@@ -47,6 +47,7 @@ Quy tắc:
 - "palette": 3-6 mã HEX, màu chủ đạo trước.
 - "accentColor": một mã HEX nổi bật dùng cho nút và dòng nhấn.
 - "textTone": "light" nếu nền tối (chữ sáng), "dark" nếu nền sáng.
+- Nếu có "Ý tưởng lớn" của chiến dịch: hãy chuyển ý tưởng đó thành HÌNH ẢNH cụ thể trong "concept" (bối cảnh, ánh sáng, vật thể, góc nhìn). Không chép khẩu hiệu, không đưa chữ vào, không nhắc số liệu hay ưu đãi.
 - "avoid": những thứ không nên xuất hiện trong nền, gồm cả thẻ giao diện, huy hiệu, chữ, logo nếu ảnh mẫu có chúng.`
 
 const hex = (value: unknown) => (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim().toUpperCase() : null)
@@ -64,12 +65,13 @@ async function asDataUrl(assetId: string): Promise<string> {
 }
 
 /** Lets the text model look at the moodboard (mood images first, then samples and the main symbol) and fill the visual direction. */
-export async function readMoodboard(kv: KeyVisual, keyId?: string): Promise<MoodReading> {
+export async function readMoodboard(kv: KeyVisual, keyId?: string, brief = ''): Promise<MoodReading> {
   const picked = [...kv.referenceIds, ...(kv.sampleIds ?? []), ...(kv.subjectIds ?? [])].slice(0, 3)
-  if (picked.length === 0) throw new Error('Moodboard chưa có ảnh nào.')
+  if (picked.length === 0 && !brief.trim()) throw new Error('Moodboard chưa có ảnh nào và Nền tảng chưa có Ý tưởng lớn để gợi ý.')
   const images = await Promise.all(picked.map(asDataUrl))
   const prompt = [
-    `Có ${images.length} ảnh moodboard đính kèm.`,
+    images.length ? `Có ${images.length} ảnh moodboard đính kèm.` : 'Chưa có ảnh moodboard: hãy đề xuất hướng thị giác chỉ từ phần lời của chiến dịch bên dưới (bảng màu chọn hợp với giọng điệu).',
+    brief.trim() && `PHẦN LỜI CỦA CHIẾN DỊCH (ở tab Nền tảng, chỉ để định hướng hình ảnh):\n${brief.trim()}`,
     kv.concept.trim() && `Mô tả hiện có (giữ ý chính nếu còn đúng):\n${kv.concept}`,
     'Trả về JSON dạng {"concept":"","subject":"","palette":["#000000"],"accentColor":"#000000","textTone":"light","avoid":""}.',
   ].filter(Boolean).join('\n\n')

@@ -120,3 +120,15 @@ export async function auditFacts(campaign: Campaign, keyId?: string): Promise<Fa
   const { text } = await api.generateText({ system: AUDIT_SYSTEM, prompt, json: true, keyId })
   return list(parseJson(text).issues).map((item) => ({ text: str(item.text, 400), keys: Array.isArray(item.keys) ? item.keys.map((key) => str(key, 80)).filter(Boolean) : [], level: item.level === 'info' ? 'info' as const : 'warn' as const })).filter((item) => item.text)
 }
+
+/** The wording side of the campaign, in a few lines, for the art direction of the Moodboard (no KPIs, facts or plan). */
+export function moodBrief(campaign: Campaign): string {
+  const f = campaign.foundation ?? emptyFoundation()
+  return [
+    f.bigIdea.trim() && `Ý tưởng lớn: ${f.bigIdea.trim()}`,
+    f.keyMessage.trim() && `Thông điệp chính: ${f.keyMessage.trim()}`,
+    f.tone.trim() && `Giọng điệu: ${f.tone.trim()}`,
+    f.pillars.length > 0 && `Trụ cột: ${f.pillars.map((pillar) => pillar.name).filter(Boolean).join('; ')}`,
+    f.audiences.length > 0 && `Đối tượng: ${f.audiences.map((item) => item.name).filter(Boolean).join('; ')}`,
+  ].filter(Boolean).join('\n')
+}

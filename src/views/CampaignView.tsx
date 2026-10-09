@@ -13,7 +13,7 @@ import { Moodboard } from './Moodboard.tsx'
 import { FoundationTab } from './FoundationTab.tsx'
 import { DocumentTab } from './DocumentTab.tsx'
 import { MeasureTab } from './MeasureTab.tsx'
-import { hasFoundation } from '../lib/foundation.ts'
+import { hasFoundation, moodBrief } from '../lib/foundation.ts'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -227,12 +227,12 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       </button>)}
     </nav>
 
-    {tab === 'foundation' && <p className="muted tab-note"><b>Nền tảng</b> là phần LỜI của chiến dịch: nói gì, với ai, bằng giọng nào. Hình ảnh (màu, font, ảnh tham chiếu, nền) nằm ở tab ② Moodboard, nhập key visual PDF cũng ở đó.</p>}
+    {tab === 'foundation' && <p className="muted tab-note"><b>Nền tảng</b> là phần LỜI của chiến dịch: nói gì, với ai, bằng giọng nào. Hình ảnh (màu, font, ảnh tham chiếu, nền) nằm ở tab ② Moodboard, nhập moodboard từ PDF cũng ở đó.</p>}
     {tab === 'foundation' && <FoundationTab {...tabProps} />}
     {tab === 'moodboard' && <p className="muted tab-note"><b>Moodboard</b> là phần HÌNH của chiến dịch: màu, font, ảnh tham chiếu, thành phần đồ họa, nền. Nội dung chữ (mục tiêu, thông điệp, trụ cột) nằm ở tab ① Nền tảng và ③ Kế hoạch; "Mô tả không khí" ở đây là để AI vẽ nền, không phải ý tưởng truyền thông.</p>}
     {tab === 'moodboard' && <div className="two-col">
-      <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF key visual. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập key visual từ PDF</button>}>
-        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
+      <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF moodboard. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button>}>
+        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
       <div className="stack">{identity}{backgrounds}{components}</div>
     </div>}

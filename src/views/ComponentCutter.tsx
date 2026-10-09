@@ -129,7 +129,7 @@ export function ComponentCutter({ sources, onAddSource, onSave, onClose }: Props
       <button className="btn small ghost" onClick={() => upload.current?.click()}>+ Tải ảnh khác</button>
       <input ref={upload} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={addImage} />
     </div>
-    {!source && <p className="notice">Chưa có ảnh nguồn. Nhập PDF Key Visual hoặc tải một ảnh lên.</p>}
+    {!source && <p className="notice">Chưa có ảnh nguồn. Nhập moodboard từ PDF hoặc tải một ảnh lên.</p>}
     {source && <div className="cutter">
       <div className="cutter-stage" ref={stage} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <img src={assetUrl(source.assetId)} alt={source.label} draggable={false} />

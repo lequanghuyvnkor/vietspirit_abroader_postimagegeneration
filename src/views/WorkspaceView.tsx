@@ -52,9 +52,9 @@ export function WorkspaceView({ update, workspace, onError }: Props) {
       <div><span className="eyebrow">Workspace</span><h1>{workspace.name}</h1></div>
     </div>
     <div className="two-col">
-      <Section title="Chiến dịch" aside={<div className="row"><button className="btn small" onClick={() => setDialog('create')}>+ Chiến dịch trống</button><button className="btn primary small" onClick={() => setDialog('import')}>Nhập từ PDF Key Visual</button></div>}>
+      <Section title="Chiến dịch" aside={<div className="row"><button className="btn small" onClick={() => setDialog('create')}>+ Chiến dịch trống</button><button className="btn primary small" onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button></div>}>
         {workspace.campaigns.length === 0
-          ? <div className="empty small"><p>Chưa có chiến dịch. Tạo chiến dịch để nhập key visual và bắt đầu tạo bài đăng.</p></div>
+          ? <div className="empty small"><p>Chưa có chiến dịch. Tạo chiến dịch để nhập moodboard và bắt đầu tạo bài đăng.</p></div>
           : <div className="list">
             {workspace.campaigns.map((campaign) => <div className="list-row" key={campaign.id}>
               <button className="list-main" onClick={() => navigate({ workspace: workspace.id, campaign: campaign.id })}>
