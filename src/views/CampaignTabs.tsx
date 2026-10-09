@@ -13,6 +13,7 @@ import { ConfirmDialog, Modal, Section } from './ui.tsx'
 import { DocsPanel } from './DocsPanel.tsx'
 import { SheetPanel } from './SheetPanel.tsx'
 import { PlanGrid } from './PlanEditor.tsx'
+import { CalendarPanel, CoveragePanel, LateAlerts } from './CalendarPanel.tsx'
 import { draftMissingSlides } from '../lib/planEdit.ts'
 import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 import { ScheduleTable } from './ScheduleTable.tsx'
@@ -123,6 +124,7 @@ export function PlanTab(props: Props & { batch: Batch }) {
         <button className="btn small primary" onClick={() => edit((draft) => { if (draft.sheetSync) draft.sheetSync.frozen = true })}>Đóng băng Sheet và soạn trong app</button>
       </div>}
       <PlanGrid {...props} locked={sheetOwns} />
+      <CoveragePanel campaign={campaign} />
       {campaign.pieces.length > 0 && <div className="row wrap">
         {needSlides > 0 && <button className="btn small" disabled={sheetOwns} onClick={() => edit((draft) => { draftMissingSlides(draft, workspace.company) })}>Tạo slide nháp cho {needSlides} bài chưa có</button>}
         <span className={withIssues.length ? 'notice' : 'muted'}>{withIssues.length ? `${withIssues.length}/${campaign.pieces.length} bài còn điểm cần xem lại trước khi sản xuất (bấm Mở để xem chi tiết).` : 'Kế hoạch ổn, chuyển sang tab Sản xuất.'}</span>
@@ -176,6 +178,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       </div>
       <small className="muted">Mỗi bài có nút <b>Tạo ảnh</b> riêng. Muốn làm một nhóm bài thì tick ô ở góc thẻ rồi dùng hai nút phía trên; không tick thì hai nút đó không chạy.</small>
       <JobStatus job={batch.job} />
+      <LateAlerts workspace={workspace} campaign={campaign} />
       <p className="row wrap">{STATUS_ORDER.map((status) => <span key={status} className={`status ${status}`}>{STATUS_LABELS[status]} · {visual.filter((piece) => piece.status === status).length}</span>)}</p>
       <div className="board">
         {STATUS_ORDER.map((status) => {
@@ -216,6 +219,11 @@ export function ScheduleTab({ workspace, campaign, edit, batch }: Props & { batc
   if (campaign.pieces.length === 0) return <Section title="Lịch & xuất"><p className="muted">Chưa có bài nào. Nhập kế hoạch ở tab Kế hoạch trước.</p></Section>
 
   return <>
+    <Section title="Lịch tháng" aside={<span className="muted">kéo bài sang ngày khác để dời lịch</span>}>
+      <LateAlerts workspace={workspace} campaign={campaign} />
+      <CalendarPanel workspace={workspace} campaign={campaign} edit={edit} />
+      <CoveragePanel campaign={campaign} />
+    </Section>
     <Section title="Lịch đăng" aside={<button className="btn small primary" disabled={withSlides.length === 0 || batch.running} onClick={() => setConfirm(true)}>Xuất ảnh hoàn chỉnh ({withSlides.length} bài)</button>}>
       <JobStatus job={batch.job} />
       <DocsPanel workspace={workspace} campaign={campaign} edit={edit} />

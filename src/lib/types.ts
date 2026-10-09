@@ -207,6 +207,9 @@ export type DocsSync = {
   sent: Record<string, string>
 }
 
+/** Days before the publish date by which text, images and approval must be done (the backward schedule). */
+export type Lead = { copy: number; visual: number; review: number }
+
 export type Campaign = {
   id: string
   name: string
@@ -221,6 +224,7 @@ export type Campaign = {
   foundation: Foundation
   docsSync?: DocsSync
   sheetSync?: SheetSync
+  lead?: Lead
   /** Campaign strategy text given to the AI as context. */
   strategy: string
   /** "Do not say" statements from the plan, shown as reference. */
