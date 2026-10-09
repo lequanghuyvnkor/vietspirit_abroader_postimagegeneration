@@ -138,6 +138,8 @@ export type SheetSync = {
   token: string
   /** Check the Sheet every minute while the app is open, and pull when it changed. */
   auto: boolean
+  /** The plan is now edited in the app: the Sheet is no longer read, so the two cannot drift apart. */
+  frozen?: boolean
   /** Fingerprint of the Sheet at the last pull. */
   hash: string
   pulledAt: string

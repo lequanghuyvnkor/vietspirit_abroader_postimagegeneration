@@ -38,7 +38,7 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
   </div>
 
   return <section className="card sheet-panel" aria-label="Google Sheet kế hoạch">
-    <header className="card-head"><h2>Google Sheet kế hoạch</h2>{ready && <span className={`flag ${failed ? 'warn' : settings.conflicts.length ? 'info' : 'ok'}`}>{status?.busy ? 'Đang đọc' : failed ? 'Lỗi' : settings.conflicts.length ? `${settings.conflicts.length} chỗ cần xem` : settings.pulledAt ? 'Đã khớp' : 'Chưa kéo lần nào'}</span>}</header>
+    <header className="card-head"><h2>Google Sheet kế hoạch</h2>{ready && settings.frozen && <span className="flag info">Đã đóng băng</span>}{ready && !settings.frozen && <span className={`flag ${failed ? 'warn' : settings.conflicts.length ? 'info' : 'ok'}`}>{status?.busy ? 'Đang đọc' : failed ? 'Lỗi' : settings.conflicts.length ? `${settings.conflicts.length} chỗ cần xem` : settings.pulledAt ? 'Đã khớp' : 'Chưa kéo lần nào'}</span>}</header>
 
     {!ready && <>
       <p className="muted">Lập kế hoạch trong Google Sheet riêng tư (5 tab: Strategy, Calendar, Captions, Visual Brief, Sources). App đọc về, tạo bài và slide, rồi đẩy kết quả sang Google Docs. Việc bạn làm trong app (trạng thái, slide, ảnh đã tải, caption đã sửa) được giữ nguyên khi Sheet đổi.</p>
@@ -53,11 +53,17 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
       </details>
     </>}
 
-    {ready && <>
+    {ready && settings.frozen && <>
+      <p className="muted">Kế hoạch đang được soạn ngay trong app; app không đọc Sheet nữa nên hai nơi không thể lệch nhau. Sheet cũ chỉ còn là bản lưu. Mở lại kết nối nếu cần kéo thêm từ Sheet (bài đã sửa trong app vẫn được giữ, chỗ khác nhau sẽ hỏi bạn).</p>
+      <div className="row wrap"><button className="btn small" onClick={() => set({ frozen: false })}>Mở lại kết nối Sheet</button></div>
+    </>}
+
+    {ready && !settings.frozen && <>
       <div className="row wrap">
         <button className="btn primary" disabled={status?.busy} onClick={pull}>{status?.busy ? 'Đang đọc…' : 'Cập nhật từ Sheet'}</button>
         <label className="row" title="Mỗi phút app hỏi Sheet có đổi không; nếu có thì tự kéo về và hợp nhất. Chỉ chạy khi app đang mở."><input type="checkbox" checked={settings.auto} onChange={(event) => set({ auto: event.target.checked })} /> Tự kéo khi Sheet thay đổi</label>
         <button className="link" onClick={() => setEditing((open) => !open)} aria-expanded={editing}>Đổi kết nối</button>
+        <button className="btn small ghost" title="Soạn kế hoạch ngay trong app và ngừng đọc Sheet" onClick={() => set({ frozen: true })}>Đóng băng Sheet</button>
       </div>
       {status?.message && <p className={failed ? 'notice error' : 'muted'} role="status">{status.message}</p>}
       {settings.pulledAt && !status?.message && <p className="muted">Kéo lần cuối: {new Date(settings.pulledAt).toLocaleString('vi-VN')}</p>}

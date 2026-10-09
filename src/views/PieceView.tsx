@@ -17,6 +17,8 @@ import type { Campaign, Piece, PieceStatus, Production, Store, Workspace } from 
 import { ConfirmDialog, Field, Section } from './ui.tsx'
 import { SlideThumb } from './SlideThumb.tsx'
 import { PieceAssets } from './PieceAssets.tsx'
+import { PieceBriefEditor } from './PieceBriefEditor.tsx'
+import { sheetOwnsPlan } from '../lib/sheetSync.ts'
 
 type Props = {
   update: (change: (draft: Store) => void) => void
@@ -173,6 +175,7 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
       </aside>
 
       <div className="stack">
+        <PieceBriefEditor piece={piece} locked={sheetOwnsPlan(campaign.sheetSync)} edit={edit} />
         {parked && <Section title="Bàn giao cho bên sản xuất">
           <Field label="Ai thực hiện">
             <select value={piece.production} onChange={(event) => edit((_, item) => { const next = event.target.value as Production; if (!item.productionNote.trim() || item.productionNote === defaultProductionNote(item.production)) item.productionNote = defaultProductionNote(next); item.production = next })}>

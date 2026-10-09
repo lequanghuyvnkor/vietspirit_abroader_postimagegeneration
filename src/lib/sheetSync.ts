@@ -10,6 +10,9 @@ export function emptySheetSync(): SheetSync {
 
 export const sheetSyncReady = (settings: Pick<SheetSync, 'url' | 'token'>) => URL_OK.test(settings.url.trim()) && settings.token.trim().length > 0
 
+/** The Sheet is connected and still owns the plan (not frozen). */
+export const sheetOwnsPlan = (settings: SheetSync | undefined) => Boolean(settings && sheetSyncReady(settings) && !settings.frozen)
+
 /** A short code works, but anyone who learns the URL could guess it. */
 export const tokenIsShort = (token: string) => token.trim().length > 0 && token.trim().length < 8
 

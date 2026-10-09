@@ -27,7 +27,7 @@ export function SheetSyncProvider({ store, update, children }: Props) {
     if (running.current.has(campaignId)) return
     const workspace = storeRef.current.workspaces.find((item) => item.id === workspaceId)
     const settings = workspace?.campaigns.find((item) => item.id === campaignId)?.sheetSync
-    if (!workspace || !settings) return
+    if (!workspace || !settings || settings.frozen) return
     running.current.add(campaignId)
     say(campaignId, true, 'Đang đọc Google Sheet…')
     try {
@@ -55,7 +55,7 @@ export function SheetSyncProvider({ store, update, children }: Props) {
       for (const workspace of storeRef.current.workspaces) {
         for (const campaign of workspace.campaigns) {
           const settings = campaign.sheetSync
-          if (!settings?.auto || !sheetSyncReady(settings) || running.current.has(campaign.id)) continue
+          if (!settings?.auto || settings.frozen || !sheetSyncReady(settings) || running.current.has(campaign.id)) continue
           try {
             const hash = await checkSheet(settings)
             if (hash && hash !== settings.hash) await pull(workspace.id, campaign.id)
