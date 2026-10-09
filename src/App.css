@@ -365,3 +365,10 @@ textarea { resize: vertical; }
 .docs-advanced summary { cursor: pointer; }
 .docs-advanced .row { margin: 8px 0; }
 .flag.ok { background: color-mix(in srgb, #1f9d55 18%, transparent); color: #187a43; }
+
+/* Piece selection on the production board */
+.piece-card { align-items: flex-start; }
+.piece-card.picked { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.piece-pick { margin: 2px 0 0; flex: 0 0 auto; width: 18px; height: 18px; }
+.piece-body { flex: 1 1 auto; min-width: 0; }
+.piece-actions { display: grid; gap: 6px; align-content: start; flex: 0 0 auto; }

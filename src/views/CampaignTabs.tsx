@@ -131,23 +131,32 @@ export function PlanTab(props: Props & { batch: Batch }) {
 
 const STATUS_ORDER: PieceStatus[] = ['brief', 'copy', 'visual', 'review', 'ready']
 
-/** ③ Sản xuất: every piece grouped by status with its next step, plus the batch AI actions. */
+/** ③ Sản xuất: every piece grouped by status; AI steps run on one piece, or on the pieces the user ticked, never on everything by default. */
 export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }: Props & { batch: Batch }) {
   const [confirm, setConfirm] = useState<'copy' | 'backgrounds' | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const visual = campaign.pieces.filter(madeInApp)
   const external = campaign.pieces.filter((piece) => !madeInApp(piece))
+  const chosen = visual.filter((piece) => picked.has(piece.id))
+  const blocked = batch.running || keys.length === 0
   const open = (piece: Piece) => navigate({ workspace: workspace.id, campaign: campaign.id, piece: piece.id })
+  const toggle = (piece: Piece) => setPicked((current) => { const next = new Set(current); if (next.has(piece.id)) next.delete(piece.id); else next.add(piece.id); return next })
 
   const card = (piece: Piece) => {
     const slides = slidesOf(campaign, piece)
     const warn = pieceIssues(campaign, piece).filter((issue) => issue.level === 'warn').length
-    return <div className="piece-card" key={piece.id}>
+    const makes = madeInApp(piece)
+    return <div className={picked.has(piece.id) ? 'piece-card picked' : 'piece-card'} key={piece.id}>
+      {makes && <input type="checkbox" className="piece-pick" aria-label={`Chọn ${piece.code}`} checked={picked.has(piece.id)} onChange={() => toggle(piece)} />}
       <span className="piece-thumb">{slides.length ? <SlideThumb post={slides[0]} campaign={campaign} workspace={workspace} width={64} /> : <i>{piece.kind === 'reel' ? 'Reel' : '—'}</i>}</span>
       <button className="piece-body" onClick={() => open(piece)}>
         <strong>{piece.code} · {piece.title}</strong>
         <small className="muted">{kindLabel(piece)}{slides.length > 1 ? ` · ${slides.length} ảnh` : ''}{piece.date ? ` · ${piece.date.slice(8, 10)}/${piece.date.slice(5, 7)}` : ''}</small>
         <small>Tiếp theo: <b>{nextStep(piece)}</b>{warn ? <span className="flag warn">{warn} cảnh báo</span> : null}</small>
       </button>
+      {makes && <div className="piece-actions">
+        <button className="btn small" disabled={blocked || slides.length === 0} title={slides.length === 0 ? 'Bài này chưa có slide' : 'Tạo ảnh chỉ cho bài này'} onClick={() => { void batch.backgroundsAll([piece]) }}>Tạo ảnh</button>
+      </div>}
     </div>
   }
 
@@ -157,10 +166,12 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
     <Section title="Sản xuất" aside={<span className="muted">{campaign.pieces.filter((piece) => piece.status === 'ready').length}/{campaign.pieces.length} bài sẵn sàng</span>}>
       <div className="row wrap">
         <KeyPicker batch={batch} keys={keys} />
-        <button className="btn" disabled={batch.running || keys.length === 0 || visual.length === 0} onClick={() => setConfirm('copy')}>Soạn chữ tất cả bằng AI ({visual.length} bài)</button>
-        <button className="btn" disabled={batch.running || keys.length === 0 || visual.length === 0} onClick={() => setConfirm('backgrounds')}>Tạo ảnh cho tất cả ({visual.length} bài)</button>
+        <button className="btn small ghost" onClick={() => setPicked(chosen.length === visual.length ? new Set() : new Set(visual.map((piece) => piece.id)))}>{chosen.length === visual.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button>
+        <button className="btn" disabled={blocked || chosen.length === 0} onClick={() => setConfirm('copy')}>Soạn chữ ({chosen.length} bài đã chọn)</button>
+        <button className="btn" disabled={blocked || chosen.length === 0} onClick={() => setConfirm('backgrounds')}>Tạo ảnh ({chosen.length} bài đã chọn)</button>
         {keys.length === 0 && <button className="link" onClick={onManageKeys}>Thêm API key</button>}
       </div>
+      <small className="muted">Mỗi bài có nút <b>Tạo ảnh</b> riêng. Muốn làm một nhóm bài thì tick ô ở góc thẻ rồi dùng hai nút phía trên; không tick thì hai nút đó không chạy.</small>
       <JobStatus job={batch.job} />
       <p className="row wrap">{STATUS_ORDER.map((status) => <span key={status} className={`status ${status}`}>{STATUS_LABELS[status]} · {visual.filter((piece) => piece.status === status).length}</span>)}</p>
       <div className="board">
@@ -177,8 +188,8 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
         <div className="board-row">{external.map(card)}</div>
       </div>}
     </Section>
-    {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${visual.length} bài (carousel, ảnh, reel làm trong app), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void batch.draftAll(visual) }} onClose={() => setConfirm(null)} />}
-    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo ảnh cho tất cả bài" message={`App đo chỗ đặt chữ của từng bài, rồi nhờ AI vẽ ${visual.length} nền chỉ đặt hình ở phần còn trống và kiểm tra vùng chữ. Mỗi nền tính phí theo tài khoản của bạn (nền nào vùng chữ chưa đạt sẽ được vẽ lại một lần, tối đa ${visual.length * 2} lượt). Tiếp tục?`} confirm="Tạo ảnh" onConfirm={() => { void batch.backgroundsAll(visual) }} onClose={() => setConfirm(null)} />}
+    {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${chosen.length} bài đã chọn (${chosen.map((piece) => piece.code).join(', ')}), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void batch.draftAll(chosen) }} onClose={() => setConfirm(null)} />}
+    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo ảnh cho các bài đã chọn" message={`App đo chỗ đặt chữ của ${chosen.length} bài (${chosen.map((piece) => piece.code).join(', ')}), rồi nhờ AI vẽ ${chosen.length} nền và kiểm tra vùng chữ. Mỗi nền tính phí theo tài khoản của bạn; nền nào vùng chữ chưa đạt được vẽ lại một lần, tối đa ${chosen.length * 2} lượt. Tiếp tục?`} confirm="Tạo ảnh" onConfirm={() => { void batch.backgroundsAll(chosen) }} onClose={() => setConfirm(null)} />}
   </>
 }
 
