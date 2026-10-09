@@ -8,21 +8,32 @@
  * The app sends one piece at a time. Each piece becomes a tab named by its code; re-syncing replaces that tab by a
  * fresh one in the same place (no character positions to compute) and leaves every other tab alone.
  */
+/** Title given to a tab while it is being replaced; anything still carrying it is a leftover and is removed. */
+var TEMP_PREFIX = '~cũ '
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents)
     var existing = tabsByTitle(data.doc)
     var updated = 0
 
-    // Pass 1: a fresh, empty tab per card. An existing tab with that name is removed and recreated at its old position.
+    // Pass 1: a fresh, empty tab per card. An existing tab with that name is replaced at its old position.
+    // Tab titles must be unique, so the old tab is renamed first, then the new one is added, then the old one is deleted.
+    // Google applies the whole batch or none of it, so the doc is never left half-changed.
     var requests = []
     var addedFor = {}
+    var stamp = String(new Date().getTime())
+    Object.keys(existing).forEach(function (title) {
+      // Leftovers of an interrupted run are cleared first.
+      if (title.indexOf(TEMP_PREFIX) === 0) requests.push({ deleteTab: { tabId: existing[title].id } })
+    })
     data.cards.forEach(function (card) {
       var old = existing[card.tab]
       var props = { title: card.tab }
       if (old) {
         props.index = old.index
         if (old.parent) props.parentTabId = old.parent
+        requests.push({ updateDocumentTabProperties: { tabProperties: { tabId: old.id, title: TEMP_PREFIX + card.tab + ' ' + stamp }, fields: 'title' } })
       }
       // Add the fresh tab before removing the old one, so the doc never runs out of tabs.
       requests.push({ addDocumentTab: { tabProperties: props } })
