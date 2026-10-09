@@ -16,6 +16,7 @@ import { SheetSyncProvider } from './views/SheetSyncProvider.tsx'
 import { DocsChip } from './views/DocsChip.tsx'
 import { ApprovalGuard } from './views/ApprovalGuard.tsx'
 import { SearchDialog } from './views/SearchDialog.tsx'
+import { ErrorBoundary } from './views/ErrorBoundary.tsx'
 import { ReviewInbox } from './views/ReviewInbox.tsx'
 import { reviewQueue } from './lib/review.ts'
 import './App.css'
@@ -102,7 +103,7 @@ function Studio({ onLogout }: { onLogout: () => void }) {
         <button className="btn small ghost" onClick={() => setSearchOpen(true)} title="Tìm trong toàn bộ app (Ctrl+K)">Tìm</button>
         <button className="btn small ghost" onClick={() => navigate({ view: 'review' })} title="Các bài đang chờ duyệt">Duyệt nhanh{reviewQueue(store).length ? ` (${reviewQueue(store).length})` : ''}</button>
         {campaign && <DocsChip campaign={campaign} workspaceId={workspace!.id} />}
-        <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : 'Đã lưu'}</span>
+        <span className={`save ${saveState}`} role="status">{saveState === 'saving' ? 'Đang lưu…' : saveState === 'error' ? 'Lưu lỗi, thử lại' : saveState === 'conflict' ? 'Chưa lưu: dữ liệu đã đổi ở nơi khác' : 'Đã lưu'}</span>
         <button className="btn small" onClick={() => setKeysOpen(true)}>API{keys.length === 0 ? ' (chưa có key)' : ` (${keys.length})`}</button>
         <button className="btn small ghost" onClick={() => setBackupsOpen(true)}>Sao lưu</button>
         <button className="btn small ghost" onClick={() => setPasswordOpen(true)}>Đổi mật khẩu</button>
@@ -110,7 +111,8 @@ function Studio({ onLogout }: { onLogout: () => void }) {
       </div>
     </header>
     {error && <div className="toast" role="alert"><span>{error}</span><button aria-label="Đóng thông báo" onClick={() => setError('')}>×</button></div>}
-    <main>{view}</main>
+    {saveState === 'conflict' && <div className="notice late-alert conflict-bar" role="alert"><strong>Dữ liệu đã được lưu từ một cửa sổ hoặc tab khác.</strong> Cửa sổ này đã dừng lưu để không ghi đè lên bản mới hơn. Tải lại để lấy bản mới nhất (những gì bạn vừa gõ ở cửa sổ này chưa được lưu). <button className="btn small primary" onClick={() => window.location.reload()}>Tải lại</button></div>}
+    <main><ErrorBoundary key={window.location.hash} onHome={() => navigate({})}>{view}</ErrorBoundary></main>
     {searchOpen && <SearchDialog store={store} onClose={() => setSearchOpen(false)} />}
     {keysOpen && <ApiKeysDialog keys={keys} onChange={setKeys} onClose={() => setKeysOpen(false)} />}
     {backupsOpen && <BackupsDialog freeze={freeze} onClose={() => setBackupsOpen(false)} />}

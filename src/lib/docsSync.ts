@@ -10,7 +10,8 @@ const IMAGE_WIDTH = 520
 
 /** The link and URL the user typed in an earlier version (kept in the browser): used to prefill a campaign. */
 export function loadDocsSync(): { url: string; doc: string } {
-  try { return { url: '', doc: '', ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return { url: '', doc: '' } }
+  // Only the Apps Script URL is offered again. A Doc link is per campaign: prefilling it made new campaigns write into another project's Doc.
+  try { return { url: String(JSON.parse(localStorage.getItem(KEY) ?? '{}').url ?? ''), doc: '' } } catch { return { url: '', doc: '' } }
 }
 
 /** Accepts a full docs.google.com link or a bare id. */

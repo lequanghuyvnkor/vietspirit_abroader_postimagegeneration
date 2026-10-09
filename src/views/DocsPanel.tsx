@@ -40,8 +40,8 @@ export function DocsPanel({ workspace, campaign, edit }: Props) {
   }
 
   const fields = <div className="stack">
-    <label className="field"><span className="field-label">Link Google Docs</span><input placeholder="https://docs.google.com/document/d/…" value={sync.doc} onChange={(event) => setSync({ doc: event.target.value })} /></label>
-    <label className="field"><span className="field-label">URL ứng dụng web Apps Script</span><input placeholder="https://script.google.com/macros/s/…/exec" value={sync.url} onChange={(event) => setSync({ url: event.target.value })} />
+    <label className="field"><span className="field-label">Link Google Docs</span><input name={`docs-link-${campaign.id}`} autoComplete="off" spellCheck={false} placeholder="https://docs.google.com/document/d/…" value={sync.doc} onChange={(event) => setSync({ doc: event.target.value })} /></label>
+    <label className="field"><span className="field-label">URL ứng dụng web Apps Script</span><input name={`docs-url-${campaign.id}`} autoComplete="off" spellCheck={false} placeholder="https://script.google.com/macros/s/…/exec" value={sync.url} onChange={(event) => setSync({ url: event.target.value })} />
       {urlProblem(sync.url) && <small className="error-text" role="alert">{urlProblem(sync.url)}</small>}
     </label>
   </div>

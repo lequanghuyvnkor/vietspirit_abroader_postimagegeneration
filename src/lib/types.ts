@@ -306,6 +306,8 @@ export type Campaign = {
   lead?: Lead
   docVersions?: DocVersion[]
   weeklyReviews?: WeeklyReview[]
+  /** Integrity warnings the user chose to ignore (their ids). */
+  ignoredIssues?: string[]
   retro?: Retro
   /** Campaign strategy text given to the AI as context. */
   strategy: string

@@ -58,6 +58,7 @@ export function IntegrityPanel({ store, update, campaignId, workspaceId }: Props
       <div className="row wrap">
         {!campaignId && <button className="btn small" onClick={() => navigate({ workspace: issue.workspaceId, campaign: issue.campaignId, tab: 'plan' })}>Mở chiến dịch</button>}
         {issue.fix && <button className="btn small primary" onClick={() => { setError(''); setFixing(issue) }}>{issue.fixLabel}</button>}
+        {issue.level === 'info' && <button className="btn small ghost" title="Không nhắc lại cảnh báo này" onClick={() => change(issue, (campaign) => { campaign.ignoredIssues = [...(campaign.ignoredIssues ?? []), issue.id] })}>Bỏ qua, không nhắc lại</button>}
         {issue.allow && <button className="btn small ghost" title="Chỉ chọn khi hai chiến dịch cố ý dùng chung" onClick={() => change(issue, (campaign) => { const settings = issue.allow === 'sheet' ? campaign.sheetSync : campaign.docsSync; if (settings) settings.allowShared = true })}>Tôi biết, cố ý dùng chung</button>}
       </div>
     </div>)}

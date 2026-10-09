@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'node:fs'
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { createBackups } from './backups.mjs'
@@ -75,6 +75,11 @@ function writeAtomic(file, contents) {
   writeFileSync(temp, contents, { mode: 0o600 })
   renameSync(temp, file)
 }
+
+// ---------- Store revision ----------
+// Every saved version of store.json has a revision (a hash of its text). A window must say which revision it started from;
+// a window that is behind (another tab or window saved since) is refused instead of silently overwriting newer work.
+const revisionOf = (contents) => createHash('sha1').update(contents).digest('hex').slice(0, 16)
 
 // ---------- Auth ----------
 function readAuth() {
@@ -410,16 +415,19 @@ async function route(req, res) {
   }
   if (method === 'GET' && pathname === '/api/store') {
     const contents = existsSync(STORE_FILE) ? readFileSync(STORE_FILE, 'utf8') : '{"workspaces":[]}'
-    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-store-rev': revisionOf(contents) })
     return void res.end(contents)
   }
   if (method === 'PUT' && pathname === '/api/store') {
     const store = await readJson(req, MAX_STORE_BYTES)
     if (!Array.isArray(store.workspaces)) throw fail(400, 'Dữ liệu workspace không hợp lệ.')
+    const current = existsSync(STORE_FILE) ? readFileSync(STORE_FILE, 'utf8') : '{"workspaces":[]}'
+    const expected = req.headers['if-match']
+    if (typeof expected === 'string' && expected !== revisionOf(current)) throw fail(409, 'Dữ liệu đã được lưu từ một cửa sổ hoặc tab khác. Hãy tải lại trang để lấy bản mới nhất, rồi làm tiếp.')
     const raw = JSON.stringify(store)
     backups.beforeSave(raw)
     writeAtomic(STORE_FILE, raw)
-    return send(res, 200, { ok: true })
+    return send(res, 200, { ok: true, rev: revisionOf(raw) })
   }
   if (pathname === '/api/keys' || pathname.startsWith('/api/keys/')) return manageKeys(req, res, method, pathname.slice('/api/keys/'.length) || null)
   if (method === 'POST' && pathname === '/api/assets') return uploadAsset(req, res)

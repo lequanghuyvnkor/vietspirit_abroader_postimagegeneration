@@ -42,10 +42,10 @@ export function SheetPanel({ workspace, campaign, edit }: Props) {
   })
 
   const fields = <div className="stack">
-    <label className="field"><span className="field-label">URL ứng dụng web của Sheet (kết thúc bằng /exec)</span><input placeholder="https://script.google.com/macros/s/…/exec" value={settings.url} onChange={(event) => set({ url: event.target.value })} />
+    <label className="field"><span className="field-label">URL ứng dụng web của Sheet (kết thúc bằng /exec)</span><input name={`sheet-url-${campaign.id}`} autoComplete="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" placeholder="https://script.google.com/macros/s/…/exec" value={settings.url} onChange={(event) => set({ url: event.target.value })} />
       {problem && <small className="error-text" role="alert">{problem}</small>}
     </label>
-    <label className="field"><span className="field-label">Mã bí mật (đúng mã bạn đặt ở dòng TOKEN trong script)</span><input type="password" autoComplete="off" value={settings.token} onChange={(event) => set({ token: event.target.value })} />
+    <label className="field"><span className="field-label">Mã bí mật (đúng mã bạn đặt ở dòng TOKEN trong script)</span><input type="text" className="secret" name={`sheet-token-${campaign.id}`} autoComplete="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" value={settings.token} onChange={(event) => set({ token: event.target.value })} />
       {tokenIsShort(settings.token) && <small className="muted">Mã ngắn thì người biết URL có thể đoán ra. Nên đổi sang mã dài hơn ở cả script (rồi triển khai lại) và ở đây.</small>}
       {!settings.token.trim() && settings.url.trim() !== '' && !problem && <small className="muted">Nhập mã bí mật để kết nối.</small>}
     </label>

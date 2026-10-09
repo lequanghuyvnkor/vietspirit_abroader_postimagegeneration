@@ -77,7 +77,7 @@ export function findIssues(store: Store): Issue[] {
       }
     }
   }
-  return issues
+  return issues.filter((issue) => !all.find((entry) => entry.campaign.id === issue.campaignId)?.campaign.ignoredIssues?.includes(issue.id))
 }
 
 /**

@@ -44,7 +44,7 @@ export function ApiKeysDialog({ keys, onChange, onClose }: Props) {
             <button className="btn small ghost" onClick={() => setEditing(null)}>Hủy</button>
           </div>}
           {replacing?.id === entry.id && <div className="row">
-            <input type="password" autoComplete="off" autoFocus placeholder="Dán key mới" value={replacing.value} onChange={(event) => setReplacing({ id: entry.id, value: event.target.value })} />
+            <input type="text" className="secret" name="api-key-replace" data-lpignore="true" data-1p-ignore="true" autoComplete="off" autoFocus placeholder="Dán key mới" value={replacing.value} onChange={(event) => setReplacing({ id: entry.id, value: event.target.value })} />
             <button className="btn small primary" disabled={busy || !replacing.value} onClick={() => { void run(() => api.updateKey(entry.id, { apiKey: replacing.value }), () => setReplacing(null)) }}>Lưu</button>
             <button className="btn small ghost" onClick={() => setReplacing(null)}>Hủy</button>
           </div>}
@@ -71,7 +71,7 @@ export function ApiKeysDialog({ keys, onChange, onClose }: Props) {
         <Field label="Model tạo ảnh"><input value={model} onChange={(event) => setModel(event.target.value)} /></Field>
         <Field label="Model văn bản (soạn nháp)"><input value={textModel} onChange={(event) => setTextModel(event.target.value)} /></Field>
       </div>
-      <Field label="API key"><input type="password" autoComplete="new-password" value={apiKey} placeholder="Dán key tại đây" onChange={(event) => setApiKey(event.target.value)} /></Field>
+      <Field label="API key"><input type="text" className="secret" name="api-key-new" data-lpignore="true" data-1p-ignore="true" autoComplete="off" value={apiKey} placeholder="Dán key tại đây" onChange={(event) => setApiKey(event.target.value)} /></Field>
       {error && <p className="notice error" role="alert">{error}</p>}
       <div className="modal-actions"><button type="button" className="btn ghost" onClick={onClose}>Đóng</button><button className="btn primary" disabled={busy || !apiKey}>{busy ? 'Đang lưu…' : 'Thêm key'}</button></div>
     </form>

@@ -10,6 +10,8 @@
     "server": "node server.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --test \"tests/*.test.mts\"",
+    "validate": "node tests/validate.mts data/store.json",
     "preview": "vite preview"
   },
   "dependencies": {

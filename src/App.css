@@ -487,3 +487,7 @@ textarea { resize: vertical; }
 .integrity { border-color: var(--danger); }
 .integrity-item p { margin: 0 0 8px; }
 .integrity-item + .integrity-item { margin-top: 4px; }
+
+.secret { -webkit-text-security: disc; text-security: disc; }
+
+.conflict-bar { margin: 12px 24px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

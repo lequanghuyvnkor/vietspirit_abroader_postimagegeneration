@@ -46,3 +46,8 @@ Everything lives in `data/` (ignored by Git): `store.json` (workspaces, campaign
 
 - `npm run dev`: API server and Vite together.
 - `npm run build`, `npm run preview`, `npm run lint`.
+
+
+## Tests
+
+`npm test` runs 65 automatic tests (data separation, plan editing, Sheet merge, review and approval lock, schedule, results, templates, search, documents, and the local server: auth, store revision check, backups, assets). `npm run validate` checks `data/store.json` for orphaned slides, duplicate ids and impossible values.

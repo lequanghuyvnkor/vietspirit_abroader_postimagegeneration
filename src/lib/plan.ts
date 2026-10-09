@@ -172,7 +172,10 @@ export function draftSlides(piece: Piece, company: Company, backgrounds: Backgro
   const format: FormatKey = reel ? 'story' : formatKeyOf(piece.visual.format)
   const background = backgrounds.find((item) => item.format === format)?.id ?? null
   const beats = reel ? inferBeats(piece) : []
-  const labels = piece.kind === 'carousel' ? splitSlides(piece.plan.structure) : []
+  const fromStructure = piece.kind === 'carousel' ? splitSlides(piece.plan.structure) : []
+  // A carousel typed in by hand has no "S1: …" structure yet: use the slide count in its format line ("Carousel 6 slides").
+  const wanted = piece.kind === 'carousel' && fromStructure.length === 0 ? Number(piece.plan.format.match(/(\d{1,2})\s*(?:slides?|trang|ảnh)/i)?.[1] ?? 0) : 0
+  const labels = wanted > 1 ? Array.from({ length: Math.min(wanted, 12) }, (_, i) => ({ n: i + 1, label: i === 0 ? 'hook' : i === Math.min(wanted, 12) - 1 ? 'CTA' : `ý ${i + 1}` })) : fromStructure
   const entries = reel ? beats.map((beat, index) => ({ n: index + 1, label: beat.label, seconds: sceneSeconds(beat) })) : labels.length ? labels.map((entry) => ({ ...entry, seconds: undefined })) : [{ n: 1, label: 'hook', seconds: undefined }]
   return entries.map((entry, index): Post => {
     const first = index === 0

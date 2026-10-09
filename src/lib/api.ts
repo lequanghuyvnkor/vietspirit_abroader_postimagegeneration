@@ -17,6 +17,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Revision of the store this window last read or wrote; sent with every save so a stale window is refused. */
+let storeRev = ''
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -37,8 +40,16 @@ export const api = {
   login: (password: string) => post('/api/auth/login', { password }),
   logout: () => post('/api/auth/logout', {}),
   changePassword: (current: string, next: string) => post('/api/auth/password', { current, next }),
-  loadStore: () => request<Store>('/api/store'),
-  saveStore: (store: Store) => request('/api/store', { method: 'PUT', body: JSON.stringify(store) }),
+  loadStore: async () => {
+    const response = await fetch('/api/store').catch(() => { throw new ApiError('Không kết nối được máy chủ local. Hãy chạy lại npm run dev.', 0) })
+    if (!response.ok) throw new ApiError(((await response.json().catch(() => ({}))) as { message?: string }).message ?? `Lỗi ${response.status}`, response.status)
+    storeRev = response.headers.get('x-store-rev') ?? ''
+    return (await response.json()) as Store
+  },
+  saveStore: async (store: Store) => {
+    const result = await request<{ rev?: string }>('/api/store', { method: 'PUT', headers: storeRev ? { 'if-match': storeRev } : {}, body: JSON.stringify(store) })
+    if (result.rev) storeRev = result.rev
+  },
   uploadAsset: (name: string, dataUrl: string) => post<{ id: string }>('/api/assets', { name, dataUrl }).then((result) => result.id),
   deleteAsset: (id: string) => request(`/api/assets/${id}`, { method: 'DELETE' }),
   listBackups: () => request<{ backups: BackupMeta[] }>('/api/backups').then((result) => result.backups),
