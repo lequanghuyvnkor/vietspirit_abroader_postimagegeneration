@@ -8,6 +8,7 @@ const CELL = 220
 const SYSTEM = `Bạn là art director phân loại các mảnh đồ họa thương hiệu cắt ra từ một file moodboard. Bạn nhận MỘT ảnh gồm nhiều ô đánh số (số nằm ở góc trên bên trái mỗi ô, nền xám để thấy cả mảnh sáng lẫn tối). Mỗi ô là một mảnh đồ họa.
 
 Gán cho mỗi mảnh đúng một vai trò:
+- "texture": họa tiết lớn phủ cả khung làm nền: đường đồng mức, lưới, vân, hoa văn lặp (thường là ảnh lớn, nhiều nét mảnh).
 - "hero": biểu tượng chủ đạo của chiến dịch (hình lớn, đặc trưng, thường chỉ có một hoặc hai mảnh), dùng làm điểm nhấn chính của ảnh.
 - "line": đường dài mảnh: đường bay, quỹ đạo, vệt sáng, đường nối; dùng nối các slide.
 - "decor": họa tiết nhỏ lặp lại: sao nhỏ, chấm sáng, hạt, ngôi sao điểm; rải làm nền.
@@ -44,7 +45,7 @@ async function contactSheet(pieces: Component[]): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.85)
 }
 
-const ROLES: MotifRole[] = ['hero', 'line', 'decor', 'off']
+const ROLES: MotifRole[] = ['texture', 'hero', 'line', 'decor', 'off']
 
 /** Reads the AI reply: roles by piece number. A piece the AI did not mention keeps the shape-based guess. */
 export function parseRoles(raw: string, pieces: Component[]): Map<string, MotifRole> {

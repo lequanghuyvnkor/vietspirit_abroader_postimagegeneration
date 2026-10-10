@@ -179,7 +179,7 @@ export function ProductionTab({ workspace, campaign, keys, onManageKeys, batch }
       </div>}
     </Section>
     {confirm === 'copy' && <ConfirmDialog title="Soạn chữ bằng AI" message={`AI sẽ viết lại chữ trên slide của ${chosen.length} bài đã chọn (${chosen.map((piece) => piece.code).join(', ')}), ghi đè chữ hiện có trên các slide đó. Caption và hashtag đã có được giữ nguyên. Tiếp tục?`} confirm="Soạn" onConfirm={() => { void batch.draftAll(chosen) }} onClose={() => setConfirm(null)} />}
-    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo ảnh cho các bài đã chọn" message={`App đo chỗ đặt chữ của ${chosen.length} bài (${chosen.map((piece) => piece.code).join(', ')}), rồi nhờ AI vẽ ${chosen.length} nền và kiểm tra vùng chữ. Mỗi nền tính phí theo tài khoản của bạn; nền nào vùng chữ chưa đạt được vẽ lại một lần, tối đa ${chosen.length * 2} lượt. Tiếp tục?`} confirm="Tạo ảnh" onConfirm={() => { void batch.backgroundsAll(chosen) }} onClose={() => setConfirm(null)} />}
+    {confirm === 'backgrounds' && <ConfirmDialog title="Tạo ảnh cho các bài đã chọn" message={`App đo chỗ đặt chữ của ${chosen.length} bài (${chosen.map((piece) => piece.code).join(', ')}), rồi ${campaign.keyVisual.plateMode === 'gradient' ? 'dựng nền gradient màu thương hiệu (không tốn phí AI)' : `nhờ AI vẽ ${chosen.length} nền và kiểm tra vùng chữ. Mỗi nền tính phí theo tài khoản của bạn; nền nào vùng chữ chưa đạt được vẽ lại một lần, tối đa ${chosen.length * 2} lượt`}. Tiếp tục?`} confirm="Tạo ảnh" onConfirm={() => { void batch.backgroundsAll(chosen) }} onClose={() => setConfirm(null)} />}
   </>
 }
 

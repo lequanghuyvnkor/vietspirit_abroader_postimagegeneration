@@ -68,21 +68,23 @@ Họa tiết ─────┘        → Chọn bố cục → Đặt họa ti
 3. Khuyên: chốt chữ trước, vì app đo chỗ đặt chữ trên chữ thật.
 
 ### Chuẩn bị Moodboard (làm một lần)
-- **Bài mẫu cho AI**: các ảnh tham chiếu, tối đa 4 ảnh được gửi cho AI. **Mức bám bài mẫu** quyết định AI bám tới đâu: *Giống tổng thể* (mặc định, bám màu, ánh sáng, chiều sâu, kiểu cảnh, độ chi tiết) hoặc *Chỉ học màu, ánh sáng*. Cả hai mức đều không chép chữ, logo, thẻ, khung vào nền. Ảnh *Chỉ để xem* được giữ lại nhưng không gửi.
-- Bảng màu, màu nhấn, font, điều cần tránh, chữ sáng hay tối.
-- **Họa tiết thương hiệu** (thẻ riêng): gán vai trò cho từng hình đã cắt: *Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*. Có hai cách gán nhanh: *Gợi ý vai trò* (đoán theo hình dạng, miễn phí) và *AI phân loại* (AI nhìn tất cả họa tiết, tốn một lượt AI). Có vai trò thì app tự đặt các hình đó lên ảnh và dặn AI không vẽ lại sao hay đường bay.
+Tải **từng phần** của moodboard bằng một ảnh riêng; mỗi loại ảnh được xử lý khác nhau:
+- **Bài mẫu cho AI**: bài đăng mẫu hoàn chỉnh, tối đa 4 ảnh được gửi cho AI. **Mức bám bài mẫu**: *Giống tổng thể* (mặc định: bám màu, ánh sáng, chiều sâu, kiểu cảnh, độ chi tiết) hoặc *Chỉ học màu, ánh sáng*. Cả hai mức đều không chép chữ, logo, thẻ, khung vào nền. *Chỉ để xem*: giữ lại, không gửi.
+- **Trang màu**: app tự đọc bảng màu, màu nhấn, màu chữ từ ảnh (đếm theo diện tích); bạn duyệt rồi áp dụng.
+- **Trang họa tiết**: app tự xóa nền phẳng, chỉ giữ nét vẽ, thành một lớp trong suốt dùng lại trên mọi ảnh. Vai trò: *Họa tiết phủ nền* (cả khung, dưới chữ), *Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*. Vai trò cũng gán được nhanh bằng *Gợi ý vai trò* (miễn phí) hoặc *AI phân loại* (một lượt AI).
+- **Nền ảnh**: *AI vẽ* hoặc *Gradient màu thương hiệu*. Gradient miễn phí và luôn khớp với họa tiết đặt lên, rất hợp khi nhận diện của bạn dựa vào họa tiết (ví dụ đường đồng mức trên nền navy).
 
 ### Chuỗi xử lý khi bấm Tạo ảnh
 | # | Ai làm | Việc | Tốn AI |
 |---|---|---|---|
 | 1 | App | **Đo vùng chữ**: dựng thử layout thật của các slide để biết chữ chiếm từ đâu đến đâu (vùng còn trống gọi là "free band") | không |
 | 2 | App | **Soạn prompt**: mô tả không khí (đã lọc bỏ ý về thẻ, vé, giao diện, và ý về sao/đường bay nếu app tự đặt họa tiết), bảng màu, tông thương hiệu, bố cục theo vùng đã đo, điều cần tránh, quy tắc "tuyệt đối không có chữ" | không |
-| 3 | AI | **Vẽ nền** với tối đa 4 ảnh bài mẫu làm tham chiếu | **có** |
+| 3 | AI | **Vẽ nền** với tối đa 4 ảnh bài mẫu làm tham chiếu (bỏ qua bước này khi *Nền ảnh* là Gradient: app tự dựng nền từ bảng màu) | **có** (không có ở chế độ Gradient) |
 | 4 | App | **Kiểm vùng chữ** trên ảnh vừa vẽ: sáng/tối đúng tông chữ, độ tương phản thấp, không có vệt ngang trên trời | không |
 | 5 | AI | Nếu kiểm không đạt: **vẽ lại một lần** với nhận xét cụ thể ("quá sáng ở vùng chữ…"); app giữ bản tốt hơn, xóa bản kia | **có** (chỉ khi lỗi) |
 | 6 | App | Gắn nền vào các slide cùng khổ. Slide dùng ảnh chủ đạo toàn khung thì bỏ qua | không |
 | 7 | App | **Chọn bố cục** (vị trí, cỡ chữ) trên nền mới, chọn chỗ êm nhất | không |
-| 8 | App | **Đặt họa tiết** vào vùng trống **của từng slide** sau khi bố cục đã chốt (nếu đã gán vai trò; slide có chữ chiếm gần hết khung thì không có họa tiết, app báo số slide đã đặt được): họa tiết lớn đi dọc carousel, đường bay nối tiếp giữa các slide, họa tiết điểm rải theo hạt giống cố định nên cùng slide luôn ra cùng hình | không |
+| 8 | App | **Đặt họa tiết**: họa tiết phủ nền lên cả khung (dưới chữ, nối liền qua các slide của carousel); các họa tiết khác vào vùng trống **của từng slide** sau khi bố cục đã chốt (nếu đã gán vai trò; slide có chữ chiếm gần hết khung thì không có họa tiết, app báo số slide đã đặt được): họa tiết lớn đi dọc carousel, đường bay nối tiếp giữa các slide, họa tiết điểm rải theo hạt giống cố định nên cùng slide luôn ra cùng hình | không |
 | 9 | App | **Ghép lớp**: nền → lớp tối nhẹ → họa tiết → chữ, logo, CTA | không |
 
 Nếu sau lần thử lại ảnh vẫn chưa đạt, app hiện cảnh báo và đã tự chọn lại vị trí chữ. Chưa vừa ý thì bấm *Nền riêng* ở đúng slide đó.

@@ -207,8 +207,9 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
           <label><input type="radio" name="motif-mode" checked={kv.motifMode !== 'ai'} onChange={() => edit((draft) => { draft.keyVisual.motifMode = 'composite' })} /> App đặt họa tiết (chính xác, khuyên dùng)</label>
           <label><input type="radio" name="motif-mode" checked={kv.motifMode === 'ai'} onChange={() => edit((draft) => { draft.keyVisual.motifMode = 'ai' })} /> AI tự vẽ theo mô tả</label>
         </div>
+        {composite && campaign.components.some((item) => item.role === 'texture') && <label className="row">Độ đậm họa tiết phủ nền <input type="range" min={0.2} max={1} step={0.05} value={kv.textureOpacity ?? 0.6} onChange={(event) => edit((draft) => { draft.keyVisual.textureOpacity = Number(event.target.value) })} /></label>}
         {kv.motifMode !== 'ai' && <label className="row">Độ dày họa tiết điểm <input type="range" min={0} max={1} step={0.1} value={kv.motifDensity ?? 0.5} onChange={(event) => edit((draft) => { draft.keyVisual.motifDensity = Number(event.target.value) })} /></label>}
-        <p className="muted">{composite ? 'Khi tạo ảnh, họa tiết được đặt vào vùng trống của từng slide. Có thể kéo, đổi cỡ, xóa trong "Chỉnh" của slide, hoặc bấm "Đặt lại họa tiết" ở bài.' : 'Chưa gán vai trò nào (hoặc đang chọn AI vẽ): ảnh chỉ dựa vào mô tả chữ.'}</p>
+        <p className="muted">{composite ? 'Khi tạo ảnh, họa tiết phủ nền nằm dưới chữ trên cả khung, các họa tiết còn lại được đặt vào vùng trống của từng slide. Có thể kéo, đổi cỡ, xóa trong "Chỉnh" của slide, hoặc bấm "Đặt lại họa tiết" ở bài.' : 'Chưa gán vai trò nào (hoặc đang chọn AI vẽ): ảnh chỉ dựa vào mô tả chữ.'}</p>
       </>}
   </details>
 
@@ -228,7 +229,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {tab === 'moodboard' && <p className="muted tab-note"><b>Moodboard</b> là phần HÌNH của chiến dịch: màu, font, ảnh tham chiếu, thành phần đồ họa, nền. Nội dung chữ (mục tiêu, thông điệp, trụ cột) nằm ở tab ① Nền tảng và ③ Kế hoạch; "Mô tả không khí" ở đây là để AI vẽ nền, không phải ý tưởng truyền thông.</p>}
     {tab === 'moodboard' && <div className="two-col">
       <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF moodboard. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button>}>
-        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
+        <Moodboard keyVisual={kv} components={campaign.components} onAddComponent={(component) => edit((draft) => { draft.components.push(component) })} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
       <div className="stack">{identity}{backgrounds}{components}</div>
     </div>}

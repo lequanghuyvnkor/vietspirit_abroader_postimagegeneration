@@ -8,6 +8,8 @@ export type CutParams = {
   threshold: number
   /** Width of the soft transition above the threshold. */
   softness: number
+  /** "edges": the background is interpolated from the four borders (a photo against a backdrop). "cells": the typical colour of each part of the picture (line art, patterns, graphics whose border holds content). */
+  model?: 'edges' | 'cells'
 }
 
 /** Smoothed average color along one edge, so a noisy border does not skew the background model. */
@@ -47,12 +49,58 @@ export function estimateBackground({ data, width, height }: Pixels): Float32Arra
 }
 
 /**
+ * Estimates the background as the median colour of each cell of a coarse grid, smoothed between cell centres. Thin lines,
+ * dots and small labels are a minority in every cell, so they do not pull the estimate; a flat or gently shaded background
+ * comes out right even when content touches the border.
+ */
+export function estimateBackgroundCells({ data, width, height }: Pixels, grid = 24): Float32Array {
+  const columns = Math.max(2, Math.min(grid, width))
+  const rows = Math.max(2, Math.min(grid, height))
+  const centres = new Float32Array(columns * rows * 3)
+  const cellW = width / columns
+  const cellH = height / rows
+  const reds: number[] = [], greens: number[] = [], blues: number[] = []
+  const median = (values: number[]) => { values.sort((a, b) => a - b); return values[values.length >> 1] }
+  for (let cy = 0; cy < rows; cy++) {
+    for (let cx = 0; cx < columns; cx++) {
+      reds.length = greens.length = blues.length = 0
+      const x0 = Math.floor(cx * cellW), x1 = Math.max(x0 + 1, Math.floor((cx + 1) * cellW))
+      const y0 = Math.floor(cy * cellH), y1 = Math.max(y0 + 1, Math.floor((cy + 1) * cellH))
+      const stepX = Math.max(1, Math.floor((x1 - x0) / 14)), stepY = Math.max(1, Math.floor((y1 - y0) / 14))
+      for (let y = y0; y < y1; y += stepY) {
+        for (let x = x0; x < x1; x += stepX) {
+          const i = (y * width + x) * 4
+          reds.push(data[i]); greens.push(data[i + 1]); blues.push(data[i + 2])
+        }
+      }
+      centres.set([median(reds), median(greens), median(blues)], (cy * columns + cx) * 3)
+    }
+  }
+  const bg = new Float32Array(width * height * 3)
+  for (let y = 0; y < height; y++) {
+    const fy = Math.min(rows - 1, Math.max(0, (y + 0.5) / cellH - 0.5))
+    const r0 = Math.floor(fy), r1 = Math.min(rows - 1, r0 + 1), ty = fy - r0
+    for (let x = 0; x < width; x++) {
+      const fx = Math.min(columns - 1, Math.max(0, (x + 0.5) / cellW - 0.5))
+      const c0 = Math.floor(fx), c1 = Math.min(columns - 1, c0 + 1), tx = fx - c0
+      const o = (y * width + x) * 3
+      for (let c = 0; c < 3; c++) {
+        const top = centres[(r0 * columns + c0) * 3 + c] * (1 - tx) + centres[(r0 * columns + c1) * 3 + c] * tx
+        const bottom = centres[(r1 * columns + c0) * 3 + c] * (1 - tx) + centres[(r1 * columns + c1) * 3 + c] * tx
+        bg[o + c] = top * (1 - ty) + bottom * ty
+      }
+    }
+  }
+  return bg
+}
+
+/**
  * Turns the difference from the background into alpha. Colors are un-premultiplied against the background
  * so soft glows keep their own color instead of a dark halo.
  */
-export function removeBackground(pixels: Pixels, { threshold, softness }: CutParams): Pixels {
+export function removeBackground(pixels: Pixels, { threshold, softness, model = 'edges' }: CutParams): Pixels {
   const { data, width, height } = pixels
-  const bg = estimateBackground(pixels)
+  const bg = model === 'cells' ? estimateBackgroundCells(pixels) : estimateBackground(pixels)
   const out = new Uint8ClampedArray(data.length)
   const span = Math.max(1, softness)
   for (let p = 0; p < width * height; p++) {

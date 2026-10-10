@@ -35,7 +35,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
   const updating = Boolean(base)
   const [applyLook, setApplyLook] = useState(true)
   const [replaceRefs, setReplaceRefs] = useState(!updating)
-  const [addComponents, setAddComponents] = useState(true)
+  const [addComponents, setAddComponents] = useState(false)
   const [setLogos, setSetLogos] = useState(!updating)
 
   async function open(event: ChangeEvent<HTMLInputElement>) {
@@ -116,7 +116,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
   return <Modal title="Nhập moodboard từ PDF" onClose={onClose} wide>
     <input ref={input} type="file" accept="application/pdf" hidden onChange={open} />
     {!analysis && <div className="import-start">
-      <p>Chọn file PDF moodboard (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và giữ nguyên các trang bài mẫu làm ảnh tham chiếu cho AI khi tạo nền.</p>
+      <p>Chọn file PDF moodboard (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và giữ nguyên các trang bài mẫu làm ảnh tham chiếu cho AI khi tạo nền. Việc tự cắt họa tiết là thử nghiệm và tắt sẵn: nên tải từng ảnh họa tiết riêng ở tab Moodboard ("+ Trang họa tiết") sẽ sạch hơn.</p>
       <button className="btn primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Đang đọc PDF…' : 'Chọn file PDF'}</button>
     </div>}
     {error && <p className="notice error" role="alert">{error}</p>}
@@ -127,7 +127,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
       {updating && <div className="field">
         <span className="field-label">Áp dụng những phần nào vào chiến dịch này</span>
         <label className="check"><input type="checkbox" checked={applyLook} onChange={(event) => setApplyLook(event.target.checked)} /> Màu, font, mô tả không khí, điều cần tránh (thay giá trị hiện có ở tab Moodboard)</label>
-        <label className="check"><input type="checkbox" checked={addComponents} onChange={(event) => setAddComponents(event.target.checked)} /> Thêm thành phần đồ họa đã tích (bỏ qua mảnh trùng tên với thành phần đang có)</label>
+        <label className="check"><input type="checkbox" checked={addComponents} onChange={(event) => setAddComponents(event.target.checked)} /> Cắt họa tiết tự động và thêm các mảnh đã tích (thử nghiệm; bỏ qua mảnh trùng tên với thành phần đang có)</label>
         <label className="check"><input type="checkbox" checked={replaceRefs} onChange={(event) => setReplaceRefs(event.target.checked)} /> Thay các ảnh moodboard đang có bằng trang PDF đã chọn bên dưới</label>
         <label className="check"><input type="checkbox" checked={setLogos} onChange={(event) => setSetLogos(event.target.checked)} /> Đổi logo của cả Workspace (ảnh hưởng mọi chiến dịch, chỉ khi bạn đã chọn logo bên dưới)</label>
       </div>}
@@ -148,10 +148,11 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
       </div>
       <Field label="Không được có trong nền"><textarea rows={2} value={kv.avoid} onChange={(event) => set('avoid', event.target.value)} /></Field>
 
-      {found.length > 0 && <div className="field">
+      {!updating && found.length > 0 && <label className="check"><input type="checkbox" checked={addComponents} onChange={(event) => setAddComponents(event.target.checked)} /> Cắt họa tiết tự động từ các trang (thử nghiệm, thường ra nhiều mảnh thừa)</label>}
+      {found.some((item) => addComponents || item.logo) && <div className="field">
         <span className="field-label">Thành phần đồ họa tìm thấy ({found.filter((item) => item.checked).length}/{found.length} được giữ)</span>
         <div className="candidates">
-          {found.map((item) => <div className={item.checked ? 'candidate on' : 'candidate'} key={item.id}>
+          {found.filter((item) => addComponents || item.logo).map((item) => <div className={item.checked ? 'candidate on' : 'candidate'} key={item.id}>
             <label className="check"><input type="checkbox" checked={item.checked} onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, checked: event.target.checked } : entry))} /> {item.width}×{item.height}</label>
             <div className="checker candidate-preview"><img src={item.preview} alt={item.name} /></div>
             <input value={item.name} aria-label="Tên thành phần" onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, name: event.target.value } : entry))} />

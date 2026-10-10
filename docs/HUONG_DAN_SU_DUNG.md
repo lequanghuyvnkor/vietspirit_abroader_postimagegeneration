@@ -39,7 +39,7 @@ Mỗi công ty là một **Workspace**. Điền: tên thương hiệu, lĩnh v�
 | Cách | Khi dùng |
 |---|---|
 | **+ Chiến dịch trống** | Bắt đầu từ số không |
-| **Nhập moodboard từ PDF** | Đã có file PDF key visual: app lấy màu, font, mô tả không khí, giữ các trang bài mẫu làm ảnh tham chiếu và cắt các họa tiết (mảnh quá nhỏ hoặc gần như trống được tự bỏ tích, đặt tên theo hình dạng: Đường, Họa tiết, Hình) |
+| **Nhập moodboard từ PDF** | Đã có file PDF key visual: app lấy màu, font, mô tả không khí và giữ các trang bài mẫu làm ảnh tham chiếu. Tự cắt họa tiết là tùy chọn thử nghiệm; nên tải từng ảnh họa tiết riêng ở tab Moodboard |
 | **Tạo từ mẫu** | Đã lưu mẫu từ chiến dịch cũ: có sẵn nền tảng, trụ cột và danh sách bài đã xếp lịch |
 
 **Màu giao diện:** khi tạo chiến dịch bạn chọn một màu (10 màu có sẵn hoặc màu bất kỳ). Màu đó là màu nhấn của nút, tab, liên kết, và **nền trang ngả theo sắc ấy**. Đổi bất cứ lúc nào bằng nút **Màu giao diện** ở đầu trang chiến dịch (kèm thanh độ đậm của nền). Mỗi chiến dịch một màu nên nhìn là biết đang ở chiến dịch nào.
@@ -55,10 +55,22 @@ Mục tiêu, thời gian, KPI, đối tượng, ý tưởng lớn, thông điệ
 - Có phần **kiểm tra dữ kiện** (ngày ngoài kỳ chiến dịch, giá trị lệch, AI soát mâu thuẫn).
 
 ### ② Moodboard: phần HÌNH
-Ảnh bài mẫu (tối đa 4 ảnh "Bài mẫu cho AI" được gửi cho AI; "Chỉ để xem" thì giữ lại, không gửi). **Mức bám bài mẫu**: *Giống tổng thể* (mặc định: AI bám màu, ánh sáng, chiều sâu, kiểu cảnh và độ chi tiết để ảnh mới nằm cùng series) hoặc *Chỉ học màu, ánh sáng*. Dù chọn mức nào, chữ, logo, thẻ trong bài mẫu cũng không được chép vào nền, bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
+Cách làm khuyên dùng: **tải từng phần của moodboard bằng một ảnh riêng**, mỗi loại ảnh có cách xử lý riêng:
 
-**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng, nút *AI phân loại* cho AI nhìn tất cả họa tiết và gán vai trò, bạn sửa lại được từng cái). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
+| Nút | Ảnh tải lên | App làm gì |
+|---|---|---|
+| **+ Bài mẫu cho AI** | Bài đăng mẫu hoàn chỉnh | Gửi cho AI làm tham chiếu khi vẽ nền (tối đa 4 ảnh) |
+| **+ Chỉ để xem** | Trang tham khảo | Giữ trong moodboard, không gửi AI |
+| **+ Trang màu (tự đọc màu)** | Trang bảng màu | Tự đọc bảng màu, màu nhấn, màu chữ; bạn xem rồi bấm *Áp dụng màu* |
+| **+ Trang họa tiết (tự tách nền)** | Ảnh họa tiết: đường đồng mức, điểm đánh dấu, đường bay… | Tự xóa nền phẳng, chỉ giữ nét vẽ; bạn chọn dùng làm *Họa tiết phủ nền*, *Họa tiết lớn*, *Đường bay* hoặc *Họa tiết điểm* và chỉnh *Độ tách nền* nếu nét mờ bị mất |
 
+Mỗi ảnh nên chỉ chứa **một phần** (cắt sẵn từ file moodboard): nền ảnh càng đơn giản, tách càng sạch. Họa tiết nhỏ nên bật *Cắt sát hình*; họa tiết phủ cả slide thì bỏ tích.
+
+Các thiết lập khác: bảng màu, màu nhấn, font, điều cần tránh; **Mức bám bài mẫu** (*Giống tổng thể*: AI bám màu, ánh sáng, chiều sâu, kiểu cảnh, độ chi tiết; hoặc *Chỉ học màu, ánh sáng*; chữ, logo, thẻ trong bài mẫu không bao giờ được chép vào nền); **Nền ảnh**: *AI vẽ* (tốn phí) hoặc *Gradient màu thương hiệu* (miễn phí, luôn khớp với họa tiết đặt lên). **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard**, xem đề xuất rồi mới áp dụng.
+
+Nút **Nhập moodboard từ PDF** vẫn còn, dùng để lấy nhanh màu, font, mô tả và các trang bài mẫu từ cả file; phần tự cắt họa tiết trong PDF là thử nghiệm nên tắt sẵn.
+
+**Họa tiết thương hiệu** (thẻ riêng): mỗi họa tiết có một vai trò (*Họa tiết phủ nền*, *Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*); nút *Gợi ý vai trò* đoán theo hình dạng, nút *AI phân loại* cho AI nhìn tất cả họa tiết và gán vai trò. Khi có vai trò, app tự đặt họa tiết lên slide: họa tiết phủ nền nằm dưới chữ trên cả khung (trên carousel nó nối liền từ slide này sang slide kia, có thanh *Độ đậm*), các họa tiết còn lại nằm trong vùng trống của từng slide, và AI được dặn không tự vẽ họa tiết nữa. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
 
 ### ③ Kế hoạch (bảng tính, 4 sheet ở thanh dưới)
 | Sheet | Nội dung |

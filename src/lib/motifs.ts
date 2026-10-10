@@ -1,7 +1,7 @@
 import { formatOf, newId } from './types.ts'
 import type { Campaign, Component, Layer, MotifRole, Post } from './types.ts'
 
-export const ROLE_LABELS: Record<MotifRole, string> = { hero: 'Họa tiết lớn', line: 'Đường bay / vệt dài', decor: 'Họa tiết điểm', off: 'Không dùng' }
+export const ROLE_LABELS: Record<MotifRole, string> = { texture: 'Họa tiết phủ nền', hero: 'Họa tiết lớn', line: 'Đường bay / vệt dài', decor: 'Họa tiết điểm', off: 'Không dùng' }
 
 /** A rough first guess from the shape alone (logos and long thin pieces are easy; the main symbol needs a human or the AI). */
 export function guessRole(component: Component): MotifRole {
@@ -12,16 +12,16 @@ export function guessRole(component: Component): MotifRole {
   return 'off'
 }
 
-export type MotifPool = { hero: Component[]; line: Component[]; decor: Component[] }
+export type MotifPool = { texture: Component[]; hero: Component[]; line: Component[]; decor: Component[] }
 
 /** The graphics the user (or the AI) has given a role. A graphic with no role is never used on its own. */
 export function motifPool(campaign: Campaign): MotifPool {
-  const pool: MotifPool = { hero: [], line: [], decor: [] }
+  const pool: MotifPool = { texture: [], hero: [], line: [], decor: [] }
   for (const component of campaign.components) if (component.role && component.role !== 'off') pool[component.role].push(component)
   return pool
 }
 
-export const motifCount = (pool: MotifPool) => pool.hero.length + pool.line.length + pool.decor.length
+export const motifCount = (pool: MotifPool) => pool.texture.length + pool.hero.length + pool.line.length + pool.decor.length
 
 /**
  * "composite": the app puts the brand graphics on the slide itself (exact shapes), and the AI is told to leave that room as plain atmosphere.
@@ -53,27 +53,41 @@ const layer = (component: Component, x: number, y: number, w: number, opacity: n
  * The main symbol travels across a carousel, the long line continues from slide to slide, and small ornaments are scattered
  * with a fixed seed so the same slide always gets the same picture.
  */
+/**
+ * A pattern that covers the whole slide. On a carousel it is wider than the frame and moves a little from slide to slide,
+ * so the pattern runs on across the swipe the way a continuous artwork would.
+ */
+function textureLayer(component: Component, width: number, height: number, count: number, progress: number, opacity: number): Layer {
+  const aspect = component.width / Math.max(1, component.height)
+  const cover = Math.max(1, (height / width) * aspect)
+  if (count <= 1) return layer(component, 0.5, 0.5, cover, opacity, 0)
+  // Just wide enough to cover the frame with room to move; no larger, so the pattern is not blown up more than it has to be.
+  return layer(component, 0.5 + 0.24 * (1 - 2 * progress), 0.5, Math.max(cover, 1.5), opacity, 0)
+}
+
 export function planMotifs(campaign: Campaign, slides: Post[], bands: Bands, density = 0.5): Map<string, Layer[]> {
   const pool = motifPool(campaign)
   const out = new Map<string, Layer[]>()
   const count = slides.length
   slides.forEach((post, index) => {
     const { width, height } = formatOf(post.format)
-    const band = bands instanceof Map ? bands.get(post.id) : bands
     const layers: Layer[] = []
     out.set(post.id, layers)
+    if (post.hero?.layout === 'full') return
+    const progress = count > 1 ? index / (count - 1) : 0.5
+    // The pattern needs no free band: it sits under everything, like the pattern on the finished sample posts.
+    if (pool.texture.length > 0) layers.push(textureLayer(pool.texture[0], width, height, count, progress, campaign.keyVisual.textureOpacity ?? 0.6))
+    const band = bands instanceof Map ? bands.get(post.id) : bands
     if (!band) return
     const top = band.freeFrom * height
     const room = (band.freeTo - band.freeFrom) * height
-    if (room < height * 0.07 || post.hero?.layout === 'full') return
+    if (room < height * 0.07) return
     const random = seeded(post.id)
-    const progress = count > 1 ? index / (count - 1) : 0.5
     let heroBox: { x0: number; x1: number; y0: number; y1: number } | null = null
 
     if (pool.line.length > 0) {
       const line = pool.line[index % pool.line.length]
-      const w = 1.3
-      layers.push(layer(line, 0.5 + ((count - 1) / 2 - index) * 0.16, (top + room * 0.88) / height, w, 0.8, -2))
+      layers.push(layer(line, 0.5 + ((count - 1) / 2 - index) * 0.16, (top + room * 0.88) / height, 1.3, 0.8, -2))
     }
     if (pool.hero.length > 0) {
       const hero = pool.hero[0]
@@ -92,8 +106,7 @@ export function planMotifs(campaign: Campaign, slides: Post[], bands: Bands, den
         const x = 0.06 + random() * 0.88
         const y = (top + room * (0.05 + random() * 0.9)) / height
         if (heroBox && x > heroBox.x0 && x < heroBox.x1 && y > heroBox.y0 && y < heroBox.y1) continue
-        const w = 0.03 + random() * 0.04
-        layers.push(layer(pool.decor[(index + placed) % pool.decor.length], x, y, w, 0.45 + random() * 0.45, Math.round(random() * 40 - 20)))
+        layers.push(layer(pool.decor[(index + placed) % pool.decor.length], x, y, 0.03 + random() * 0.04, 0.45 + random() * 0.45, Math.round(random() * 40 - 20)))
         placed++
       }
     }

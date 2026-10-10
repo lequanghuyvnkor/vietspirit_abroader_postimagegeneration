@@ -162,6 +162,16 @@ export type RenderPart = 'plate' | 'text' | 'cta'
 export type LayoutInfo = { width: number; height: number; logoBottom: number; textTop: number; textBottom: number; ctaTop: number | null; footerTop: number | null; heroTop: number | null }
 
 /** Draws a post at its native size. Single source of truth for preview and export. */
+/** The brand gradient from the first three palette colours: what a slide shows when it has no picture of its own. */
+export function paintPalette(ctx: CanvasRenderingContext2D, width: number, height: number, palette: string[]): void {
+  const colors = palette.map((hex) => safeColor(hex, '#888888'))
+  const gradient = ctx.createLinearGradient(0, 0, width * 0.4, height)
+  colors.slice(0, 3).forEach((color, index, list) => gradient.addColorStop(list.length === 1 ? 0 : index / (list.length - 1), color))
+  if (colors.length === 1) gradient.addColorStop(1, colors[0])
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, width, height)
+}
+
 export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign: Campaign, workspace: Workspace, options: { selectedLayerId?: string | null; parts?: RenderPart[]; layoutOut?: Partial<LayoutInfo> } = {}): Promise<void> {
   const format = formatOf(post.format)
   const { width, height } = format
@@ -195,13 +205,8 @@ export async function renderPost(canvas: HTMLCanvasElement, post: Post, campaign
   ])
 
   // Background: generated plate, or palette gradient as fallback.
-  const colors = kv.palette.map((hex) => safeColor(hex, '#888888'))
-  const gradient = ctx.createLinearGradient(0, 0, width * 0.4, height)
-  colors.slice(0, 3).forEach((color, index, list) => gradient.addColorStop(list.length === 1 ? 0 : index / (list.length - 1), color))
-  if (colors.length === 1) gradient.addColorStop(1, colors[0])
   if (parts.has('plate')) {
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, width, height)
+    paintPalette(ctx, width, height, kv.palette)
     if (post.hero?.layout === 'full' && heroImage) {
       drawFocused(ctx, heroImage, { x: 0, y: 0, w: width, h: height }, post.hero.focusY ?? 0.3)
       // The photo is bright and busy: the lower part is darkened smoothly so the text can sit on it.

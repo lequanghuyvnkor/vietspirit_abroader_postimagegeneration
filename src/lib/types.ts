@@ -28,6 +28,10 @@ export type KeyVisual = {
   avoid: string
   /** How closely the picture should follow the reference images: "close" (default) matches their overall look; "style" takes only color, light and mood. */
   refFidelity?: 'close' | 'style'
+  /** "ai" (default): the AI paints the background plate. "gradient": the plate is the palette gradient (free, always matches the brand graphics laid over it). */
+  plateMode?: 'ai' | 'gradient'
+  /** How strong the full-slide pattern is (0.2 to 1, default 0.6). */
+  textureOpacity?: number
   /** Moodboard reference images: sent to the image model. */
   referenceIds: string[]
   /** Finished sample posts on the moodboard: shown for reference, never sent to the image model. */
@@ -193,7 +197,7 @@ export type Piece = {
 export type Source = { id: string; assetId: string; label: string }
 
 /** What a cut-out graphic is for when the app places it by itself: the main symbol, a long route line, a small ornament, or nothing. */
-export type MotifRole = 'hero' | 'line' | 'decor' | 'off'
+export type MotifRole = 'texture' | 'hero' | 'line' | 'decor' | 'off'
 
 /** A cut-out graphic element (transparent PNG) reusable across the campaign's posts. */
 export type Component = { id: string; name: string; assetId: string; width: number; height: number; role?: MotifRole }

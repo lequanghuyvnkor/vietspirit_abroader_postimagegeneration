@@ -1,7 +1,7 @@
 import { api } from './api.ts'
 import { applyMotifs, compositeMode, type FreeBand } from './motifs.ts'
 import { buildBackgroundPrompt, generationRefs, type Zones } from './prompt.ts'
-import { drawCover, loadImage, renderPost, type LayoutInfo } from './render.ts'
+import { drawCover, loadImage, paintPalette, renderPost, type LayoutInfo } from './render.ts'
 import { applyLayouts, planLayouts, type LayoutPatch } from './autoLayout.ts'
 import { slidesOf } from './pack.ts'
 import { formatKeyOf } from './plan.ts'
@@ -74,6 +74,16 @@ export async function plateQuality(assetId: string, zones: Zones, format: Format
   return { ok, mean, spread, seam }
 }
 
+/** Paints the palette gradient at the slide size and keeps it as an image (free, no AI). */
+async function gradientPlate(campaign: Campaign, format: FormatKey): Promise<string> {
+  const { width, height } = formatOf(format)
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  paintPalette(canvas.getContext('2d')!, width, height, campaign.keyVisual.palette)
+  return api.uploadAsset('gradient.png', canvas.toDataURL('image/png'))
+}
+
 export type PlateResult = { assetId: string; format: FormatKey; label: string; warning?: string; zones: Zones }
 
 /**
@@ -87,10 +97,14 @@ export async function generatePlate(workspace: Workspace, campaign: Campaign, pi
   const slides = picked.filter((post) => post.hero?.layout !== 'full')
   if (picked.length > 0 && slides.length === 0) throw new Error('Các slide này dùng ảnh chủ đạo toàn khung nên không cần nền AI.')
   if (slides.length === 0) throw new Error('Bài này chưa có slide. Tạo slide (bước 1 hoặc "Tạo lại từ kế hoạch") rồi mới tạo ảnh.')
-  if (!campaign.keyVisual.concept.trim()) throw new Error('Chưa có "Mô tả không khí". Điền ở tab Moodboard (hoặc bấm "AI đọc moodboard").')
+  const gradient = campaign.keyVisual.plateMode === 'gradient'
+  if (!gradient && !campaign.keyVisual.concept.trim()) throw new Error('Chưa có "Mô tả không khí". Điền ở tab Moodboard (hoặc bấm "AI đọc moodboard").')
   const format = slides[0].format ?? formatKeyOf(piece.visual.format)
   const [width, height] = formatOf(format).generate
   const zones = await measureZones(workspace, campaign, slides)
+  const label = onlyPostId ? `${piece.code} · ${slides[0].name}` : `${piece.code} · ${piece.title.slice(0, 28)}`
+  // Gradient mode: no AI at all. The plate is the palette gradient, which always matches the graphics laid over it.
+  if (gradient) return { assetId: await gradientPlate(campaign, format), format, label, zones }
   const lightText = campaign.keyVisual.textTone === 'light'
   // The palette belongs to the campaign's Moodboard: a per-piece palette note from the plan must not compete with it.
   const variation = [piece.visual.hero, piece.visual.avoid && `Tránh: ${piece.visual.avoid}`].filter(Boolean).join('. ')
@@ -116,7 +130,6 @@ export async function generatePlate(workspace: Workspace, campaign: Campaign, pi
     } else void api.deleteAsset(retry)
     if (check && !check.ok) warning = 'Nền vẫn hơi sáng, nhiều chi tiết hoặc có vệt ngang ở phần trời. App đã tự chọn lại vị trí chữ; nếu chưa vừa ý, bấm "Nền riêng" ở slide đó.'
   }
-  const label = onlyPostId ? `${piece.code} · ${slides[0].name}` : `${piece.code} · ${piece.title.slice(0, 28)}`
   return { assetId, format, label, warning, zones }
 }
 
