@@ -347,6 +347,16 @@ async function generateText(req, res) {
 
 // ---------- Backups ----------
 async function manageBackups(req, res, method, rest) {
+  if (rest === 'mirror') {
+    if (method === 'GET') return send(res, 200, { mirror: backups.mirrorState() })
+    if (method === 'PUT') {
+      const { dir } = await readJson(req, 4096)
+      const result = backups.setMirrorDir(dir)
+      if (result.error) throw fail(400, result.error)
+      return send(res, 200, { mirror: result.dir ? backups.runMirror() : result })
+    }
+    if (method === 'POST') return send(res, 200, { mirror: backups.runMirror() })
+  }
   if (!rest && method === 'GET') return send(res, 200, { backups: backups.list() })
   if (!rest && method === 'POST') {
     const { label } = await readJson(req, 4096)
@@ -454,7 +464,7 @@ const server = createServer((req, res) => {
   })
 })
 
-try { backups.ensureDaily() } catch (error) { console.error('Backup failed', error) }
-setInterval(() => { try { backups.ensureDaily() } catch (error) { console.error('Backup failed', error) } }, 30 * 60 * 1000).unref()
+try { backups.ensureDaily(); backups.mirrorIfDue() } catch (error) { console.error('Backup failed', error) }
+setInterval(() => { try { backups.ensureDaily(); backups.mirrorIfDue() } catch (error) { console.error('Backup failed', error) } }, 30 * 60 * 1000).unref()
 
 server.listen(PORT, '127.0.0.1', () => console.log(`Creative API listening on http://127.0.0.1:${PORT} · data: ${DATA_DIR}`))

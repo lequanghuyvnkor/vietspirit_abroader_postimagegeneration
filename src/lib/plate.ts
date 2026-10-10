@@ -127,6 +127,15 @@ export function attachPlate(campaign: Campaign, pieceId: string, result: Pick<Pl
   campaign.posts
     .filter((post) => post.pieceId === pieceId && !post.excluded && post.format === result.format && (!onlyPostId || post.id === onlyPostId))
     .forEach((post) => { post.backgroundId = id })
+  advanceToVisual(campaign, pieceId)
+}
+
+/** A piece whose slides all have their picture is at the "Visual" step; a piece already marked ready is left alone. */
+export function advanceToVisual(campaign: Campaign, pieceId: string): void {
+  const piece = campaign.pieces.find((item) => item.id === pieceId)
+  if (!piece || piece.status === 'visual' || piece.status === 'ready') return
+  const slides = campaign.posts.filter((post) => post.pieceId === pieceId && !post.variantOf && !post.excluded)
+  if (slides.length > 0 && slides.every((post) => post.backgroundId || post.hero?.layout === 'full')) piece.status = 'visual'
 }
 
 /**

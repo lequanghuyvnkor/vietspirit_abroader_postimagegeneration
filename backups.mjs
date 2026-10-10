@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, readdirSync, rmSync, linkSync, copyFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 
 // Backups live in data/backups/<id>/ {store.json, meta.json, assets/}. Assets never change once saved (uuid names), so a
 // backup hard-links them: it costs almost no disk and survives the app deleting the original. Deleted assets also go
@@ -9,6 +9,7 @@ const ID_PATTERN = /^\d{8}-\d{6}-(auto|manual|history|pre)(-\d+)?$/
 const ASSET_REF = /[\w-]{8,64}\.(?:png|jpg|webp|woff2|woff|ttf|otf)/g
 const TRASH_DAYS = 30
 const HISTORY_GAP_MS = 5 * 60 * 1000
+const MIRROR_KEEP = 14
 
 export function createBackups({ dataDir, assetDir, storeFile }) {
   const root = join(dataDir, 'backups')
@@ -138,5 +139,68 @@ export function createBackups({ dataDir, assetDir, storeFile }) {
     if (ID_PATTERN.test(id)) rmSync(join(root, id), { recursive: true, force: true })
   }
 
-  return { list, snapshot, readStore, ensureDaily, beforeSave, discardAsset, restore, remove }
+  // ---- Second folder ----
+  // A backup on the same disk does not survive the disk. The user can name another folder (an external drive, a synced
+  // Drive folder); the store and every image it uses are copied there once a day and on demand. Images are copied only once.
+  const mirrorFile = join(dataDir, 'backup-mirror.json')
+  const mirrorState = () => readJson(mirrorFile) ?? { dir: '', lastAt: '', lastError: '' }
+  const saveMirror = (state) => writeFileSync(mirrorFile, JSON.stringify(state))
+
+  function setMirrorDir(dir) {
+    const value = String(dir ?? '').trim()
+    if (!value) { saveMirror({ dir: '', lastAt: '', lastError: '' }); return mirrorState() }
+    if (!isAbsolute(value)) return { error: 'Cần đường dẫn đầy đủ, ví dụ D:\\SaoLuuStudio hoặc C:\\Users\\Ban\\Drive\\SaoLuu.' }
+    const insideData = join(value, 'x').startsWith(join(dataDir, 'x').slice(0, -1))
+    if (insideData) return { error: 'Thư mục này nằm trong thư mục dữ liệu của app, không bảo vệ được khi hỏng ổ cứng. Chọn một ổ hoặc nơi khác.' }
+    try {
+      mkdirSync(join(value, 'assets'), { recursive: true })
+      const probe = join(value, '.probe')
+      writeFileSync(probe, 'ok')
+      rmSync(probe, { force: true })
+    } catch { return { error: 'App không ghi được vào thư mục này. Kiểm tra đường dẫn và quyền ghi.' } }
+    saveMirror({ dir: value, lastAt: '', lastError: '' })
+    return mirrorState()
+  }
+
+  /** Copies the current store and the images it uses into the second folder. Never throws: the outcome is kept in the state file. */
+  function runMirror() {
+    const state = mirrorState()
+    if (!state.dir) return state
+    try {
+      const raw = readStore()
+      if (!raw) return state
+      mkdirSync(join(state.dir, 'assets'), { recursive: true })
+      let copied = 0
+      for (const name of new Set(raw.match(ASSET_REF) ?? [])) {
+        const target = join(state.dir, 'assets', name)
+        if (existsSync(target)) continue
+        const source = [join(assetDir, name), join(trash, name)].find((file) => existsSync(file))
+        if (source) { copyFileSync(source, target); copied += 1 }
+      }
+      const day = stamp(new Date()).slice(0, 8)
+      const temp = join(state.dir, '.store.tmp')
+      writeFileSync(temp, raw)
+      renameSync(temp, join(state.dir, 'store.json'))
+      writeFileSync(join(state.dir, `store-${day}.json`), raw)
+      const dated = readdirSync(state.dir).filter((name) => /^store-\d{8}\.json$/.test(name)).sort().reverse()
+      for (const name of dated.slice(MIRROR_KEEP)) rmSync(join(state.dir, name), { force: true })
+      const next = { ...state, lastAt: new Date().toISOString(), lastError: '', lastCopied: copied }
+      saveMirror(next)
+      return next
+    } catch (error) {
+      const next = { ...state, lastError: error instanceof Error ? error.message : 'Không chép được sang thư mục thứ hai.' }
+      try { saveMirror(next) } catch { /* Nothing more to do. */ }
+      return next
+    }
+  }
+
+  /** Once per calendar day. */
+  function mirrorIfDue() {
+    const state = mirrorState()
+    if (!state.dir) return state
+    if (state.lastAt && !state.lastError && stamp(new Date(state.lastAt)).slice(0, 8) === stamp(new Date()).slice(0, 8)) return state
+    return runMirror()
+  }
+
+  return { list, snapshot, readStore, ensureDaily, beforeSave, discardAsset, restore, remove, mirrorState, setMirrorDir, runMirror, mirrorIfDue }
 }

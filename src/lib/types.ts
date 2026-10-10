@@ -26,7 +26,9 @@ export type KeyVisual = {
   displayFontAssetId: string | null
   bodyFont: string
   avoid: string
-  /** Moodboard reference images: sent to the image model for atmosphere, color and light. */
+  /** How closely the picture should follow the reference images: "close" (default) matches their overall look; "style" takes only color, light and mood. */
+  refFidelity?: 'close' | 'style'
+  /** Moodboard reference images: sent to the image model. */
   referenceIds: string[]
   /** Finished sample posts on the moodboard: shown for reference, never sent to the image model. */
   sampleIds: string[]

@@ -11,6 +11,7 @@ import { ComponentCutter } from './ComponentCutter.tsx'
 import { PlanTab, ProductionTab, ScheduleTab } from './CampaignTabs.tsx'
 import { useBatch } from '../lib/batch.ts'
 import { Moodboard } from './Moodboard.tsx'
+import { classifyMotifs } from '../lib/motifAi.ts'
 import { ROLE_LABELS, compositeMode, guessRole } from '../lib/motifs.ts'
 import type { MotifRole } from '../lib/types.ts'
 import { FoundationTab } from './FoundationTab.tsx'
@@ -176,10 +177,20 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
 
   const setRole = (id: string, role: MotifRole) => edit((draft) => { const item = draft.components.find((entry) => entry.id === id); if (item) item.role = role })
   const suggestRoles = () => edit((draft) => { for (const item of draft.components) item.role = guessRole(item) })
+  const [classifying, setClassifying] = useState(false)
+  const aiKey = keys.find((item) => item.isDefault) ?? keys[0]
+  async function classifyWithAi() {
+    setClassifying(true)
+    try {
+      const roles = await classifyMotifs(campaign.components, aiKey?.id)
+      edit((draft) => { for (const item of draft.components) { const role = roles.get(item.id); if (role) item.role = role } })
+    } catch (error) { onError(error instanceof Error ? error.message : 'AI không phân loại được họa tiết.') }
+    finally { setClassifying(false) }
+  }
   const composite = compositeMode(campaign)
   const components = <details className="card collapsible" open={campaign.components.length > 0 && !campaign.components.some((item) => item.role)}>
     <summary><h2>Họa tiết thương hiệu ({campaign.components.length})</h2><span className="muted">{composite ? 'App tự đặt lên ảnh, AI không vẽ lại' : 'Gán vai trò để app đặt đúng lên ảnh'}</span></summary>
-    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>{campaign.components.length > 0 && <button className="btn small" title="Đoán vai trò theo hình dạng: dài mảnh = đường bay, nhỏ vuông = họa tiết điểm. Họa tiết lớn bạn tự chọn." onClick={suggestRoles}>Gợi ý vai trò</button>}</div>
+    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>{campaign.components.length > 0 && <button className="btn small" title="Đoán vai trò theo hình dạng: dài mảnh = đường bay, nhỏ vuông = họa tiết điểm. Họa tiết lớn bạn tự chọn." onClick={suggestRoles}>Gợi ý vai trò</button>}{campaign.components.length > 0 && <button className="btn small" disabled={classifying || !aiKey} title={aiKey ? 'AI nhìn tất cả họa tiết và gán vai trò (họa tiết lớn, đường bay, họa tiết điểm, không dùng). Bạn sửa lại được từng cái.' : 'Cần thêm API key'} onClick={() => { void classifyWithAi() }}>{classifying ? 'AI đang xem…' : 'AI phân loại'}</button>}</div>
     {campaign.components.length === 0
       ? <p className="muted">Chưa có họa tiết.</p>
       : <>

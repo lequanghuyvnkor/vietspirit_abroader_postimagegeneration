@@ -3,6 +3,7 @@ import type { Store } from './types.ts'
 export type Session = { configured: boolean; authed: boolean; ai?: { ready: boolean } }
 
 export type BackupMeta = { id: string; kind: 'auto' | 'manual' | 'history' | 'pre'; label: string; at: string; assets: number; campaigns: number; pieces: number; posts: number; bytes: number }
+export type MirrorState = { dir: string; lastAt: string; lastError: string; lastCopied?: number }
 export type RestoreResult = { safety: string | null; restored: number; missing: number; backups: BackupMeta[] }
 
 export type Provider = 'openai' | 'gemini'
@@ -54,6 +55,9 @@ export const api = {
   deleteAsset: (id: string) => request(`/api/assets/${id}`, { method: 'DELETE' }),
   listBackups: () => request<{ backups: BackupMeta[] }>('/api/backups').then((result) => result.backups),
   createBackup: (label: string) => post<{ backups: BackupMeta[] }>('/api/backups', { label }).then((result) => result.backups),
+  getMirror: () => request<{ mirror: MirrorState }>('/api/backups/mirror').then((result) => result.mirror),
+  setMirror: (dir: string) => request<{ mirror: MirrorState }>('/api/backups/mirror', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ dir }) }).then((result) => result.mirror),
+  runMirror: () => post<{ mirror: MirrorState }>('/api/backups/mirror', {}).then((result) => result.mirror),
   restoreBackup: (id: string) => post<RestoreResult>(`/api/backups/${id}/restore`, {}),
   deleteBackup: (id: string) => request<{ backups: BackupMeta[] }>(`/api/backups/${id}`, { method: 'DELETE' }).then((result) => result.backups),
   listKeys: () => request<{ keys: ApiKey[] }>('/api/keys').then((result) => result.keys),

@@ -69,6 +69,7 @@ export function Moodboard({ keyVisual: kv, components, keys, brief = '', onChang
         <button className="btn small" onClick={() => pick('mood')}>+ Bài mẫu cho AI</button>
         <button className="btn small" onClick={() => pick('sample')}>+ Chỉ để xem</button>
       </div>
+      <label className="row">Mức bám bài mẫu <select aria-label="Mức bám bài mẫu" value={kv.refFidelity ?? 'close'} onChange={(event) => onChange({ refFidelity: event.target.value as 'close' | 'style' })}><option value="close">Giống tổng thể (khuyên dùng)</option><option value="style">Chỉ học màu, ánh sáng</option></select></label>
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(event) => { void upload(event) }} />
     </div>
 

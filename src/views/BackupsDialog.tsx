@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type BackupMeta } from '../lib/api.ts'
+import { api, type BackupMeta, type MirrorState } from '../lib/api.ts'
 import { Modal } from './ui.tsx'
 
 const KIND_LABEL: Record<BackupMeta['kind'], string> = { auto: 'Tự động hằng ngày', manual: 'Bạn tạo', history: 'Lịch sử thay đổi', pre: 'Trước khi khôi phục' }
@@ -15,8 +15,13 @@ export function BackupsDialog({ freeze, onClose }: Props) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [mirror, setMirror] = useState<MirrorState | null>(null)
+  const [mirrorDir, setMirrorDir] = useState('')
 
-  useEffect(() => { api.listBackups().then(setBackups).catch((caught: Error) => setError(caught.message)) }, [])
+  useEffect(() => {
+    api.listBackups().then(setBackups).catch((caught: Error) => setError(caught.message))
+    api.getMirror().then((state) => { setMirror(state); setMirrorDir(state.dir) }).catch(() => undefined)
+  }, [])
 
   async function run(action: () => Promise<void>) {
     setBusy(true)
@@ -40,6 +45,19 @@ export function BackupsDialog({ freeze, onClose }: Props) {
     window.setTimeout(() => window.location.reload(), 900)
   })
 
+  const saveMirrorDir = () => run(async () => {
+    const state = await api.setMirror(mirrorDir.trim())
+    setMirror(state)
+    setMirrorDir(state.dir)
+    setMessage(state.dir ? 'Đã lưu thư mục thứ hai và chép dữ liệu sang đó.' : 'Đã tắt sao lưu sang thư mục thứ hai.')
+  })
+
+  const mirrorNow = () => run(async () => {
+    const state = await api.runMirror()
+    setMirror(state)
+    if (!state.lastError) setMessage('Đã chép dữ liệu và ảnh sang thư mục thứ hai.')
+  })
+
   const latestHistory = backups?.find((meta) => meta.kind === 'history')
 
   return <Modal title="Sao lưu và khôi phục" onClose={onClose} wide>
@@ -48,6 +66,16 @@ export function BackupsDialog({ freeze, onClose }: Props) {
       <input aria-label="Ghi chú cho bản sao lưu" placeholder="Ghi chú (không bắt buộc), ví dụ: trước khi sửa P03" value={label} onChange={(event) => setLabel(event.target.value)} />
       <button className="btn primary" disabled={busy} onClick={() => { void create() }}>Tạo bản sao lưu ngay</button>
       {latestHistory && <button className="btn" disabled={busy} title={`Quay về trạng thái lúc ${formatTime(latestHistory.at)}`} onClick={() => setConfirming(latestHistory.id)}>Hoàn tác thay đổi gần nhất</button>}
+    </div>
+    <div className="field">
+      <span className="field-label">Thư mục sao lưu thứ hai (khuyên dùng)</span>
+      <div className="row wrap">
+        <input aria-label="Thư mục sao lưu thứ hai" placeholder="Ví dụ: D:\SaoLuuStudio (ổ khác, ổ ngoài hoặc thư mục Drive)" value={mirrorDir} onChange={(event) => setMirrorDir(event.target.value)} />
+        <button className="btn" disabled={busy || mirrorDir.trim() === (mirror?.dir ?? '')} onClick={() => { void saveMirrorDir() }}>Lưu thư mục</button>
+        {mirror?.dir && <button className="btn" disabled={busy} onClick={() => { void mirrorNow() }}>Chép ngay</button>}
+      </div>
+      <small className="muted">Bản sao lưu ở trên nằm cùng ổ với dữ liệu nên không cứu được khi hỏng ổ cứng. Điền một thư mục ở nơi khác: mỗi ngày app tự chép dữ liệu và toàn bộ ảnh sang đó (giữ 14 ngày gần nhất). {mirror?.dir ? (mirror.lastError ? '' : mirror.lastAt ? `Lần chép gần nhất: ${formatTime(mirror.lastAt)}.` : 'Chưa chép lần nào.') : 'Chưa bật.'}</small>
+      {mirror?.lastError && <p className="notice error" role="alert">Lần chép gần nhất lỗi: {mirror.lastError}</p>}
     </div>
     {message && <p className="notice" role="status">{message}</p>}
     {error && <p className="notice error" role="alert">{error}</p>}

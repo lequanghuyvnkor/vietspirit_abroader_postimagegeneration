@@ -78,17 +78,43 @@ function sampleColors(canvas: HTMLCanvasElement): { luminance: number; colors: M
 type RawItem = { str?: string; transform: number[]; height: number; width: number }
 type PendingPage = { index: number; canvas: HTMLCanvasElement; items: RawItem[]; baseHeight: number; scale: number }
 
+/** What a cut-out looks like: a long thin line, a small ornament or a larger picture. */
+function shapeOf(width: number, height: number): { kind: string; line: boolean } {
+  const aspect = width / Math.max(1, height)
+  if (aspect >= 7 || aspect <= 1 / 7) return { kind: 'Đường', line: true }
+  if (Math.max(width, height) <= 140 && aspect >= 0.6 && aspect <= 1.7) return { kind: 'Họa tiết', line: false }
+  return { kind: 'Hình', line: false }
+}
+
+/** Share of the cut that is actually drawn (not transparent). Crumbs and faint outlines score very low. */
+const solidShare = (data: Uint8ClampedArray) => {
+  let solid = 0
+  for (let i = 3; i < data.length; i += 4) if (data[i] > 40) solid += 1
+  return solid / Math.max(1, data.length / 4)
+}
+
 function toFound(found: { cut: { data: Uint8ClampedArray; width: number; height: number } }, name: string, logo: boolean): FoundComponent {
   const out = document.createElement('canvas')
   out.width = found.cut.width
   out.height = found.cut.height
   out.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(found.cut.data), found.cut.width, found.cut.height), 0, 0)
-  return { id: crypto.randomUUID(), name, preview: out.toDataURL('image/png'), width: out.width, height: out.height, checked: true, logo }
+  // Crumbs (tiny, or mostly empty) are listed but not ticked: the user can still tick one if it is wanted. Logos are always kept.
+  const shape = shapeOf(out.width, out.height)
+  const share = solidShare(found.cut.data)
+  const keep = logo || (shape.line ? share >= 0.008 && Math.max(out.width, out.height) >= 120 : share >= 0.08 && Math.max(out.width, out.height) >= 48)
+  return { id: crypto.randomUUID(), name, preview: out.toDataURL('image/png'), width: out.width, height: out.height, checked: keep, logo }
 }
 
-/** The three largest compact, non-logo elements are the likely hero visuals (strips and thin lines are not). */
-function markHeroes(list: FoundComponent[]): FoundComponent[] {
-  return list
+/** Names pieces by what they look like (Đường 1, Họa tiết 2, Hình 3), counted per page. */
+function nameByShape(list: FoundComponent[], page: number): FoundComponent[] {
+  const counts = new Map<string, number>()
+  return list.map((item) => {
+    if (item.logo) return item
+    const { kind } = shapeOf(item.width, item.height)
+    const n = (counts.get(kind) ?? 0) + 1
+    counts.set(kind, n)
+    return { ...item, name: `Trang ${page} · ${kind} ${n}` }
+  })
 }
 
 /**
@@ -113,9 +139,9 @@ function findComponents({ index, canvas, items, baseHeight, scale }: PendingPage
     const region0 = logoBox
     const inside = (box: Box) => box.x + box.w / 2 > region0.x && box.x + box.w / 2 < region0.x + region0.w && box.y + box.h / 2 > region0.y && box.y + box.h / 2 < region0.y + region0.h
     const main = detectComponents(pixels, { textBoxes }).filter((found) => !inside(found.box))
-    return markHeroes([...logos, ...main.map((found, n) => toFound(found, `Trang ${index} · ${n + 1}`, false))])
+    return [...logos, ...nameByShape(main.map((found, n) => toFound(found, `Trang ${index} · ${n + 1}`, false)), index)]
   }
-  return markHeroes(detectComponents(pixels, { textBoxes }).map((found, n) => toFound(found, `Trang ${index} · ${n + 1}`, false)))
+  return nameByShape(detectComponents(pixels, { textBoxes }).map((found, n) => toFound(found, `Trang ${index} · ${n + 1}`, false)), index)
 }
 
 /** Reads a key visual PDF: renders every page and parses the guideline text layer. Runs in the browser. */

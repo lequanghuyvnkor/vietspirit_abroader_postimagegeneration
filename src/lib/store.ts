@@ -6,7 +6,7 @@ import { emptyPiece } from './planEdit.ts'
 import type { Store } from './types.ts'
 
 /** Fills fields added after data was first saved. */
-function normalize(store: Store): Store {
+export function normalize(store: Store): Store {
   for (const workspace of store.workspaces) {
     for (const campaign of workspace.campaigns) {
       campaign.sources ??= []

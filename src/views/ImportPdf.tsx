@@ -158,7 +158,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
             {item.logo && <select aria-label="Dùng làm logo" value={roles[item.id] ?? ''} onChange={(event) => setRoles((current) => ({ ...current, [item.id]: event.target.value as 'light' | 'dark' | '' }))}><option value="">Chỉ là thành phần</option><option value="light">Logo nền sáng</option><option value="dark">Logo nền tối</option></select>}
           </div>)}
         </div>
-        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
+        <small className="muted">App đã tự bỏ tích những mảnh quá nhỏ hoặc gần như trống (vụn); bạn vẫn tích lại được nếu cần. Bỏ tích thêm những mảnh không cần (chữ, họa tiết thừa). Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
       </div>}
 
       <div className="field">

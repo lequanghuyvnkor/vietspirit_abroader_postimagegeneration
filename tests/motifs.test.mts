@@ -57,3 +57,14 @@ test('apply replaces auto layers only and keeps manual ones', () => {
   assert.equal(first.layers.filter((layer) => layer.auto).length, new Set(first.layers.filter((l) => l.auto).map((l) => l.id)).size)
   assert.ok(first.layers.some((layer) => layer.auto))
 })
+
+test('AI roles are read by piece number, unknown ones fall back to the shape guess, at most two heroes', async () => {
+  const { parseRoles } = await import('../src/lib/motifAi.ts')
+  const pieces = [comp('a', 300, 300), comp('b', 1400, 100), comp('c', 60, 60), comp('d', 300, 300), comp('e', 300, 300)]
+  const roles = parseRoles('```json\n{"roles":[{"n":1,"role":"hero"},{"n":2,"role":"line"},{"n":4,"role":"hero"},{"n":5,"role":"hero"},{"n":9,"role":"hero"},{"n":3,"role":"nonsense"}]}\n```', pieces)
+  assert.equal(roles.get(pieces[0].id), 'hero')
+  assert.equal(roles.get(pieces[1].id), 'line')
+  assert.equal(roles.get(pieces[2].id), 'decor')
+  assert.equal([...roles.values()].filter((role) => role === 'hero').length, 2)
+  assert.throws(() => parseRoles('not json', pieces))
+})
