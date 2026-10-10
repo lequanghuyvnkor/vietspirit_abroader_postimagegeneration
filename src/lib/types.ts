@@ -17,7 +17,6 @@ export type Company = {
 
 export type KeyVisual = {
   concept: string
-  subject: string
   /** HEX colors; the first three also form the fallback gradient. */
   palette: string[]
   accentColor: string
@@ -27,13 +26,11 @@ export type KeyVisual = {
   displayFontAssetId: string | null
   bodyFont: string
   avoid: string
-  /** Main visual element images (extracted from the key visual or added by hand); sent first as generation references. */
-  subjectIds: string[]
-  /** Moodboard images for atmosphere, color and light only. */
+  /** Moodboard reference images: sent to the image model for atmosphere, color and light. */
   referenceIds: string[]
   /** Finished sample posts on the moodboard: shown for reference, never sent to the image model. */
   sampleIds: string[]
-  /** "composite" (default once graphics have roles): the app places the exact graphics on each slide. "ai": the graphics are sent to the AI as references. */
+  /** "composite" (default once graphics have roles): the app places the exact graphics on each slide. "ai": the AI draws the symbol and lines itself from the written concept. */
   motifMode?: 'composite' | 'ai'
   /** How many small ornaments are scattered, 0 to 1 (default 0.5). */
   motifDensity?: number
@@ -158,7 +155,7 @@ export type CampaignTemplate = {
   strategy: string
   foundation: Foundation
   /** Look of the key visual without any picture (pictures stay with the campaign they belong to). */
-  style: Pick<KeyVisual, 'concept' | 'subject' | 'palette' | 'accentColor' | 'textTone' | 'displayFont' | 'bodyFont' | 'avoid'>
+  style: Pick<KeyVisual, 'concept' | 'palette' | 'accentColor' | 'textTone' | 'displayFont' | 'bodyFont' | 'avoid'>
   guardrailNotes: string[]
   /** Variable names only: the values belong to each campaign. */
   variableKeys: string[]
@@ -305,8 +302,8 @@ export function emptyCompany(name = ''): Company {
 
 export function emptyKeyVisual(): KeyVisual {
   return {
-    concept: '', subject: '', palette: ['#0A1A44', '#12307A', '#1B4AA8'], accentColor: '#FF4D5E', textTone: 'light',
-    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', subjectIds: [], referenceIds: [], sampleIds: [],
+    concept: '', palette: ['#0A1A44', '#12307A', '#1B4AA8'], accentColor: '#FF4D5E', textTone: 'light',
+    displayFont: 'Playfair Display', displayFontAssetId: null, bodyFont: 'Be Vietnam Pro', avoid: '', referenceIds: [], sampleIds: [],
   }
 }
 

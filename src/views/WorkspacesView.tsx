@@ -20,7 +20,7 @@ export function WorkspacesView({ store, update }: Props) {
   function remove(id: string) {
     const workspace = store.workspaces.find((item) => item.id === id)
     if (workspace) {
-      const assets = [workspace.company.logoId, workspace.company.logoDarkId, ...workspace.campaigns.flatMap((campaign) => [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...(campaign.keyVisual.subjectIds ?? []), ...(campaign.keyVisual.sampleIds ?? []), ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)])]
+      const assets = [workspace.company.logoId, workspace.company.logoDarkId, ...workspace.campaigns.flatMap((campaign) => [campaign.keyVisual.displayFontAssetId, ...campaign.keyVisual.referenceIds, ...(campaign.keyVisual.sampleIds ?? []), ...campaign.backgrounds.map((item) => item.assetId), ...campaign.sources.map((item) => item.assetId), ...campaign.components.map((item) => item.assetId)])]
       assets.forEach((asset) => { if (asset) void api.deleteAsset(asset) })
     }
     update((draft) => { draft.workspaces = draft.workspaces.filter((item) => item.id !== id) })

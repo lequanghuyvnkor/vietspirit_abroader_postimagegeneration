@@ -30,7 +30,6 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
   const [paletteText, setPaletteText] = useState('')
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [found, setFound] = useState<FoundComponent[]>([])
-  const [heroes, setHeroes] = useState<Set<string>>(new Set())
   const [roles, setRoles] = useState<Record<string, 'light' | 'dark' | ''>>({})
   // Re-importing into an existing campaign must not silently replace work done since: every part is an explicit choice.
   const updating = Boolean(base)
@@ -57,7 +56,6 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
       setPicked(new Set(samples.slice(0, MAX_REFERENCES).map((page) => page.index)))
       const all = result.pages.flatMap((page) => page.components)
       setFound(all)
-      setHeroes(new Set(all.filter((entry) => entry.hero).map((entry) => entry.id)))
       // Logo lockups found in the LOGO section: a light card is the light-background logo, a dark card the dark one.
       const guess: Record<string, 'light' | 'dark' | ''> = {}
       for (const item of all.filter((entry) => entry.logo)) guess[item.id] = ''
@@ -100,7 +98,6 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
       // Every page is kept at full resolution so components can be cut from it later.
       const existingNames = new Set(componentNames.map((item) => item.trim().toLowerCase()))
       const chosenComponents = !addComponents ? [] : found.filter((item) => item.checked && !roles[item.id] && !(updating && existingNames.has(item.name.trim().toLowerCase())))
-      const heroIds = await Promise.all(found.filter((item) => addComponents && item.checked && heroes.has(item.id) && !roles[item.id]).map((item) => api.uploadAsset(`${item.name}-hero.png`, item.preview)))
       const logoUploads = await Promise.all(found.filter((item) => item.checked && roles[item.id]).map(async (item) => ({ role: roles[item.id], assetId: await api.uploadAsset(`${item.name}.png`, item.preview) })))
       const logos = setLogos ? { light: logoUploads.find((entry) => entry.role === 'light')?.assetId ?? null, dark: logoUploads.find((entry) => entry.role === 'dark')?.assetId ?? null } : { light: null, dark: null }
       const components = await Promise.all(chosenComponents.map(async (item): Promise<Component> => ({ id: crypto.randomUUID(), name: item.name.trim() || 'Thành phần', assetId: await api.uploadAsset(`${item.name}.png`, item.preview), width: item.width, height: item.height })))
@@ -108,7 +105,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
       const palette = paletteText.split(/[,\s]+/).map((value) => value.trim().toUpperCase()).filter((value) => /^#[0-9A-F]{6}$/.test(value))
       if (!keepRefs) base?.referenceIds.forEach((id) => { void api.deleteAsset(id) })
       const look = updating && !applyLook ? base! : kv
-      onApply({ name: updating ? '' : name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...look, palette: updating && !applyLook ? look.palette : palette.length ? palette : look.palette, referenceIds: keepRefs ? base!.referenceIds : ids, subjectIds: [...(look.subjectIds ?? []), ...heroIds] }, sources, components, logos })
+      onApply({ name: updating ? '' : name.trim() || analysis.title || 'Chiến dịch mới', keyVisual: { ...look, palette: updating && !applyLook ? look.palette : palette.length ? palette : look.palette, referenceIds: keepRefs ? base!.referenceIds : ids }, sources, components, logos })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không lưu được ảnh từ PDF.')
@@ -119,7 +116,7 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
   return <Modal title="Nhập moodboard từ PDF" onClose={onClose} wide>
     <input ref={input} type="file" accept="application/pdf" hidden onChange={open} />
     {!analysis && <div className="import-start">
-      <p>Chọn file PDF moodboard (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và lấy các trang bài mẫu làm ảnh tham chiếu để tạo nền.</p>
+      <p>Chọn file PDF moodboard (guideline và các bài mẫu). App tự đọc màu, font, concept, tự cắt các thành phần đồ họa (sao, đường bay, thẻ, logo…) ra khỏi nền, và giữ nguyên các trang bài mẫu làm ảnh tham chiếu cho AI khi tạo nền.</p>
       <button className="btn primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Đang đọc PDF…' : 'Chọn file PDF'}</button>
     </div>}
     {error && <p className="notice error" role="alert">{error}</p>}
@@ -158,11 +155,10 @@ export function ImportPdf({ base, confirmLabel, componentNames = [], onApply, on
             <label className="check"><input type="checkbox" checked={item.checked} onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, checked: event.target.checked } : entry))} /> {item.width}×{item.height}</label>
             <div className="checker candidate-preview"><img src={item.preview} alt={item.name} /></div>
             <input value={item.name} aria-label="Tên thành phần" onChange={(event) => setFound((list) => list.map((entry) => entry.id === item.id ? { ...entry, name: event.target.value } : entry))} />
-            {!item.logo && <label className="check small"><input type="checkbox" checked={heroes.has(item.id)} onChange={(event) => setHeroes((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} /> Hình chính</label>}
             {item.logo && <select aria-label="Dùng làm logo" value={roles[item.id] ?? ''} onChange={(event) => setRoles((current) => ({ ...current, [item.id]: event.target.value as 'light' | 'dark' | '' }))}><option value="">Chỉ là thành phần</option><option value="light">Logo nền sáng</option><option value="dark">Logo nền tối</option></select>}
           </div>)}
         </div>
-        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Mục "Hình chính" là hình chủ đạo của moodboard: AI dùng nó làm tham chiếu khi tạo nền. Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
+        <small className="muted">Bỏ tích những mảnh không cần (chữ, họa tiết thừa). Có thể cắt thêm hoặc cắt lại bằng tay sau trong chiến dịch.</small>
       </div>}
 
       <div className="field">

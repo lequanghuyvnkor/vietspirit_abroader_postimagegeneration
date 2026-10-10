@@ -21,11 +21,8 @@ export const sceneConcept = (concept: string, composite = false) => concept
   .replace(/[;,]\s*$/, '.')
   .trim()
 
-/** Main-symbol images first, then mood images, at most four (what the image models accept). Sample posts are never sent. */
-export function generationRefs(kv: Campaign['keyVisual'], composite = false): string[] {
-  // In composite mode the main symbol is added by the app afterwards, so it is not shown to the AI.
-  return [...(composite ? [] : kv.subjectIds ?? []), ...kv.referenceIds].slice(0, 4)
-}
+/** The moodboard reference images, at most four (what the image models accept). Images kept only for viewing are never sent. */
+export const generationRefs = (kv: Campaign['keyVisual']): string[] => kv.referenceIds.slice(0, 4)
 
 /** Builds a background-plate prompt from the campaign's key visual inputs. No text is ever requested from the model. */
 export function buildBackgroundPrompt(workspace: Workspace, campaign: Campaign, format: FormatKey, variation: string, zones?: Zones): string {
@@ -33,16 +30,12 @@ export function buildBackgroundPrompt(workspace: Workspace, campaign: Campaign, 
   const kv = campaign.keyVisual
   const { width, height } = formatOf(format)
   const composite = compositeMode(campaign)
-  const refs = generationRefs(kv, composite)
-  const subjects = refs.filter((id) => (kv.subjectIds ?? []).includes(id)).length
-  const moods = refs.length - subjects
+  const refs = generationRefs(kv).length
   const lines = [
     `Create a background image plate for a social media post (${width}x${height}). Text and logo are added later in a separate layout step.`,
     kv.concept && `Moodboard concept: ${zones || composite ? sceneConcept(kv.concept, composite) : kv.concept}`,
-    kv.subject && !composite && `Main visual element: ${kv.subject}`,
     composite && 'IMPORTANT: the brand graphics (the main symbol, route lines and small ornaments) are placed on top afterwards by the app as separate transparent images. Do NOT draw any star, constellation, route line, orbit, flight path, arrow or ornament anywhere. Keep the free band as clean atmosphere only (soft glow, gradient, subtle texture) where those graphics will sit.',
-    subjects > 0 && `The first ${subjects} attached image(s) show the campaign's main visual symbol. Keep that symbol recognisable (its shape and colors) in the scene, placed in the lower part of the frame.`,
-    moods > 0 && `The ${subjects ? 'other' : ''} ${moods} attached image(s) are mood references. Take ONLY their color grading, lighting, atmosphere and material feel. Do not copy any object, card, panel, ticket, badge, icon, frame, line, chart, text or layout from them.`,
+    refs > 0 && `The ${refs} attached image(s) are moodboard references of the campaign's look. Take ONLY their color grading, lighting, atmosphere and material feel. Do not copy any object, card, panel, ticket, badge, icon, frame, line, chart, text or layout from them.`,
     kv.palette.length > 0 && `Color palette (use as the dominant colors): ${kv.palette.join(', ')}.`,
     `Mood: ${[company.tone, company.industry].filter(Boolean).join(', ') || 'polished and professional'}. Brand: ${company.name}${company.audience ? `, audience: ${company.audience}` : ''}.`,
     zones ? zoneLines(zones, format, kv.textTone === 'light') : `Composition: the headline, lead text, button and footer are added on top later, so the upper 55% of the frame must be calm, dark and empty: only a soft gradient, faint stars or haze, with no cards, tickets, panels, icons, lines or bright glows there. Put the horizon, the main subject and every graphic element in the lower 40% of the frame, with the brightest point below the middle. ${format === 'story' ? 'For stories, also keep the top and bottom 13% completely clear. ' : ''}`,
@@ -61,7 +54,7 @@ function zoneLines(zones: Zones, format: FormatKey, lightText: boolean): string 
   return [
     'Composition. Headline and lead text, a button and a footer are laid over this picture afterwards.',
     `The upper ${percent(horizon)} of the frame is open ${tone} sky behind that text: a smooth, deep gradient that grows only slightly brighter toward the horizon, with a few tiny faint stars. Nothing sharp, bright or detailed in it.`,
-    `Below it the scenery fills the rest of the frame down to the bottom edge, with no empty strip: the curved horizon of the planet peaks at about ${percent(horizon)} of the height at the centre, the main symbol sits on that horizon, and the planet surface below it carries the detail (city lights, glowing route lines, a soft atmospheric glow along the horizon). Keep the lowest 15% a calmer, darker part of the planet surface so a footer line stays readable.`,
+    `Below it the scenery fills the rest of the frame down to the bottom edge, with no empty strip: the curved horizon of the planet peaks at about ${percent(horizon)} of the height at the centre, and the planet surface below it carries the detail (city lights, glowing route lines, a soft atmospheric glow along the horizon). Keep the lowest 15% a calmer, darker part of the planet surface so a footer line stays readable.`,
     free < 0.12 ? 'The text needs most of the height, so keep the scene compact and low and the sky quiet.' : '',
     'ONE continuous image. All tone changes are smooth and gradual. Never paint horizontal bands, stripes, steps, flat dark rectangles, vignette boxes or visible seams at any height, and no hard line anywhere except the planet horizon itself.',
     'Do not draw any card, panel, ticket, frame, button, badge, window, label or text-like shape anywhere, including blank glass or frosted rectangles. They are added by the layout, never by the picture.',

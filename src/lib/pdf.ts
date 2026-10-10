@@ -3,7 +3,7 @@ import { detectComponents } from './detect.ts'
 import type { Box } from './cutout.ts'
 import type { FormatKey } from './types.ts'
 
-export type FoundComponent = { id: string; name: string; preview: string; width: number; height: number; checked: boolean; /** Came from the guideline's LOGO section. */ logo: boolean; /** Likely the campaign's main visual element. */ hero: boolean }
+export type FoundComponent = { id: string; name: string; preview: string; width: number; height: number; checked: boolean; /** Came from the guideline's LOGO section. */ logo: boolean }
 
 export type PdfPage = {
   index: number
@@ -83,12 +83,11 @@ function toFound(found: { cut: { data: Uint8ClampedArray; width: number; height:
   out.width = found.cut.width
   out.height = found.cut.height
   out.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(found.cut.data), found.cut.width, found.cut.height), 0, 0)
-  return { id: crypto.randomUUID(), name, preview: out.toDataURL('image/png'), width: out.width, height: out.height, checked: true, logo, hero: false }
+  return { id: crypto.randomUUID(), name, preview: out.toDataURL('image/png'), width: out.width, height: out.height, checked: true, logo }
 }
 
 /** The three largest compact, non-logo elements are the likely hero visuals (strips and thin lines are not). */
 function markHeroes(list: FoundComponent[]): FoundComponent[] {
-  list.filter((item) => !item.logo && item.width >= 110 && item.height >= 90 && item.width / item.height > 0.35 && item.width / item.height < 3).sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3).forEach((item) => { item.hero = true })
   return list
 }
 

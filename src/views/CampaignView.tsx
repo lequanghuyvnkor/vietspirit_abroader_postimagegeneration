@@ -99,7 +99,6 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
       const item = draft.workspaces.find((entry) => entry.id === workspace.id)?.campaigns.find((entry) => entry.id === campaign.id)
       if (!item) return
       item.components = item.components.filter((entry) => entry.id !== id)
-      if (found) item.keyVisual.subjectIds = (item.keyVisual.subjectIds ?? []).filter((assetId) => assetId !== found.assetId)
       item.posts.forEach((post) => { post.layers = post.layers.filter((layer) => layer.componentId !== id) })
     })
   }
@@ -180,7 +179,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
   const composite = compositeMode(campaign)
   const components = <details className="card collapsible" open={campaign.components.length > 0 && !campaign.components.some((item) => item.role)}>
     <summary><h2>Họa tiết thương hiệu ({campaign.components.length})</h2><span className="muted">{composite ? 'App tự đặt lên ảnh, AI không vẽ lại' : 'Gán vai trò để app đặt đúng lên ảnh'}</span></summary>
-    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>{campaign.components.length > 0 && <button className="btn small" title="Đoán vai trò theo hình dạng: dài mảnh = đường bay, nhỏ vuông = họa tiết điểm. Biểu tượng chính bạn tự chọn." onClick={suggestRoles}>Gợi ý vai trò</button>}</div>
+    <div className="row"><button className="btn small primary" onClick={() => setDialog('cut')}>Cắt từ ảnh/PDF</button>{campaign.components.length > 0 && <button className="btn small" title="Đoán vai trò theo hình dạng: dài mảnh = đường bay, nhỏ vuông = họa tiết điểm. Họa tiết lớn bạn tự chọn." onClick={suggestRoles}>Gợi ý vai trò</button>}</div>
     {campaign.components.length === 0
       ? <p className="muted">Chưa có họa tiết.</p>
       : <>
@@ -218,7 +217,7 @@ export function CampaignView({ update, workspace, campaign, keys, onManageKeys, 
     {tab === 'moodboard' && <p className="muted tab-note"><b>Moodboard</b> là phần HÌNH của chiến dịch: màu, font, ảnh tham chiếu, thành phần đồ họa, nền. Nội dung chữ (mục tiêu, thông điệp, trụ cột) nằm ở tab ① Nền tảng và ③ Kế hoạch; "Mô tả không khí" ở đây là để AI vẽ nền, không phải ý tưởng truyền thông.</p>}
     {tab === 'moodboard' && <div className="two-col">
       <Section title="Moodboard" aside={<button className="btn small" title="Đọc màu, font, ảnh và thành phần đồ họa từ file PDF moodboard. Chỉ đổi Moodboard, không đổi Nền tảng hay Kế hoạch." onClick={() => setDialog('import')}>Nhập moodboard từ PDF</button>}>
-        <Moodboard keyVisual={kv} components={campaign.components} composite={compositeMode(campaign)} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
+        <Moodboard keyVisual={kv} components={campaign.components} keys={keys} brief={moodBrief(campaign)} onChange={(change) => edit((draft) => { Object.assign(draft.keyVisual, change) })} onManageKeys={onManageKeys} onError={onError} />
       </Section>
       <div className="stack">{identity}{backgrounds}{components}</div>
     </div>}

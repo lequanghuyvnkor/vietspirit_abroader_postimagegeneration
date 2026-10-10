@@ -93,7 +93,7 @@ export function buildTemplate(campaign: Campaign, name: string): CampaignTemplat
   return structuredClone({
     id: newId(), name, at: now(), strategy: campaign.strategy,
     foundation: { ...campaign.foundation, start: '', end: '' },
-    style: { concept: kv.concept, subject: kv.subject, palette: kv.palette, accentColor: kv.accentColor, textTone: kv.textTone, displayFont: kv.displayFont, bodyFont: kv.bodyFont, avoid: kv.avoid },
+    style: { concept: kv.concept, palette: kv.palette, accentColor: kv.accentColor, textTone: kv.textTone, displayFont: kv.displayFont, bodyFont: kv.bodyFont, avoid: kv.avoid },
     guardrailNotes: campaign.guardrailNotes,
     variableKeys: Object.keys(campaign.variables), lead: campaign.lead,
     pieces: [...campaign.pieces].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999')).map((piece): TemplatePiece => ({

@@ -19,7 +19,9 @@ function normalize(store: Store): Store {
         const window = scheduleWindow(campaign.strategy)
         campaign.foundation = { objective: '', start: window?.start ?? '', end: window?.end ?? '', kpis: [], audiences: [], bigIdea: '', keyMessage: '', pillars: [], tone: '', dos: [] }
       }
-      campaign.keyVisual.subjectIds ??= []
+      // The old main-symbol images and text are gone: the moodboard only holds reference images now.
+      delete (campaign.keyVisual as { subjectIds?: unknown }).subjectIds
+      delete (campaign.keyVisual as { subject?: unknown }).subject
       campaign.keyVisual.sampleIds ??= []
       for (const piece of campaign.pieces) {
         // Fill anything missing or damaged so one bad record cannot break a whole screen.

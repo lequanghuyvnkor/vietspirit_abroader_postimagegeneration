@@ -55,9 +55,9 @@ Mục tiêu, thời gian, KPI, đối tượng, ý tưởng lớn, thông điệ
 - Có phần **kiểm tra dữ kiện** (ngày ngoài kỳ chiến dịch, giá trị lệch, AI soát mâu thuẫn).
 
 ### ② Moodboard: phần HÌNH
-Ảnh theo vai trò (chủ thể, không khí, bài mẫu), bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
+Ảnh bài mẫu (tối đa 4 ảnh "Bài mẫu cho AI" được gửi cho AI để học phong cách; "Chỉ để xem" thì giữ lại, không gửi), bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
 
-**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Biểu tượng chính*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
+**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
 
 
 ### ③ Kế hoạch (bảng tính, 4 sheet ở thanh dưới)
@@ -140,7 +140,7 @@ Mọi bài xếp theo trạng thái **Brief → Copy → Visual → Sẵn sàng*
 | Mở app không thấy gì | `.bat` còn chạy bản cũ: đóng cửa sổ lệnh cũ rồi chạy lại |
 | Gõ chậm, trễ | Mở bằng `npm run start` |
 | Không bấm được "Đánh dấu sẵn sàng" | Còn mục ✖ hoặc mục kiểm tra chưa tick (có dòng "Cần: …" bên cạnh) |
-| AI vẽ sai ngôi sao/biểu tượng | Moodboard chưa có ảnh **Biểu tượng chính**; chọn từ thành phần đã cắt |
+| AI vẽ sai ngôi sao/biểu tượng | Gán vai trò cho họa tiết ở thẻ **Họa tiết thương hiệu** để app tự đặt đúng hình lên ảnh |
 | Mất ảnh sau khi xóa | Vào **Sao lưu**, khôi phục: app lấy ảnh lại từ bản sao lưu hoặc thùng rác |
 | Thanh đỏ "Dữ liệu đã được lưu từ cửa sổ khác" | Bấm Tải lại; chỉ nên dùng một cửa sổ |
 | PDF in bị cắt | Chọn khổ A4, tắt "Header and footers"; hoặc xuất Word rồi lưu PDF |

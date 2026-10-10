@@ -1,7 +1,7 @@
 import { formatOf, newId } from './types.ts'
 import type { Campaign, Component, Layer, MotifRole, Post } from './types.ts'
 
-export const ROLE_LABELS: Record<MotifRole, string> = { hero: 'Biểu tượng chính', line: 'Đường bay / vệt dài', decor: 'Họa tiết điểm', off: 'Không dùng' }
+export const ROLE_LABELS: Record<MotifRole, string> = { hero: 'Họa tiết lớn', line: 'Đường bay / vệt dài', decor: 'Họa tiết điểm', off: 'Không dùng' }
 
 /** A rough first guess from the shape alone (logos and long thin pieces are easy; the main symbol needs a human or the AI). */
 export function guessRole(component: Component): MotifRole {
