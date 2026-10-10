@@ -1,6 +1,6 @@
 # Social Creative Studio: hướng dẫn sử dụng
 
-Tài liệu cho người làm nội dung (marketing, vận hành).
+Tài liệu cho người làm nội dung (marketing, vận hành). Thứ tự và lý do của từng quy trình (chữ, ảnh, quản lý) nằm ở `QUY_TRINH.md`.
 
 ---
 
