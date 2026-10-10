@@ -39,7 +39,7 @@ Mỗi công ty là một **Workspace**. Điền: tên thương hiệu, lĩnh v�
 | Cách | Khi dùng |
 |---|---|
 | **+ Chiến dịch trống** | Bắt đầu từ số không |
-| **Nhập moodboard từ PDF** | Đã có file PDF key visual: app lấy màu, font, mô tả không khí, cắt các họa tiết (sao, đường bay, thẻ…) |
+| **Nhập moodboard từ PDF** | Đã có file PDF key visual: app lấy màu, font, mô tả không khí, giữ các trang bài mẫu làm ảnh tham chiếu và cắt các họa tiết (mảnh quá nhỏ hoặc gần như trống được tự bỏ tích, đặt tên theo hình dạng: Đường, Họa tiết, Hình) |
 | **Tạo từ mẫu** | Đã lưu mẫu từ chiến dịch cũ: có sẵn nền tảng, trụ cột và danh sách bài đã xếp lịch |
 
 **Màu giao diện:** khi tạo chiến dịch bạn chọn một màu (10 màu có sẵn hoặc màu bất kỳ). Màu đó là màu nhấn của nút, tab, liên kết, và **nền trang ngả theo sắc ấy**. Đổi bất cứ lúc nào bằng nút **Màu giao diện** ở đầu trang chiến dịch (kèm thanh độ đậm của nền). Mỗi chiến dịch một màu nên nhìn là biết đang ở chiến dịch nào.
@@ -55,9 +55,9 @@ Mục tiêu, thời gian, KPI, đối tượng, ý tưởng lớn, thông điệ
 - Có phần **kiểm tra dữ kiện** (ngày ngoài kỳ chiến dịch, giá trị lệch, AI soát mâu thuẫn).
 
 ### ② Moodboard: phần HÌNH
-Ảnh bài mẫu (tối đa 4 ảnh "Bài mẫu cho AI" được gửi cho AI để học phong cách; "Chỉ để xem" thì giữ lại, không gửi), bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
+Ảnh bài mẫu (tối đa 4 ảnh "Bài mẫu cho AI" được gửi cho AI; "Chỉ để xem" thì giữ lại, không gửi). **Mức bám bài mẫu**: *Giống tổng thể* (mặc định: AI bám màu, ánh sáng, chiều sâu, kiểu cảnh và độ chi tiết để ảnh mới nằm cùng series) hoặc *Chỉ học màu, ánh sáng*. Dù chọn mức nào, chữ, logo, thẻ trong bài mẫu cũng không được chép vào nền, bảng màu, màu nhấn, font, điều cần tránh, thành phần đồ họa (họa tiết). Nút **Nhập moodboard từ PDF** nằm ở đây và chỉ đổi Moodboard. **Mô tả không khí** do AI đổi từ **Ý tưởng lớn** ở ①: bấm **AI đọc moodboard** (hoặc **AI gợi ý từ Ý tưởng lớn** khi chưa có ảnh), xem đề xuất rồi mới áp dụng.
 
-**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
+**Họa tiết thương hiệu** (Moodboard → thẻ Họa tiết): gán vai trò cho từng thành phần đã cắt (*Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*; nút *Gợi ý vai trò* đoán theo hình dạng, nút *AI phân loại* cho AI nhìn tất cả họa tiết và gán vai trò, bạn sửa lại được từng cái). Khi có vai trò, app tự đặt đúng họa tiết lên slide trong vùng trống và dặn AI không tự vẽ sao/đường bay nữa, nên hình luôn đúng mẫu thương hiệu. Chọn *AI tự vẽ theo mô tả* nếu muốn cách cũ. Họa tiết do app đặt có thể kéo/xóa trong Chỉnh; cái bạn đã sửa sẽ được giữ khi đặt lại.
 
 
 ### ③ Kế hoạch (bảng tính, 4 sheet ở thanh dưới)
@@ -71,7 +71,7 @@ Mục tiêu, thời gian, KPI, đối tượng, ý tưởng lớn, thông điệ
 Thao tác như bảng tính: **↑ ↓ hoặc Enter** chuyển dòng, cột ID và Tên bài ghim khi cuộn ngang, ô nhiều dòng giãn ra khi bấm vào (**Alt+Enter** xuống dòng). Thanh công cụ có **+ Thêm dòng**, **AI gợi ý khung bài** (cân phễu và trụ cột), **Sắp theo ngày**; phía dưới có **Tạo slide nháp**. **Nhập từ Excel** (nút góc phải) dùng một lần để bắt đầu từ kế hoạch có sẵn.
 
 ### ④ Sản xuất
-Mọi bài xếp theo trạng thái **Brief → Copy → Visual → Sẵn sàng**. Mỗi thẻ có nút **Tạo ảnh** riêng; muốn làm cả nhóm thì tick thẻ rồi dùng **Soạn chữ** / **Tạo ảnh** ở trên (không tick thì hai nút không chạy, để tránh tốn tiền AI ngoài ý muốn). Khung đỏ "việc quá hạn theo lịch lùi" hiện ở đây.
+Mọi bài xếp theo trạng thái **Brief → Copy → Visual → Sẵn sàng**. Bài tự chuyển sang **Copy** khi soạn chữ xong và sang **Visual** khi mọi slide đã có ảnh nền; **Sẵn sàng** do bạn bấm sau khi soát. Mỗi thẻ có nút **Tạo ảnh** riêng; muốn làm cả nhóm thì tick thẻ rồi dùng **Soạn chữ** / **Tạo ảnh** ở trên (không tick thì hai nút không chạy, để tránh tốn tiền AI ngoài ý muốn). Khung đỏ "việc quá hạn theo lịch lùi" hiện ở đây.
 
 ### ⑤ Lịch & xuất
 - **Lịch tháng:** kéo thẻ bài sang ngày khác để dời lịch; kéo vào khung "Chưa xếp lịch" để bỏ ngày. Màu thẻ theo phễu.
@@ -113,9 +113,9 @@ Mọi bài xếp theo trạng thái **Brief → Copy → Visual → Sẵn sàng*
 
 ## 6. An toàn dữ liệu
 
-- App **tự sao lưu đầy đủ mỗi ngày** (cả ảnh), giữ 14 bản; giữ **lịch sử thay đổi** (khoảng 5 phút một mốc, 40 bản); tự giữ bản trước khi dữ liệu giảm đột ngột; ảnh bị xóa nằm trong thùng rác 30 ngày.
+- App **tự sao lưu đầy đủ mỗi ngày** (cả ảnh), giữ 14 bản. Trong hộp **Sao lưu** có ô **Thư mục sao lưu thứ hai**: điền một thư mục ở ổ khác hoặc thư mục Drive thì mỗi ngày app tự chép dữ liệu và toàn bộ ảnh sang đó (giữ 14 ngày), có nút *Chép ngay*; giữ **lịch sử thay đổi** (khoảng 5 phút một mốc, 40 bản); tự giữ bản trước khi dữ liệu giảm đột ngột; ảnh bị xóa nằm trong thùng rác 30 ngày.
 - Mở app ở **hai cửa sổ** thì cửa sổ cũ bị chặn lưu (hiện thanh đỏ) để không ghi đè dữ liệu mới; tải lại để lấy bản mới nhất.
-- **Điều bạn nên làm:** bản sao lưu nằm cùng ổ với dữ liệu nên chưa chống được hỏng ổ cứng. Mỗi tuần chép thư mục `data\backups` (hoặc cả `data`) sang ổ ngoài/Drive. Đừng gửi cả thư mục `data/` cho người khác vì có chứa API key.
+- **Điều bạn nên làm:** bản sao lưu mặc định nằm cùng ổ với dữ liệu nên chưa chống được hỏng ổ cứng. Hãy điền **Thư mục sao lưu thứ hai** như trên (hoặc mỗi tuần chép thư mục `data` sang ổ ngoài). Đừng gửi cả thư mục `data/` cho người khác vì có chứa API key.
 
 ---
 

@@ -114,8 +114,9 @@ export function PieceView({ update, workspace, campaign, piece, keys, onManageKe
   /** Free: places the brand graphics (main symbol, route line, ornaments) on the slides, inside the free band. */
   async function placeGraphics() {
     const band = await motifBand(workspace, campaign, piece)
-    edit((c, item) => { applyMotifs(c, item.id, band) })
-    setPlateNote(compositeMode(campaign) ? `Đã đặt họa tiết lên ${slides.length} slide. Kéo, đổi cỡ hoặc xóa từng họa tiết ở nút "Chỉnh" của slide.` : 'Chưa có họa tiết nào được gán vai trò. Vào tab Moodboard → Họa tiết để gán.')
+    let placed = 0
+    edit((c, item) => { placed = applyMotifs(c, item.id, band) })
+    setPlateNote(!compositeMode(campaign) ? 'Chưa có họa tiết nào được gán vai trò. Vào tab Moodboard → Họa tiết để gán.' : placed === 0 ? 'Chữ chiếm gần hết khung của các slide này nên không còn chỗ cho họa tiết. Rút ngắn chữ hoặc giảm cỡ chữ rồi thử lại.' : `Đã đặt họa tiết lên ${placed}/${slides.length} slide${placed < slides.length ? ' (các slide còn lại chữ chiếm gần hết khung)' : ''}. Kéo, đổi cỡ hoặc xóa từng họa tiết ở nút "Chỉnh" của slide.`)
   }
 
   async function makeBackground(onlyPostId?: string) {

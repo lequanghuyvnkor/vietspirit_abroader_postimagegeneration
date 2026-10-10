@@ -43,6 +43,8 @@ function seeded(seed: string): () => number {
 }
 
 export type FreeBand = { freeFrom: number; freeTo: number }
+/** One band for every slide, or the band of each slide (slides differ: a text-heavy slide has no room while a cover has plenty). */
+export type Bands = FreeBand | Map<string, FreeBand>
 
 const layer = (component: Component, x: number, y: number, w: number, opacity: number, rotation: number): Layer => ({ id: newId(), componentId: component.id, x, y, w, opacity, rotation, auto: true })
 
@@ -51,16 +53,18 @@ const layer = (component: Component, x: number, y: number, w: number, opacity: n
  * The main symbol travels across a carousel, the long line continues from slide to slide, and small ornaments are scattered
  * with a fixed seed so the same slide always gets the same picture.
  */
-export function planMotifs(campaign: Campaign, slides: Post[], band: FreeBand, density = 0.5): Map<string, Layer[]> {
+export function planMotifs(campaign: Campaign, slides: Post[], bands: Bands, density = 0.5): Map<string, Layer[]> {
   const pool = motifPool(campaign)
   const out = new Map<string, Layer[]>()
   const count = slides.length
   slides.forEach((post, index) => {
     const { width, height } = formatOf(post.format)
-    const top = band.freeFrom * height
-    const room = (band.freeTo - band.freeFrom) * height
+    const band = bands instanceof Map ? bands.get(post.id) : bands
     const layers: Layer[] = []
     out.set(post.id, layers)
+    if (!band) return
+    const top = band.freeFrom * height
+    const room = (band.freeTo - band.freeFrom) * height
     if (room < height * 0.07 || post.hero?.layout === 'full') return
     const random = seeded(post.id)
     const progress = count > 1 ? index / (count - 1) : 0.5
@@ -101,15 +105,17 @@ export function planMotifs(campaign: Campaign, slides: Post[], band: FreeBand, d
 const baseSlides = (campaign: Campaign, pieceId: string) => campaign.posts.filter((post) => post.pieceId === pieceId && !post.variantOf && !post.excluded)
 
 /** Replaces the automatic graphics of a piece's slides (or of one slide) by a fresh plan. Graphics the user placed or moved are kept. */
-export function applyMotifs(campaign: Campaign, pieceId: string, band: FreeBand, onlyPostId?: string): number {
+/** Returns how many slides ended up with at least one automatic graphic (a slide whose text fills the frame gets none). */
+export function applyMotifs(campaign: Campaign, pieceId: string, band: Bands, onlyPostId?: string): number {
   if (!compositeMode(campaign)) return 0
   const slides = baseSlides(campaign, pieceId)
   const plan = planMotifs(campaign, slides, band, campaign.keyVisual.motifDensity ?? 0.5)
   let changed = 0
   for (const post of slides) {
     if (onlyPostId && post.id !== onlyPostId) continue
-    post.layers = [...post.layers.filter((item) => !item.auto), ...(plan.get(post.id) ?? [])]
-    changed += 1
+    const fresh = plan.get(post.id) ?? []
+    post.layers = [...post.layers.filter((item) => !item.auto), ...fresh]
+    if (fresh.length > 0) changed += 1
   }
   return changed
 }

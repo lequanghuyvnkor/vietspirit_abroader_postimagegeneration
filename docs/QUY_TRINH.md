@@ -68,9 +68,9 @@ Họa tiết ─────┘        → Chọn bố cục → Đặt họa ti
 3. Khuyên: chốt chữ trước, vì app đo chỗ đặt chữ trên chữ thật.
 
 ### Chuẩn bị Moodboard (làm một lần)
-- **Bài mẫu cho AI**: các ảnh tham chiếu phong cách, tối đa 4 ảnh được gửi cho AI. AI chỉ học màu, ánh sáng, chất liệu; không chép chữ, thẻ, khung vào nền. Ảnh *Chỉ để xem* được giữ lại nhưng không gửi.
+- **Bài mẫu cho AI**: các ảnh tham chiếu, tối đa 4 ảnh được gửi cho AI. **Mức bám bài mẫu** quyết định AI bám tới đâu: *Giống tổng thể* (mặc định, bám màu, ánh sáng, chiều sâu, kiểu cảnh, độ chi tiết) hoặc *Chỉ học màu, ánh sáng*. Cả hai mức đều không chép chữ, logo, thẻ, khung vào nền. Ảnh *Chỉ để xem* được giữ lại nhưng không gửi.
 - Bảng màu, màu nhấn, font, điều cần tránh, chữ sáng hay tối.
-- **Họa tiết thương hiệu** (thẻ riêng): gán vai trò cho từng hình đã cắt: *Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*. Có vai trò thì app tự đặt các hình đó lên ảnh và dặn AI không vẽ lại sao hay đường bay.
+- **Họa tiết thương hiệu** (thẻ riêng): gán vai trò cho từng hình đã cắt: *Họa tiết lớn*, *Đường bay*, *Họa tiết điểm*, *Không dùng*. Có hai cách gán nhanh: *Gợi ý vai trò* (đoán theo hình dạng, miễn phí) và *AI phân loại* (AI nhìn tất cả họa tiết, tốn một lượt AI). Có vai trò thì app tự đặt các hình đó lên ảnh và dặn AI không vẽ lại sao hay đường bay.
 
 ### Chuỗi xử lý khi bấm Tạo ảnh
 | # | Ai làm | Việc | Tốn AI |
@@ -82,7 +82,7 @@ Họa tiết ─────┘        → Chọn bố cục → Đặt họa ti
 | 5 | AI | Nếu kiểm không đạt: **vẽ lại một lần** với nhận xét cụ thể ("quá sáng ở vùng chữ…"); app giữ bản tốt hơn, xóa bản kia | **có** (chỉ khi lỗi) |
 | 6 | App | Gắn nền vào các slide cùng khổ. Slide dùng ảnh chủ đạo toàn khung thì bỏ qua | không |
 | 7 | App | **Chọn bố cục** (vị trí, cỡ chữ) trên nền mới, chọn chỗ êm nhất | không |
-| 8 | App | **Đặt họa tiết** vào vùng trống sau khi bố cục đã chốt (nếu đã gán vai trò): họa tiết lớn đi dọc carousel, đường bay nối tiếp giữa các slide, họa tiết điểm rải theo hạt giống cố định nên cùng slide luôn ra cùng hình | không |
+| 8 | App | **Đặt họa tiết** vào vùng trống **của từng slide** sau khi bố cục đã chốt (nếu đã gán vai trò; slide có chữ chiếm gần hết khung thì không có họa tiết, app báo số slide đã đặt được): họa tiết lớn đi dọc carousel, đường bay nối tiếp giữa các slide, họa tiết điểm rải theo hạt giống cố định nên cùng slide luôn ra cùng hình | không |
 | 9 | App | **Ghép lớp**: nền → lớp tối nhẹ → họa tiết → chữ, logo, CTA | không |
 
 Nếu sau lần thử lại ảnh vẫn chưa đạt, app hiện cảnh báo và đã tự chọn lại vị trí chữ. Chưa vừa ý thì bấm *Nền riêng* ở đúng slide đó.
@@ -112,8 +112,8 @@ Brief → Copy → Visual → Sẵn sàng      rồi, ghi riêng:  Đã đăng �
 | Trạng thái | Nghĩa | Chuyển khi |
 |---|---|---|
 | **Brief** | Mới có kế hoạch | Soạn chữ bằng AI xong thì tự chuyển sang Copy |
-| **Copy** | Đã có chữ | Bạn đổi sang Visual (cột trạng thái ở Sheet 01) khi ảnh đã dựng xong. App không tự đổi khi tạo ảnh |
-| **Visual** | Đã có ảnh, chờ soát | Bạn soát xong và bấm *Đánh dấu sẵn sàng* |
+| **Copy** | Đã có chữ | Tự chuyển sang Visual khi mọi slide của bài đã có ảnh nền (slide dùng ảnh chủ đạo toàn khung được tính là đã có) |
+| **Visual** | Đã có ảnh, chờ soát | Bạn soát xong và bấm *Đánh dấu sẵn sàng*. Bài đã Sẵn sàng không bị kéo lùi khi tạo lại ảnh |
 | **Sẵn sàng** | Đủ điều kiện đăng | Bỏ đánh dấu thì bài quay về Copy |
 
 *Đã đăng* và *Có số liệu* không phải trạng thái: đó là bản ghi riêng ở ⑦ (giờ đăng thật, link, số liệu). Khi khôi phục một phiên bản đã lưu, bài cũng quay về Copy để soát lại.
@@ -150,6 +150,7 @@ Brief → Copy → Visual → Sẵn sàng      rồi, ghi riêng:  Đã đăng �
 - Dữ liệu trong thư mục `data/` của máy, chỉ một người dùng. Mở app ở hai cửa sổ thì cửa sổ cũ bị chặn lưu để không ghi đè.
 - Sao lưu đầy đủ mỗi ngày (kể cả ảnh, giữ 14 bản), lịch sử thay đổi mỗi vài phút, thùng rác 30 ngày cho ảnh bị xóa. Nút *Sao lưu* → *Hoàn tác thay đổi gần nhất*.
 - **Việc của bạn:** mỗi tuần chép `data\backups` sang ổ ngoài hoặc Drive. Đừng gửi cả thư mục `data/` cho người khác vì có API key.
+- **Thư mục sao lưu thứ hai** (hộp Sao lưu): mỗi ngày app tự chép dữ liệu và toàn bộ ảnh sang một thư mục ở nơi khác (ổ ngoài, Drive), giữ 14 ngày. Đây là lớp bảo vệ khi hỏng ổ cứng.
 - Mỗi doanh nghiệp là một Workspace riêng; không dữ liệu nào trộn giữa các Workspace.
 
 ---

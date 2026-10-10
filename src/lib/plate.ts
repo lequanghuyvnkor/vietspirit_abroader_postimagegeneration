@@ -154,14 +154,18 @@ export async function layoutWithPlate(workspace: Workspace, campaign: Campaign, 
 }
 
 /**
- * The free band (room the text leaves) of a piece's slides, measured on a copy that already has the new plate and layouts,
- * so the brand graphics are placed where the text will really be.
+ * The free band (room the text leaves) of each slide of a piece, measured on a copy that already has the new plate and layouts,
+ * so the brand graphics are placed where the text will really be. Each slide has its own band.
  */
-export async function motifBand(workspace: Workspace, campaign: Campaign, piece: Piece, change?: { result: Pick<PlateResult, 'assetId' | 'format' | 'label'>; patches: Map<string, LayoutPatch>; onlyPostId?: string }): Promise<FreeBand> {
+export async function motifBand(workspace: Workspace, campaign: Campaign, piece: Piece, change?: { result: Pick<PlateResult, 'assetId' | 'format' | 'label'>; patches: Map<string, LayoutPatch>; onlyPostId?: string }): Promise<Map<string, FreeBand>> {
   const preview = structuredClone(campaign)
   if (change) { attachPlate(preview, piece.id, change.result, change.onlyPostId); applyLayouts(preview, change.patches) }
-  const zones = await measureZones(workspace, preview, slidesOf(preview, piece).filter((post) => post.hero?.layout !== 'full'))
-  return { freeFrom: zones.freeFrom, freeTo: zones.freeTo }
+  const bands = new Map<string, FreeBand>()
+  for (const post of slidesOf(preview, piece).filter((item) => item.hero?.layout !== 'full')) {
+    const zones = await measureZones(workspace, preview, [post])
+    bands.set(post.id, { freeFrom: zones.freeFrom, freeTo: zones.freeTo })
+  }
+  return bands
 }
 
 export { applyLayouts, applyMotifs, compositeMode }

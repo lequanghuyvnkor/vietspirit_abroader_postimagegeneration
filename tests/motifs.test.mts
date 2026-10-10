@@ -68,3 +68,15 @@ test('AI roles are read by piece number, unknown ones fall back to the shape gue
   assert.equal([...roles.values()].filter((role) => role === 'hero').length, 2)
   assert.throws(() => parseRoles('not json', pieces))
 })
+
+test('each slide can have its own band: a slide whose text fills the frame gets nothing, the others still get graphics', () => {
+  const campaign = setup()
+  const piece = campaign.pieces[0]
+  const slides = campaign.posts.filter((post) => post.pieceId === piece.id)
+  assert.ok(slides.length >= 2)
+  const bands = new Map(slides.map((post, index) => [post.id, index === 0 ? { freeFrom: 0.9, freeTo: 0.92 } : band]))
+  const plan = planMotifs(campaign, slides, bands)
+  assert.equal(plan.get(slides[0].id)!.length, 0)
+  assert.ok(plan.get(slides[1].id)!.length > 0)
+  assert.equal(applyMotifs(campaign, piece.id, bands), slides.length - 1)
+})
